@@ -1,24 +1,44 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Accueil des Olympiades</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-<header>
-    <!-- Barre de navigation, logo, etc. -->
-</header>
-<main>
-    <div class="container">
-        <h1>Bienvenue aux Olympiades NSI!</h1>
-        <!-- Autres contenus -->
+{% extends 'olympiadesnsi/base.html' %}
+
+{% block title %} Olympiades NSI - Accueuil {% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <h1 class="text-center">Olympiades Nationales de NSI</h1>
+
+        <div class="row mt-5">
+            <div class="col-md-6">
+                <h2>Les Objectifs</h2>
+                <p>Les Olympiades NSI visent à stimuler l'intérêt pour l'informatique et les sciences numériques. Elles
+                    permettent aux lycéens de découvrir de nouveaux horizons dans ces domaines et de renforcer leurs
+                    compétences en résolution de problèmes complexes.</p>
+            </div>
+            <div class="col-md-6">
+                <h2>Participation</h2>
+                <p>Ouvertes à tous les lycéens de première, ces olympiades offrent l'opportunité de concourir dans un
+                    environnement stimulant et éducatif. Inscrivez-vous et rejoignez la compétition pour explorer le
+                    monde fascinant de l'informatique!</p>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <h2>Épreuves et Format</h2>
+                <p>Les épreuves des Olympiades NSI comprennent des défis de programmation, des puzzles algorithmiques et
+                    des projets collaboratifs. Chaque épreuve est conçue pour tester à la fois la créativité et les
+                    compétences techniques des participants.</p>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <h2>Ressources et Préparation</h2>
+                <p>Nous offrons une variété de ressources pour aider les participants à se préparer aux Olympiades. Cela
+                    inclut des tutoriels, des guides d'étude et des exercices pratiques pour affiner vos compétences
+                    avant le grand jour.</p>
+            </div>
+        </div>
+
+        <!-- Autres sections selon besoin -->
     </div>
-</main>
-<footer>
-    <!-- Pied de page -->
-</footer>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
-</body>
-</html>
+{% endblock %}
