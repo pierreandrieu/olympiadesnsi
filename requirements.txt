@@ -1,0 +1,6 @@
+django
+django-allauth
+python-decouple
+python-dotenv
+django-debug-toolbar
+psycopg2
