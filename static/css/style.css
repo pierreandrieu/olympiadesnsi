@@ -7,3 +7,15 @@ body {
 footer {
     margin-top: auto; /* Pousse le footer en bas */
 }
+
+.add-button {
+    margin-left: 10px;
+}
+
+.tooltip-inner {
+    background-color: #fff;
+    color: #000;
+    border: 1px solid #ccc;
+    padding: 5px;
+    border-radius: 5px;
+}
