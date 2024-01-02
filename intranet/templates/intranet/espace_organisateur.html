@@ -35,8 +35,8 @@
                         {% for groupe_cree in groupes_crees %}
                             <li class="list-group-item">
                                 {{ groupe_cree.groupe.name }}
-                                <a href="{% url 'voir_participants' groupe_cree.groupe.id %}" class="float-right">voir
-                                    participants</a>
+                              <!--  <a href="{#% url 'voir_participants' groupe_cree.groupe.id %#}" class="float-right">voir 
+                                    participants</a>-->
                             </li>
                         {% endfor %}
                     </ul>
@@ -46,16 +46,28 @@
             <!-- Colonne pour les épreuves (à compléter selon vos besoins) -->
             <div class="col-md-6">
                 <div class="card">
-                    <div class="card-header">Mes Épreuves</div>
-                    <ul class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
-                        <!-- Itération sur les épreuves existantes -->
+                    <div class="card-header">
+                        Mes Épreuves
+                        <button class="btn btn-primary btn-sm float-right" data-toggle="modal"
+                                data-target="#addEpreuveModal">+
+                        </button>
+                    </div>
+
+                    <ul class="list-participants list-group-flush"
+                        style="max-height: 300px; overflow-y: auto; list-style-type: circle;">
+                        {% for epreuve in epreuves_crees %}
+                            <li class="list-group-item">
+                                {{ epreuve.nom }}
+                                <!--  <a href="{#% url 'voir_participants' groupe_cree.groupe.id %#}" class="float-right">voir 
+                                    participants</a>-->
+                            </li>
+                        {% endfor %}
                     </ul>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal pour Ajouter un Groupe -->
     <!-- Modal pour Ajouter un Groupe -->
     <div class="modal fade" id="addGroupModal" tabindex="-1" role="dialog" aria-labelledby="addGroupModalLabel"
          aria-hidden="true">
@@ -87,9 +99,51 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal pour Ajouter une épreuve -->
+    <div class="modal fade" id="addEpreuveModal" tabindex="-1" role="dialog" aria-labelledby="addEpreuveModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addEpreuveModalLabel">Ajouter une Épreuve</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form method="post" action="{% url 'creer_epreuve' %}">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <button type="submit" class="btn btn-primary">Créer Épreuve</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+
+{% endblock %}
+
+{% block scripts %}
     <script>
         $(document).ready(function () {
             $('[data-toggle="tooltip"]').tooltip();
         });
     </script>
+
+    <script>
+        $(document).ready(function () {
+            // Vérifier si l'indicateur 'openModal' est présent dans l'URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const openModal = urlParams.get('openModal');
+
+            if (openModal === 'true') {
+                // Ouvrir le modal d'ajout de groupe
+                $('#addGroupModal').modal('show');
+            }
+
+            $('[data-toggle="tooltip"]').tooltip();
+        });
+    </script>
+
 {% endblock %}
