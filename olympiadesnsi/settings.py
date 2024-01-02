@@ -60,7 +60,11 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "olympiadesnsi",
     "accueil",
+    "login",
+    "epreuve",
+    "intranet",
 ]
 
 MIDDLEWARE = [
@@ -78,7 +82,9 @@ ROOT_URLCONF = "olympiadesnsi.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [os.path.join(BASE_DIR, 'olympiadesnsi/templates')],
+        "DIRS": [os.path.join(BASE_DIR, 'olympiadesnsi/templates'),
+                 os.path.join(BASE_DIR, 'login/templates'),
+                 os.path.join(BASE_DIR, 'accueil/templates')],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
