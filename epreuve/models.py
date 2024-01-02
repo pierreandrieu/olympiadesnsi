@@ -1,12 +1,13 @@
 from django.db import models
 from django.contrib.auth.models import User, Group
+from django.db.models import CheckConstraint, Q, F
 
 
 class Epreuve(models.Model):
     nom = models.CharField(max_length=100)
     description = models.TextField()
-    date_debut = models.DateField()
-    date_fin = models.DateField()
+    date_debut = models.DateField(null=True, blank=True)
+    date_fin = models.DateField(null=True, blank=True)
     duree = models.IntegerField()  # Durée en minutes
     referent = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='epreuve_referent')
     exercices_un_par_un = models.BooleanField(default=False)
@@ -20,8 +21,22 @@ class Epreuve(models.Model):
     def __str__(self):
         return self.nom
 
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
     class Meta:
         db_table = 'Epreuve'
+        constraints = [
+            CheckConstraint(
+                check=Q(
+                    Q(date_debut__isnull=True) |
+                    Q(date_fin__isnull=True) |
+                    Q(date_fin__gte=F('date_debut'))
+                ),
+                name='date_fin_apres_ou_egale_a_date_debut_si_non_null'
+            )
+        ]
 
 
 class GroupeParticipeAEpreuve(models.Model):
@@ -40,7 +55,7 @@ class MembreComite(models.Model):
         db_table = 'MembreComite'
 
 
-class CreePar(models.Model):
+class UserCreePar(models.Model):
     utilisateur = models.ForeignKey(User, related_name='associations', on_delete=models.CASCADE)
     createur = models.ForeignKey(User, related_name='utilisateurs_crees', on_delete=models.CASCADE)
     date_creation = models.DateField()
@@ -50,3 +65,15 @@ class CreePar(models.Model):
 
     class Meta:
         db_table = 'UserCreePar'
+
+
+class GroupeCreePar(models.Model):
+    groupe = models.ForeignKey(Group, related_name='associations_groupe_createur', on_delete=models.CASCADE)
+    createur = models.ForeignKey(User, related_name='groupes_crees', on_delete=models.CASCADE)
+    date_creation = models.DateField()
+
+    def __str__(self):
+        return f"{self.createur.username} -> {self.groupe.name}"
+
+    class Meta:
+        db_table = 'GroupeCreePar'
