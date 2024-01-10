@@ -1,0 +1,20 @@
+{% extends 'olympiadesnsi/base.html' %}
+
+{% block content %}
+<body onload="setTimeout(downloadCSV, 1000)">
+<p>Votre fichier CSV contenant les noms et mot de passe des participants est prêt. Le téléchargement va commencer...</p>
+<p>Avertissement : Il peut falloir quelques secondes à quelques minutes pour que les utilisateurs soient définitivement rentrés en base de données ! </p>
+
+<a href="{% url 'telecharger_csv' %}" id="downloadLink" style="display:none;">Télécharger CSV</a>
+
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript">
+    function downloadCSV() {
+        var link = document.getElementById('downloadLink');
+        link.click();
+        window.location.href = '{% url "espace_organisateur" %}';
+    }
+</script>
+{% endblock %}
