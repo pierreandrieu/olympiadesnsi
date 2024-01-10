@@ -1,0 +1,58 @@
+{% extends 'olympiadesnsi/base.html' %}
+
+{% block content %}
+    <div class="container">
+        <h1> Modifier épreuve </h1>
+    </div>
+
+    <!-- Formulaire pour modifier l'épreuve -->
+    <form method="post" action="{% url 'gerer_epreuve' epreuve_id=epreuve_id %}">        {% csrf_token %}
+        <div class="form-group">
+            <label for="id_nom">Nom</label>
+            <input type="text" class="form-control" id="id_nom" name="nom" maxlength="100">
+        </div>
+
+        <div class="form-group">
+            <label for="id_description">Description</label>
+            <textarea class="form-control" id="id_description" name="description" rows="3"></textarea>
+        </div>
+
+        <div class="date-input-container form-group">
+            <label for="id_date_debut">Date de début</label>
+            <input type="date" class="form-control" id="id_date_debut" name="date_debut">
+        </div>
+
+        <div class="form-group">
+            <label for="id_date_fin">Date de fin</label>
+            <input type="date" class="form-control" id="id_date_fin" name="date_fin">
+        </div>
+
+        <div class="form-group">
+            <label for="id_duree">Durée (en minutes)</label>
+            <input type="number" class="form-control" id="id_duree" name="duree" min="0">
+        </div>
+
+        <div class="form-check form-group">
+            <label class="form-check-label" for="id_exercices_un_par_un">Exercices un par un</label>
+            <input type="checkbox" class="form-check-input" id="id_exercices_un_par_un" name="exercices_un_par_un">
+        </div>
+
+        <div class="form-check form-group">
+            <label class="form-check-label" for="id_temps_limite">Temps limite</label>
+            <input type="checkbox" class="form-check-input" id="id_temps_limite" name="temps_limite">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Soumettre</button>
+    </form>
+
+
+    <!-- Logique pour afficher et gérer les membres du comité -->
+    {% for membre in epreuve.comite.all %}
+        {{ membre.username }}
+        <!-- Bouton ou lien pour supprimer le membre du comité -->
+    {% endfor %}
+    <!-- Bouton ou lien pour ajouter un nouveau membre au comité -->
+
+    <!-- Logique similaire pour les exercices, une fois la table Exercice définie -->
+
+{% endblock %}
