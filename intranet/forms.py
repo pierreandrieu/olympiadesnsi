@@ -6,8 +6,7 @@ class EpreuveForm(forms.ModelForm):
     class Meta:
         model = Epreuve
         fields = ['nom', 'description', 'date_debut', 'date_fin', 'duree',
-                  'exercices_un_par_un', 'soumissions_max_par_exercices',
-                  'temps_limite', 'presence_flag', 'code_a_soumettre']
+                  'exercices_un_par_un', 'temps_limite']
         widgets = {
             'nom': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 100}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
@@ -15,10 +14,7 @@ class EpreuveForm(forms.ModelForm):
             'date_fin': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'duree': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'exercices_un_par_un': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'soumissions_max_par_exercices': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'temps_limite': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'presence_flag': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'code_a_soumettre': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         optional_fields = ['description', 'date_debut', 'date_fin']
 
