@@ -1,6 +1,9 @@
 django
 django-allauth
+django-simple-captcha
 python-decouple
 python-dotenv
 django-debug-toolbar
 psycopg2
+celery
+redis
