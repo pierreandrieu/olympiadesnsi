@@ -17,12 +17,15 @@
                                 {% endfor %}
                             {% endif %}
                             <div class="form-group">
-                                <label for="username">Identifiant</label>
-                                <input type="text" name="username" id="username" required>
+                                {{ form.username.label_tag }}
+                                {{ form.username }}
                             </div>
                             <div class="form-group">
-                                <label for="password">Mot de passe</label>
-                                <input type="password" name="password" id="password" required>
+                                {{ form.password.label_tag }}
+                                {{ form.password }}
+                            </div>
+                            <div class="form-group">
+                                {{ form.captcha }}
                             </div>
                             <button type="submit" class="btn btn-primary">Se connecter</button>
                         </form>
