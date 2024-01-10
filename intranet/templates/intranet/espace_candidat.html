@@ -1,8 +1,50 @@
 {% extends 'olympiadesnsi/base.html' %}
 
 {% block content %}
-    <div class="container">
-        <h1>Tableau de bord du candidat</h1>
-        <!-- Contenu spécifique au candidat -->
+    <div class="container mt-4">
+        <h1>Espace candidat - {{ request.user.username }}</h1>
+
+        <!-- Épreuves en cours -->
+        <div class="row my-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">Épreuves en cours</div>
+                    <ul class="list-group list-group-flush">
+                        {% for epreuve in epreuves_en_cours %}
+                            <li class="list-group-item">
+                                <a href="{% url 'detail_epreuve' epreuve.id %}">{{ epreuve.nom }}</a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Épreuves à venir et terminées -->
+        <div class="row">
+            <!-- Épreuves à venir -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">Épreuves à venir</div>
+                    <ul class="list-group list-group-flush">
+                        {% for epreuve in epreuves_a_venir %}
+                            <li class="list-group-item">{{ epreuve.nom }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Épreuves terminées -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">Épreuves terminées</div>
+                    <ul class="list-group list-group-flush">
+                        {% for epreuve in epreuves_terminees %}
+                            <li class="list-group-item">{{ epreuve.nom }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
 {% endblock %}
