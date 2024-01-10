@@ -1,37 +1,43 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
 from django.http import HttpResponseForbidden
 from django.urls import reverse
 from django.contrib import messages
-from django.utils import timezone  # Pour la date actuelle
-from epreuve.models import GroupeCreePar, UserCreePar, Epreuve
+from django.shortcuts import render
+from epreuve.models import GroupeCreePar, Epreuve, GroupeParticipeAEpreuve
+from django.http import HttpResponse
+from intranet.tasks import save_users_task  # La tâche Celery pour sauvegarder les utilisateurs
 from .forms import EpreuveForm
-import random
-import string
+from django.utils.crypto import get_random_string
+from datetime import date
+
 
 
 @login_required
 def espace_candidat(request):
-    # Ici, vous pouvez ajouter des logiques supplémentaires si nécessaire
-    return render(request, 'intranet/espace_candidat.html')
+    today = date.today()
+    user_groups = request.user.groups.all()  # Obtient les groupes de l'utilisateur
+    group_ids = user_groups.values_list('id', flat=True)  # Liste des IDs de groupes
 
+    # Obtient les épreuves pour les groupes de l'utilisateur
+    epreuves_ids = GroupeParticipeAEpreuve.objects.filter(groupe_id__in=group_ids).values_list('epreuve_id', flat=True)
+    epreuves_user = Epreuve.objects.filter(id__in=epreuves_ids)
 
-@login_required
-def gestion_groupes(request):
-    # Ici, récupérez et passez les informations des groupes à votre template
-    return render(request, 'intranet/gestion_groupes.html')
+    # Classifiez les épreuves
+    epreuves_en_cours = epreuves_user.filter(date_debut__lte=today, date_fin__gte=today)
+    epreuves_a_venir = epreuves_user.filter(date_debut__gt=today)
+    epreuves_terminees = epreuves_user.filter(date_fin__lt=today)
 
-
-@login_required
-def gestion_epreuves(request):
-    # Récupérez et passez les informations des épreuves à votre template
-    return render(request, 'intranet/gestion_epreuves.html')
+    return render(request, 'intranet/espace_candidat.html', {
+        'epreuves_en_cours': epreuves_en_cours,
+        'epreuves_a_venir': epreuves_a_venir,
+        'epreuves_terminees': epreuves_terminees,
+    })
 
 
 @login_required
 def gestion_compte(request):
-    # Gérez la logique de gestion du compte utilisateur
     return render(request, 'intranet/gestion_compte.html')
 
 
@@ -42,41 +48,59 @@ def creer_groupe(request):
 
     if request.method == 'POST':
         nom_groupe = request.POST.get('nom_groupe')
-        nombre_utilisateurs = int(request.POST.get('nombre_utilisateurs'))
-
-        # Vérifier si le groupe existe déjà
-        groupe, created = Group.objects.get_or_create(name=nom_groupe)
-
-        if not created:
-            messages.error(request, 'Un groupe du même nom existe déjà.')
-            # Rediriger vers la même page avec un indicateur dans l'URL
+        entree_utilisateur_nb_users = str(request.POST.get('nombre_utilisateurs'))
+        if not entree_utilisateur_nb_users.isdigit():
+            messages.error(request, "Le champ 'nombre d'utilisateurs' doit etre entier")
             return redirect(reverse('espace_organisateur') + '?openModal=true')
 
-        association = GroupeCreePar(
-            groupe=groupe,
-            createur=request.user,
-            date_creation=timezone.now()  # Date et l'heure actuelles
-        )
-        association.save()
+        nombre_utilisateurs = int(request.POST.get('nombre_utilisateurs'))
 
-        # Générer les utilisateurs
-        for i in range(1, nombre_utilisateurs + 1):
-            username = f"part{groupe.id:05d}_{i:03d}"
-            password = generate_password()
-            nouvel_utilisateur = User.objects.create_user(username=username, password=password)
-            groupe.user_set.add(nouvel_utilisateur)
+        if nombre_utilisateurs >= 1000:
+            messages.error(request, '999 utilisateurs max par groupe.')
+            return redirect(reverse('espace_organisateur') + '?openModal=true')
 
-            # Créer une association UserCreePar
-            association_utilisateur = UserCreePar(
-                utilisateur=nouvel_utilisateur,  # Passer l'instance de User
-                createur=request.user,
-                date_creation=timezone.now()  # Date et l'heure actuelles
-            )
-            association_utilisateur.save()
+        groupe_existe = Group.objects.filter(name=nom_groupe).exists()
+        if groupe_existe:
+            messages.error(request, 'Un groupe du même nom existe déjà.')
+            return redirect(reverse('espace_organisateur') + '?openModal=true')
 
-        # Gérer la logique de téléchargement CSV ou stockage des mots de passe
+        id_createur = request.user.id
+        # nombre_groupes = GroupeCreePar.objects.filter(createur_id=request.user.id).count()
+        user_data = ["Username,Password"]
+        users_info = []
+        for i in range(1, nombre_utilisateurs+1):
+            username = get_unique_username(id_createur, i)
+            password = get_random_string(length=12,
+                                         allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789')
+            users_info.append((username, password))
+            user_data.append(f"{username},{password}")
+    # Supposons que l'association GroupeCreePar doit être créée une seule fois par groupe
 
+        # Appeler la tâche Celery pour sauvegarder les utilisateurs
+        save_users_task.delay(nom_groupe, users_info, request.user.id)
+        # Préparation et envoi du fichier CSV
+        request.session['csv_data'] = "\n".join(user_data)
+        request.session['nom_groupe'] = nom_groupe
+        return redirect('afficher_page_telechargement')
     return redirect('espace_organisateur')
+
+
+def telecharger_csv(request):
+    csv_data = request.session.get('csv_data')
+    nom_groupe = request.session.get('nom_groupe', 'groupe_inconnu')
+
+    if csv_data is None:
+        return redirect('espace_organisateur')
+
+    nom_fichier = f"utilisateurs_{nom_groupe}.csv"
+    response = HttpResponse(csv_data, content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{nom_fichier}"'
+    return response
+
+
+# Dans views.py
+def afficher_page_telechargement(request):
+    return render(request, 'intranet/telecharge_csv_users.html')
 
 
 @login_required
@@ -112,6 +136,8 @@ def espace_organisateur(request):
         'groupes_crees': groupes_crees, 'form': epreuve_form, 'epreuves_crees': epreuves_crees})
 
 
-def generate_password():
-    return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(12))
+def get_unique_username(id_user: int, num: int):
+    partie_alea = get_random_string(length=3, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ')
+    faux_id: str = str(2 * id_user + 100)
+    return f"{partie_alea}{faux_id[:len(faux_id)//2]}_{num:03d}{faux_id[len(faux_id)//2:]}"
 
