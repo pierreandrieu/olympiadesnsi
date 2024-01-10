@@ -1,8 +1,8 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from epreuve.models import Epreuve, GroupeCreePar, GroupeParticipeAEpreuve
-from intranet.forms import EpreuveForm
+from epreuve.forms import EpreuveForm
 
 
 @login_required

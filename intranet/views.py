@@ -8,7 +8,7 @@ from django.shortcuts import render
 from epreuve.models import GroupeCreePar, Epreuve, GroupeParticipeAEpreuve
 from django.http import HttpResponse
 from intranet.tasks import save_users_task  # La tâche Celery pour sauvegarder les utilisateurs
-from .forms import EpreuveForm
+from epreuve.forms import EpreuveForm
 from django.utils.crypto import get_random_string
 from datetime import date
 
