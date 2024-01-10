@@ -34,6 +34,9 @@ class Epreuve(models.Model):
                 name='date_fin_apres_ou_egale_a_date_debut_si_non_null'
             )
         ]
+        indexes = [
+            models.Index(fields=['referent']),
+        ]
 
 
 class GroupeParticipeAEpreuve(models.Model):
@@ -42,6 +45,9 @@ class GroupeParticipeAEpreuve(models.Model):
 
     class Meta:
         db_table = 'GroupeParticipeAEpreuve'
+        indexes = [
+            models.Index(fields=['groupe', 'epreuve']),
+        ]
 
 
 class MembreComite(models.Model):
@@ -50,6 +56,9 @@ class MembreComite(models.Model):
 
     class Meta:
         db_table = 'MembreComite'
+        indexes = [
+            models.Index(fields=['epreuve', 'membre']),
+        ]
 
 
 class UserCreePar(models.Model):
@@ -62,6 +71,9 @@ class UserCreePar(models.Model):
 
     class Meta:
         db_table = 'UserCreePar'
+        indexes = [
+            models.Index(fields=['createur']),
+        ]
 
 
 class GroupeCreePar(models.Model):
@@ -75,3 +87,7 @@ class GroupeCreePar(models.Model):
 
     class Meta:
         db_table = 'GroupeCreePar'
+        indexes = [
+            models.Index(fields=['createur']),
+        ]
+
