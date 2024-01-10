@@ -1,0 +1,40 @@
+{% extends 'olympiadesnsi/base.html' %}  <!-- Remplacez par votre template de base -->
+
+{% block content %}
+    <div class="container mt-4">
+        <h1>{{ epreuve.nom }}</h1>
+        <p>{{ epreuve.description }}</p>
+
+        <div class="mb-3">
+            <strong>Date de début :</strong> {{ epreuve.date_debut|date:"d M Y" }}<br>
+            <strong>Date de fin :</strong> {{ epreuve.date_fin|date:"d M Y" }}
+        </div>
+
+        {% if epreuve.temps_limite %}
+            <div class="alert alert-info">
+                Cette épreuve est à durée limitée.
+                <strong>Durée :</strong> {{ epreuve.duree }} minutes.
+                Le chronomètre démarrera lorsque vous aurez cliqué sur "Démarrer l'épreuve".
+            </div>
+        {% else %}
+            <div class="alert alert-success">
+                Il n'y a pas de limite de temps pour cette épreuve.
+            </div>
+        {% endif %}
+
+        {% if epreuve.exercices_un_par_un %}
+            <div class="alert alert-warning">
+                Les exercices doivent être traités un par un.
+            </div>
+        {% else %}
+            <div class="alert alert-secondary">
+                Vous pouvez traiter les exercices dans l'ordre de votre choix.
+            </div>
+        {% endif %}
+
+        <a href="{% url 'afficher_epreuve' epreuve.id %}" class="btn btn-primary">Démarrer l'épreuve</a>
+
+
+        <!-- Informations supplémentaires si nécessaire -->
+    </div>
+{% endblock %}
