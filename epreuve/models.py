@@ -47,6 +47,8 @@ class GroupeParticipeAEpreuve(models.Model):
         db_table = 'GroupeParticipeAEpreuve'
         indexes = [
             models.Index(fields=['groupe', 'epreuve']),
+            models.Index(fields=['epreuve']),
+
         ]
 
 
@@ -58,6 +60,7 @@ class MembreComite(models.Model):
         db_table = 'MembreComite'
         indexes = [
             models.Index(fields=['epreuve', 'membre']),
+            models.Index(fields=['membre', 'epreuve']),
         ]
 
 
