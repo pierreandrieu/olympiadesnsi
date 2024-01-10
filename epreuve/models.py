@@ -11,10 +11,7 @@ class Epreuve(models.Model):
     duree = models.IntegerField()  # Durée en minutes
     referent = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='epreuve_referent')
     exercices_un_par_un = models.BooleanField(default=False)
-    soumissions_max_par_exercices = models.IntegerField()
     temps_limite = models.BooleanField(default=False)
-    presence_flag = models.BooleanField(default=False)
-    code_a_soumettre = models.BooleanField(default=False)
     groupes_participants = models.ManyToManyField(Group, related_name='epreuves', through='GroupeParticipeAEpreuve')
     comite = models.ManyToManyField(User, related_name='epreuves_comite', through='MembreComite')
 
@@ -70,6 +67,7 @@ class UserCreePar(models.Model):
 class GroupeCreePar(models.Model):
     groupe = models.ForeignKey(Group, related_name='associations_groupe_createur', on_delete=models.CASCADE)
     createur = models.ForeignKey(User, related_name='groupes_crees', on_delete=models.CASCADE)
+    nombre_participants = models.IntegerField(default=0)
     date_creation = models.DateField()
 
     def __str__(self):
