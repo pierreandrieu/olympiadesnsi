@@ -7,12 +7,6 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ml-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'gestion_groupes' %}">Groupes</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'gestion_epreuves' %}">Épreuves</a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link" href="{% url 'gestion_compte' %}">Mon Compte</a>
                     </li>
                 </ul>
@@ -32,11 +26,13 @@
                     </div>
                     <ul class="list-group list-group-flush"
                         style="max-height: 300px; overflow-y: auto; list-style-type: circle;">
-                        {% for groupe_cree in groupes_crees %}
+                        {% for groupe in groupes_crees %}
                             <li class="list-group-item">
-                                {{ groupe_cree.groupe.name }}
+                                {{ groupe.groupe.name }}
                               <!--  <a href="{#% url 'voir_participants' groupe_cree.groupe.id %#}" class="float-right">voir 
                                     participants</a>-->
+
+                                <a href="{% url 'gerer_groupe' groupe.id %}" class="float-right"> Inscrire à des épreuves</a>
                             </li>
                         {% endfor %}
                     </ul>
@@ -56,11 +52,11 @@
                     <ul class="list-participants list-group-flush"
                         style="max-height: 300px; overflow-y: auto; list-style-type: circle;">
                         {% for epreuve in epreuves_crees %}
-                            <li class="list-group-item">
-                                {{ epreuve.nom }}
-                                <!--  <a href="{#% url 'voir_participants' groupe_cree.groupe.id %#}" class="float-right">voir 
-                                    participants</a>-->
-                            </li>
+                                <li class="list-group-item">
+                                    {{ epreuve.nom }}
+                                    <a href="{% url 'gerer_epreuve' epreuve.id %}" class="float-right">Gérer
+                                        l'épreuve</a>
+                                </li>
                         {% endfor %}
                     </ul>
                 </div>
