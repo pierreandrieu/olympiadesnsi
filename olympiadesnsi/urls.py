@@ -19,7 +19,9 @@ from django.urls import include, path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path('captcha/', include('captcha.urls')),
     path('', include('accueil.urls')),  # Inclusion des URLs de l'application accueil
     path('login/', include('login.urls')),
-    path('intranet/', include('intranet.urls'))
+    path('intranet/', include('intranet.urls')),
+    path('epreuve/', include('epreuve.urls')),
 ]
