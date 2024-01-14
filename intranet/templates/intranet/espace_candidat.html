@@ -1,4 +1,4 @@
-{% extends 'olympiadesnsi/base.html' %}
+{% extends 'olympiadesnsi/base_participant.html' %}
 
 {% block content %}
     <div class="container mt-4">
@@ -42,6 +42,7 @@
                         {% for epreuve in epreuves_terminees %}
                             <li class="list-group-item">{{ epreuve.nom }}</li>
                         {% endfor %}
+
                     </ul>
                 </div>
             </div>
