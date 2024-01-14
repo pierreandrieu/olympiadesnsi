@@ -5,7 +5,7 @@ from django.db.models import CheckConstraint, Q, F
 
 class Epreuve(models.Model):
     nom = models.CharField(max_length=100)
-    description = models.TextField()
+    description = models.TextField(null=True)
     date_debut = models.DateTimeField(null=True, blank=True)
     date_fin = models.DateTimeField(null=True, blank=True)
     duree = models.IntegerField()  # Durée en minutes
@@ -38,6 +38,39 @@ class Epreuve(models.Model):
             models.Index(fields=['referent']),
         ]
 
+
+class Exercice(models.Model):
+    TYPE_ENONCE_CHOIX = [
+        ('text', 'Texte Simple'),
+        ('latex', 'LaTeX'),
+        ('code', 'Code (python, ...)'),
+    ]
+
+    TYPE_EXERCICE_CHOIX = [
+        ('programmation', 'Programmation'),
+        ('qcm', 'QCM'),
+        ('qroc', 'QROC'),
+        ('qcs', 'QCS')
+    ]
+    epreuve = models.ForeignKey(Epreuve, on_delete=models.CASCADE)
+    titre = models.CharField(max_length=100)
+    description = models.TextField()
+    bareme = models.IntegerField(null=True)
+    bonne_reponse = models.TextField(null=True)
+    type_exercice = models.CharField(max_length=14, choices=TYPE_EXERCICE_CHOIX)
+    type_enonce = models.CharField(max_length=6, choices=TYPE_ENONCE_CHOIX)
+    enonce = models.TextField()
+    instance_probleme_prog_a_resoudre = models.TextField(null=True)
+    instances_uniques_par_participant = models.BooleanField(default=False)
+    nombre_max_soumissions_solution = models.IntegerField(default=50)
+    nombre_max_soumissions_code = models.IntegerField(default=50)
+    code_a_soumettre = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'Exercice'
+        indexes = [
+            models.Index(fields=['epreuve']),
+        ]
 
 class GroupeParticipeAEpreuve(models.Model):
     groupe = models.ForeignKey(Group, on_delete=models.CASCADE)
@@ -94,3 +127,34 @@ class GroupeCreePar(models.Model):
             models.Index(fields=['createur']),
         ]
 
+
+class UserExercice(models.Model):
+    participant = models.ForeignKey(User, related_name='association_UserExercice_User',
+                                    on_delete=models.CASCADE)
+    exercice = models.ForeignKey(Exercice, related_name='association_UserExercice_Exercice', on_delete=models.CASCADE)
+    instance_participant = models.TextField(null=True)
+    solution_instance_participant = models.TextField(null=True)
+    solution_instance_correction = models.TextField(null=True)
+    code_participant = models.TextField(null=True)
+    nombre_soumissions_solution_instance = models.IntegerField(default=0)
+    nombre_soumissions_code = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = 'ParticipantExercice'
+
+
+class UserEpreuve(models.Model):
+    participant = models.ForeignKey(User, related_name='association_UserEpreuve_User',
+                                    on_delete=models.CASCADE)
+    epreuve = models.ForeignKey(Epreuve, related_name='association_UserEpreuve_Epreuve',
+                                 on_delete=models.CASCADE)
+    fin_epreuve = models.DateTimeField(auto_now=False, null=True)
+
+    class Meta:
+        db_table = 'UserEpreuve'
+
+        indexes = [
+            models.Index(fields=['participant', 'epreuve']),
+            models.Index(fields=['epreuve', 'participant']),
+
+        ]
