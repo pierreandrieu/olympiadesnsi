@@ -5,34 +5,49 @@ from django.http import HttpResponseForbidden
 from django.urls import reverse
 from django.contrib import messages
 from django.shortcuts import render
-from epreuve.models import GroupeCreePar, Epreuve, GroupeParticipeAEpreuve
+from epreuve.models import GroupeCreePar, Epreuve, GroupeParticipeAEpreuve, UserEpreuve
 from django.http import HttpResponse
+from django.db.models import Q
 from intranet.tasks import save_users_task  # La tâche Celery pour sauvegarder les utilisateurs
 from epreuve.forms import EpreuveForm
 from django.utils.crypto import get_random_string
-from datetime import date
-
+from django.utils import timezone
 
 
 @login_required
 def espace_candidat(request):
-    today = date.today()
-    user_groups = request.user.groups.all()  # Obtient les groupes de l'utilisateur
-    group_ids = user_groups.values_list('id', flat=True)  # Liste des IDs de groupes
+    today = timezone.now()
+    user = request.user
+    user_groups = user.groups.all()
+    group_ids = user_groups.values_list('id', flat=True)
 
-    # Obtient les épreuves pour les groupes de l'utilisateur
     epreuves_ids = GroupeParticipeAEpreuve.objects.filter(groupe_id__in=group_ids).values_list('epreuve_id', flat=True)
     epreuves_user = Epreuve.objects.filter(id__in=epreuves_ids)
 
+    # Epreuves spécifiques à l'utilisateur
+    epreuves_candidat = UserEpreuve.objects.filter(participant=user)
+
     # Classifiez les épreuves
-    epreuves_en_cours = epreuves_user.filter(date_debut__lte=today, date_fin__gte=today)
+    epreuves_en_cours = epreuves_user.filter(
+        date_debut__lte=today,
+        date_fin__gte=today,
+        association_UserEpreuve_Epreuve__fin_epreuve__gte=today,
+        association_UserEpreuve_Epreuve__participant=user
+    )
+
     epreuves_a_venir = epreuves_user.filter(date_debut__gt=today)
-    epreuves_terminees = epreuves_user.filter(date_fin__lt=today)
+
+    epreuves_terminees = epreuves_user.filter(
+        Q(date_fin__lt=today) |
+        Q(association_UserEpreuve_Epreuve__fin_epreuve__lt=today,
+          association_UserEpreuve_Epreuve__participant=user)
+    )
 
     return render(request, 'intranet/espace_candidat.html', {
         'epreuves_en_cours': epreuves_en_cours,
         'epreuves_a_venir': epreuves_a_venir,
         'epreuves_terminees': epreuves_terminees,
+        'epreuves_candidat': epreuves_candidat
     })
 
 
