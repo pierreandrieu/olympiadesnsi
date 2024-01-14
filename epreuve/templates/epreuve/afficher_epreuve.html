@@ -1,9 +1,236 @@
-{% extends 'olympiadesnsi/base.html' %}  <!-- Remplacez par votre template de base -->
+{% extends 'olympiadesnsi/base_participant.html' %}
 
 {% block content %}
+
     <div class="container mt-4">
         <h1>{{ epreuve.nom }}</h1>
-        <!-- Contenu de l'épreuve ici -->
-        <p>Page de l'épreuve en cours de développement...</p>
+        <br/>
+        <br/>
+        <div id="etat-exercices">
+
+        </div>
+
+        {% if temps_restant %}
+            <div id="chronometre">Temps restant : <span id="temps-restant"></span></div>
+
+            {{ temps_restant.seconds|json_script:"temps-restant-data" }}
+
+            <script>
+                var tempsRestant = JSON.parse(document.getElementById('temps-restant-data').textContent);
+                var intervalId = setInterval(function () {
+                    if (tempsRestant <= 0) {
+                        clearInterval(intervalId);
+                        // Logique à exécuter lorsque le temps est écoulé
+                    } else {
+                        tempsRestant--;
+                        var heures = Math.floor(tempsRestant / 3600);
+                        var minutes = Math.floor((tempsRestant % 3600) / 60);
+                        var secondes = tempsRestant % 60;
+                        document.getElementById('temps-restant').textContent =
+                            heures.toString().padStart(2, '0') + ':' +
+                            minutes.toString().padStart(2, '0') + ':' +
+                            secondes.toString().padStart(2, '0');
+                    }
+                }, 1000);
+            </script>
+        {% endif %}
+
+        <div class="exercise-navigation">
+
+
+            <button id="prev-exercise" class="btn nav-btn" disabled>←</button>
+            <div id="exercice-container" class="exercise-box">
+                <!-- Les exercices seront chargés ici -->
+            </div>
+            <button id="next-exercise" class="btn nav-btn">→</button>
+        </div>
+
+
+        <!-- Script pour charger et naviguer entre les exercices -->
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                let currentExerciseIndex = 0;
+                const exercises = JSON.parse('{{ exercices_json|escapejs }}');
+                console.log(exercises);
+                const btnPrev = document.getElementById('prev-exercise');
+                const btnNext = document.getElementById('next-exercise');
+
+                function updateNavigationButtons() {
+                    btnPrev.disabled = currentExerciseIndex === 0;
+                    btnNext.disabled = currentExerciseIndex === exercises.length - 1;
+                }
+
+                function escapeHtml(unsafe) {
+                    return unsafe
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;")
+                        .replace(/"/g, "&quot;")
+                        .replace(/'/g, "&#039;");
+                }
+
+                function renderLatex(latex) {
+                    const latexContainer = document.createElement('div');
+                    latexContainer.className = 'latex-content';
+                    latexContainer.innerHTML = latex;
+                    document.getElementById('exercice-container').appendChild(latexContainer);
+
+                    MathJax.typesetPromise([latexContainer]).then(() => {
+                        console.log('LaTeX rendu avec succès.');
+                    }).catch((err) => console.error('Erreur de rendu LaTeX:', err));
+                }
+
+                function initIndicateursEtat() {
+                    const etatExercicesContainer = document.getElementById('etat-exercices');
+                    exercises.forEach(exercise => {
+                        const indicateur = document.createElement('span');
+                        indicateur.className = 'indic-exo indic-exo-jaune';
+                        indicateur.id = `indic-exo-${exercise.id}`;
+                        etatExercicesContainer.appendChild(indicateur);
+                    });
+                }
+
+                function mettreAJourIndicateur(exerciseId, isSuccess) {
+                    const indicateur = document.getElementById(`indic-exo-${exerciseId}`);
+                    indicateur.className = isSuccess ? 'indic-exo indic-exo-vert' : 'indic-exo indic-exo-rouge';
+                }
+
+                function loadExercise(index) {
+                    const exercise = exercises[index];
+                    const container = document.getElementById('exercice-container');
+                    container.innerHTML = '';
+
+                    // Ajout du titre
+                    const titleElement = document.createElement('h2');
+                    titleElement.innerText = exercise.titre;
+                    container.appendChild(titleElement);
+
+                    switch (exercise.type_enonce) {
+                        case 'latex':
+                            renderLatex(exercise.enonce);
+                            break;
+                        case 'code':
+                            container.innerHTML += `<pre><code>${escapeHtml(exercise.enonce)}</code></pre>`;
+                            break;
+                        default:
+                            container.innerHTML += `<p>${escapeHtml(exercise.enonce)}</p>`;
+                    }
+
+                    // Création du titre de la section de l'instance
+                    if (exercise.instance_probleme_prog_a_resoudre) {
+                        const instanceTitle = document.createElement('p');
+                        instanceTitle.className = 'instance-title';
+                        instanceTitle.innerText = "Résolvez l'instance du problème suivante :";
+                        container.appendChild(instanceTitle);
+
+                        // Création du conteneur de l'instance
+                        const instanceContainer = document.createElement('div');
+                        instanceContainer.className = 'instance-problem-container';
+                        instanceContainer.textContent = exercise.instance_probleme_prog_a_resoudre;
+                        container.appendChild(instanceContainer);
+
+                        // Création du champ de réponse et du bouton de soumission
+                        const responseContainer = document.createElement('div');
+                        responseContainer.className = 'instance-response-container';
+                        responseContainer.innerHTML = `
+            <input type="text" id="instance-response-${exercise.id}" placeholder="Votre réponse">
+            <button onclick="verifierInstance(${exercise.id})">Vérifier</button>
+        `;
+                        container.appendChild(responseContainer);
+                    }
+
+                    // Création du champ et du bouton pour la soumission du code
+                    if (exercise.code_a_soumettre) {
+                        const codeContainer = document.createElement('div');
+                        codeContainer.className = 'code-submission-container';
+                        codeContainer.innerHTML = `
+            <p>Entrez votre code ici :</p>
+            <textarea id="code-submission-${exercise.id}"></textarea>
+            <button onclick="soumettreCode(${exercise.id})">Soumettre le code</button>
+        `;
+                        container.appendChild(codeContainer);
+                    }
+
+                    updateNavigationButtons();
+                }
+
+
+                function verifierInstance(exerciseId) {
+                    const instanceResponse = document.getElementById(`instance-response-${exerciseId}`).value;
+                    fetch(`{% url 'traiter_reponse_instance' %}`, {
+                        method: 'POST',
+                        body: JSON.stringify({exercise_id: exerciseId, response: instanceResponse}),
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            mettreAJourIndicateur(exerciseId, data.isSuccess);
+                        })
+                        .catch(error => console.error('Erreur:', error));
+                }
+
+                function soumettreCode(exerciceId) {
+                    const codeSubmission = document.getElementById(`code-submission-${exerciceId}`).value;
+                    fetch(`/epreuve/traiter_reponse_code/${exerciceId}/`, {
+                        method: 'POST',
+                        body: JSON.stringify({code: codeSubmission}),
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            alert('Code soumis avec succès.');
+                        })
+                        .catch(error => console.error('Erreur:', error));
+                }
+
+                function getCookie(name) {
+                    let cookieValue = null;
+                    if (document.cookie && document.cookie !== '') {
+                        const cookies = document.cookie.split(';');
+                        for (let i = 0; i < cookies.length; i++) {
+                            const cookie = cookies[i].trim();
+                            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                                break;
+                            }
+                        }
+                    }
+                    return cookieValue;
+                }
+
+                btnPrev.addEventListener('click', function () {
+                    if (currentExerciseIndex > 0) {
+                        currentExerciseIndex--;
+                        loadExercise(currentExerciseIndex);
+                    }
+                });
+
+                btnNext.addEventListener('click', function () {
+                    if (currentExerciseIndex < exercises.length - 1) {
+                        currentExerciseIndex++;
+                        loadExercise(currentExerciseIndex);
+                    }
+                });
+
+                if (exercises.length > 0) {
+                    loadExercise(currentExerciseIndex);
+                } else {
+                    document.getElementById('exercice-container').innerHTML = '<p>Aucun exercice disponible pour cette épreuve.</p>';
+                    btnPrev.disabled = true;
+                    btnNext.disabled = true;
+                }
+
+                initIndicateursEtat();
+            });
+        </script>
+
+
+
     </div>
 {% endblock %}
