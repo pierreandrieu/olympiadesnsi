@@ -6,20 +6,41 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         {% load static %}
         <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
         <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+        <script>
+            window.MathJax = {
+                tex: {
+                    inlineMath: [['$', '$'], ['\\(', '\\)']]
+                },
+                svg: {
+                    fontCache: 'global'
+                }
+            };
+        </script>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js"
+                crossorigin="anonymous"></script>
+
+
     </head>
     
     <body>
+    {% block navbar %}
+        <!-- Le contenu par défaut de la navbar peut aller ici si nécessaire -->
+    {% endblock navbar %}
     {% block content %}{% endblock %}
     
 
     <footer>
         <p>Olympiades Nationales de NSI, session 2024</p>
-        <!-- Autres éléments du footer -->
     </footer>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+
     <script>
         $(function () {
             $('[data-toggle="tooltip"]').tooltip();
