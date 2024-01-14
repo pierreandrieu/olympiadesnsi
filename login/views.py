@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate, login
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.contrib.auth import logout
 from .forms import LoginForm
 
 
@@ -40,3 +41,8 @@ def login_organisateur(request):
         form = LoginForm()
 
     return render(request, 'login/login_organisateur.html', {'form': form})
+
+
+def custom_logout(request):
+    logout(request)
+    return redirect('home')
