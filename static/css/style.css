@@ -2,11 +2,37 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    font-family: 'Arial', sans-serif; /* Ou une autre police de votre choix */
+    background: #f7f7f7; /* Couleur de fond légère */
+    color: #333; /* Couleur de texte */
+}
+
+
+header, footer {
+    padding: 20px;
+    background: #333; /* Couleur de fond pour l'en-tête et le pied de page */
+    color: white; /* Couleur de texte pour l'en-tête et le pied de page */
 }
 
 footer {
     margin-top: auto; /* Pousse le footer en bas */
 }
+
+
+.container {
+    max-width: 800px; /* Largeur maximale du conteneur central */
+    margin: auto;
+    padding: 20px;
+    background: white; /* Fond blanc pour le contenu */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Ombre légère pour le conteneur */
+}
+
+h1 {
+    text-align: center; /* Centre le titre */
+    color: #333; /* Couleur du titre */
+    margin-bottom: 20px; /* Espacement après le titre */
+}
+
 
 .add-button {
     margin-left: 10px;
@@ -123,3 +149,143 @@ input[type="submit"] {
 input[type="submit"]:hover {
     background-color: #45a049;
 }
+
+.exercise-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.exercise-box {
+    border: 1px solid #ccc; /* Style de l'encadré */
+    padding: 20px;
+    margin: 0 20px; /* Espace entre l'encadré et les boutons */
+    min-width: 300px; /* Largeur minimale de l'encadré */
+    overflow-wrap: break-word;
+    overflow-x: auto; /* Ajoute une barre de défilement horizontale si nécessaire */
+}
+
+
+pre {
+    background-color: #f8f8f8;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+code {
+    font-family: monospace;
+}
+
+
+#chronometre {
+    text-align: center; /* Centre le chronomètre */
+    font-size: 1.5em; /* Taille du texte pour le chronomètre */
+    font-weight: bold; /* Rend le texte du chronomètre gras */
+    margin-bottom: 20px; /* Espacement après le chronomètre */
+}
+
+#etat-exercices {
+    display: flex;
+    justify-content: center; /* Centre les indicateurs d'état */
+    margin-bottom: 20px; /* Espacement après les indicateurs d'état */
+}
+
+.indic-exo {
+    width: 20px; /* Taille des indicateurs d'état */
+    height: 20px; /* Hauteur des indicateurs d'état */
+    border-radius: 50%; /* Rend les indicateurs circulaires */
+    margin: 0 5px; /* Espacement entre les indicateurs */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); /* Ombre pour les indicateurs */
+}
+
+/* Couleurs des indicateurs d'état */
+.indic-exo-non-soumis {
+    background-color: #999;
+}
+
+/* Gris pour non soumis */
+.indic-exo-rouge {
+    background-color: #f44336;
+}
+
+/* Rouge pour soumission incorrecte */
+.indic-exo-vert {
+    background-color: #4CAF50;
+}
+
+/* Vert pour soumission correcte */
+
+.exercise-navigation {
+    display: flex;
+    justify-content: space-between; /* Espacement autour de la navigation */
+}
+
+.exercise-box {
+    border: 1px solid #ddd; /* Style de l'encadré */
+    padding: 20px;
+    margin-bottom: 20px; /* Espace après l'encadré */
+}
+
+.nav-btn {
+    background: none; /* Enlève le fond par défaut */
+    border: none; /* Enlève la bordure par défaut */
+    cursor: pointer; /* Change le curseur en main */
+    padding: 10px 20px; /* Espacement autour des flèches */
+    font-size: 2em; /* Agrandit les flèches */
+    color: #333; /* Couleur des flèches */
+}
+
+.nav-btn:disabled {
+    color: #ccc; /* Grise les flèches désactivées */
+}
+
+/* Style des boutons */
+.btn {
+    background-color: #5cb85c; /* Couleur de fond des boutons */
+    color: white; /* Couleur de texte des boutons */
+    border: none; /* Enlève la bordure */
+    padding: 10px 20px; /* Espacement interne des boutons */
+    border-radius: 4px; /* Arrondit les coins des boutons */
+    cursor: pointer; /* Change le curseur en main */
+    margin: 5px; /* Espacement autour des boutons */
+}
+
+.btn:hover {
+    background-color: #4cae4c; /* Assombrit le bouton au survol */
+}
+
+/* Style pour le titre de la section instance */
+.instance-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+/* Style pour le conteneur de l'instance */
+.instance-problem-container {
+    background-color: #f8f8f8;
+    border: 1px solid #ccc;
+    padding: 10px;
+    font-family: monospace;
+    white-space: pre-wrap;
+    overflow-y: auto;
+    max-height: 200px; /* Taille fixe avec défilement */
+    margin-bottom: 10px; /* Espace en dessous du conteneur */
+}
+
+/* Style pour le conteneur de réponse à l'instance */
+.instance-response-container {
+    margin-bottom: 20px;
+}
+
+/* Style pour le champ de texte de réponse */
+.instance-response-container input[type="text"] {
+    width: calc(100% - 110px); /* Ajustez en fonction de la largeur du bouton */
+    margin-right: 10px; /* Espace entre le champ de texte et le bouton */
+}
+
+/* Style pour le bouton de soumission de réponse */
+.instance-response-container button {
+    width: 100px; /* Largeur fixe pour le bouton */
+}
+
