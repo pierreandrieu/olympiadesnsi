@@ -8,8 +8,8 @@ class Epreuve(models.Model):
     description = models.TextField(null=True)
     date_debut = models.DateTimeField(null=True, blank=True)
     date_fin = models.DateTimeField(null=True, blank=True)
-    duree = models.IntegerField()  # Durée en minutes
-    referent = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='epreuve_referent')
+    duree = models.IntegerField(null=True)  # Durée en minutes
+    referent = models.ForeignKey(User, on_delete=models.CASCADE, related_name='epreuve_referent')
     exercices_un_par_un = models.BooleanField(default=False)
     temps_limite = models.BooleanField(default=False)
     groupes_participants = models.ManyToManyField(Group, related_name='epreuves', through='GroupeParticipeAEpreuve')
@@ -40,31 +40,19 @@ class Epreuve(models.Model):
 
 
 class Exercice(models.Model):
-    TYPE_ENONCE_CHOIX = [
-        ('text', 'Texte Simple'),
-        ('latex', 'LaTeX'),
-        ('code', 'Code (python, ...)'),
-    ]
 
-    TYPE_EXERCICE_CHOIX = [
-        ('programmation', 'Programmation'),
-        ('qcm', 'QCM'),
-        ('qroc', 'QROC'),
-        ('qcs', 'QCS')
-    ]
     epreuve = models.ForeignKey(Epreuve, on_delete=models.CASCADE)
+    auteur = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     titre = models.CharField(max_length=100)
-    description = models.TextField()
+    description = models.TextField(null=True, blank=True)
     bareme = models.IntegerField(null=True)
-    bonne_reponse = models.TextField(null=True)
-    type_exercice = models.CharField(max_length=14, choices=TYPE_EXERCICE_CHOIX)
-    type_enonce = models.CharField(max_length=6, choices=TYPE_ENONCE_CHOIX)
-    enonce = models.TextField()
-    instance_probleme_prog_a_resoudre = models.TextField(null=True)
-    instances_uniques_par_participant = models.BooleanField(default=False)
+    enonce = models.TextField(null=True, blank=True)
+    enonce_code = models.TextField(null=True, blank=True)
+    avec_jeu_de_test = models.BooleanField(default=False)
+    retour_en_direct = models.BooleanField(default=False)
     nombre_max_soumissions_solution = models.IntegerField(default=50)
-    nombre_max_soumissions_code = models.IntegerField(default=50)
     code_a_soumettre = models.BooleanField(default=False)
+    nombre_max_soumissions_code = models.IntegerField(default=50)
 
     class Meta:
         db_table = 'Exercice'
@@ -157,4 +145,16 @@ class UserEpreuve(models.Model):
             models.Index(fields=['participant', 'epreuve']),
             models.Index(fields=['epreuve', 'participant']),
 
+        ]
+
+
+class JeuDeTest(models.Model):
+    exercice = models.ForeignKey(Exercice, related_name="jeu_de_test", on_delete=models.CASCADE)
+    instance = models.TextField(null=False)
+    reponse = models.TextField(null=False)
+    class Meta:
+        db_table = 'JeuDeTest'
+
+        indexes = [
+            models.Index(fields=['exercice'])
         ]
