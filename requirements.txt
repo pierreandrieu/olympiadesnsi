@@ -4,6 +4,6 @@ django-simple-captcha
 python-decouple
 python-dotenv
 django-debug-toolbar
-psycopg2
+psycopg2-binary
 celery
 redis
