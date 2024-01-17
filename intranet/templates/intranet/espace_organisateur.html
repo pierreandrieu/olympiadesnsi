@@ -1,57 +1,73 @@
 {% extends 'olympiadesnsi/base_organisateur.html' %}
 
 {% block content %}
-
     <div class="container mt-4">
         <div class="row">
-            <!-- Colonne pour les groupes -->
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        Mes Groupes
-                        <button class="btn btn-primary btn-sm float-right" data-toggle="modal"
-                                data-target="#addGroupModal">+
-                        </button>
-                    </div>
-                    <ul class="list-group list-group-flush"
-                        style="max-height: 300px; overflow-y: auto; list-style-type: circle;">
-                        {% for groupe in groupes_crees %}
-                            <li class="list-group-item">
-                                {{ groupe.groupe.name }}
-                              <!--  <a href="{#% url 'voir_participants' groupe_cree.groupe.id %#}" class="float-right">voir 
-                                    participants</a>-->
-
-                                <a href="{% url 'gerer_groupe' groupe.id %}" class="float-right"> Inscrire à des épreuves</a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
-
-            <!-- Colonne pour les épreuves (à compléter selon vos besoins) -->
-            <div class="col-md-6">
+            <div class="col-12">
                 <div class="card">
                     <div class="card-header">
                         Mes Épreuves
-                        <button class="btn btn-primary btn-sm float-right" data-toggle="modal"
-                                data-target="#addEpreuveModal">+
+                        <!-- Bouton pour ajouter une épreuve -->
+                        <button type="button" class="btn btn-primary" data-toggle="modal"
+                                data-target="#addEpreuveModal">
+                            +
                         </button>
-                    </div>
 
-                    <ul class="list-participants list-group-flush"
-                        style="max-height: 300px; overflow-y: auto; list-style-type: circle;">
-                        {% for epreuve in epreuves_crees %}
-                                <li class="list-group-item">
-                                    {{ epreuve.nom }}
-                                    <a href="{% url 'gerer_epreuve' epreuve.id %}" class="float-right">Gérer
-                                        l'épreuve</a>
-                                </li>
-                        {% endfor %}
-                    </ul>
+                    </div>
+                    <div class="card-body">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Référent</th>
+                                    <th>Participants</th>
+                                    <th>Exercices</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for epreuve, exercices, nombre_participants in epreuves_info %}
+                                <tr>
+                                    <td>{{ epreuve.nom }}</td>
+                                    <td>{{ epreuve.referent.username }}</td>
+                                    <td>{{ nombre_participants }}</td>
+                                    <td>
+                                        <button onclick="toggleExercices('exercices-{{ epreuve.id }}')" class="btn btn-info btn-xs">
+                                            Afficher Exercices
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr id="exercices-{{ epreuve.id }}" class="table-secondary" style="display:none;">
+                                    <td colspan="4">
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Titre</th>
+                                                    <th>Auteur</th>
+                                                    <th>Nombre de Jeux de Tests</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for exercice in exercices %}
+                                                <tr>
+                                                    <td>{{ exercice.titre }}</td>
+                                                    <td>{{ exercice.referent.username }}</td>
+                                                    <td>{{ exercice.nombre_jeux_tests }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+
 
     <!-- Modal pour Ajouter un Groupe -->
     <div class="modal fade" id="addGroupModal" tabindex="-1" role="dialog" aria-labelledby="addGroupModalLabel"
@@ -85,6 +101,51 @@
         </div>
     </div>
 
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        Mes Groupes
+                        <!-- Bouton pour ajouter un groupe -->
+                    </div>
+                    <div class="card-body">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Nom du Groupe</th>
+                                    <th>Nombre de Membres</th>
+                                    <th>Membres</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for groupe in groupes_crees %}
+                                <tr>
+                                    <td>{{ groupe.groupe.name }}</td>
+                                    <td>{{ groupe.nombre_membres }}</td>
+                                    <td>
+                                        <button onclick="toggleMembres('membres-{{ groupe.groupe.id }}')"
+                                                class="btn btn-info btn-xs">
+                                            Afficher Membres
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr id="membres-{{ groupe.groupe.id }}" class="table-secondary" style="display:none;">
+                                    <td colspan="3">
+                                        <!-- Tableau imbriqué ou autre contenu pour les détails des membres -->
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    
     <!-- Modal pour Ajouter une épreuve -->
     <div class="modal fade" id="addEpreuveModal" tabindex="-1" role="dialog" aria-labelledby="addEpreuveModalLabel"
          aria-hidden="true">
@@ -129,6 +190,28 @@
 
             $('[data-toggle="tooltip"]').tooltip();
         });
+    </script>
+
+    <script>
+        function toggleExercices(id) {
+            var x = document.getElementById(id);
+            if (x.style.display === "none") {
+                x.style.display = "table-row";
+            } else {
+                x.style.display = "none";
+            }
+        }
+    </script>
+
+    <script>
+        function toggleExercices(id) {
+            var x = document.getElementById(id);
+            if (x.style.display === "none") {
+                x.style.display = "table-row";
+            } else {
+                x.style.display = "none";
+            }
+        }
     </script>
 
 {% endblock %}

@@ -5,9 +5,9 @@ from django.http import HttpResponseForbidden
 from django.urls import reverse
 from django.contrib import messages
 from django.shortcuts import render
-from epreuve.models import GroupeCreePar, Epreuve, GroupeParticipeAEpreuve, UserEpreuve
+from epreuve.models import User, GroupeCreePar, Epreuve, GroupeParticipeAEpreuve, UserEpreuve, MembreComite
 from django.http import HttpResponse
-from django.db.models import Q
+from django.db.models import Q, Count
 from intranet.tasks import save_users_task  # La tâche Celery pour sauvegarder les utilisateurs
 from epreuve.forms import EpreuveForm
 from django.utils.crypto import get_random_string
@@ -142,17 +142,37 @@ def creer_epreuve(request):
 
 @login_required
 def espace_organisateur(request):
-    # Récupère les groupes créés par l'utilisateur connecté
-    groupes_crees = GroupeCreePar.objects.filter(createur=request.user)
-    # Récupère les épreuves dont l'utilisateur est le référent
-    epreuves_crees = Epreuve.objects.filter(referent=request.user)
-    epreuve_form = EpreuveForm()
-    return render(request, 'intranet/espace_organisateur.html', {
-        'groupes_crees': groupes_crees, 'form': epreuve_form, 'epreuves_crees': epreuves_crees})
+    user = request.user
 
+    # Récupère les groupes créés par l'utilisateur avec le nombre de membres pour chaque groupe
+    groupes_crees = GroupeCreePar.objects.filter(createur=user) \
+        .annotate(nombre_membres=Count('groupe__user'))
+
+    # Récupère les épreuves dont l'utilisateur est le référent ou membre du comité
+    epreuves_organisees = Epreuve.objects.filter(
+        Q(referent=user) | Q(comite=user)
+    ).distinct()
+
+    # Préparation des données pour les épreuves et les exercices
+    epreuves_info = []
+    for epreuve in epreuves_organisees:
+        exercices = epreuve.exercice_set.annotate(nombre_jeux_tests=Count('jeu_de_test'))
+
+        # Calculer le nombre total de participants uniques dans les groupes associés à chaque épreuve
+        groupes_participants = epreuve.groupes_participants.all()
+        participants_uniques = User.objects.filter(groups__in=groupes_participants).distinct().count()
+
+        epreuves_info.append((epreuve, exercices, participants_uniques))
+
+    epreuve_form = EpreuveForm()
+
+    return render(request, 'intranet/espace_organisateur.html', {
+        'groupes_crees': groupes_crees,
+        'epreuves_info': epreuves_info,
+        'form': epreuve_form
+    })
 
 def get_unique_username(id_user: int, num: int):
     partie_alea = get_random_string(length=3, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ')
     faux_id: str = str(2 * id_user + 100)
     return f"{partie_alea}{faux_id[:len(faux_id)//2]}_{num:03d}{faux_id[len(faux_id)//2:]}"
-
