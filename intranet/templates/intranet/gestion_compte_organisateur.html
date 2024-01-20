@@ -1,0 +1,41 @@
+{% extends 'olympiadesnsi/base_organisateur.html' %}
+
+{% block content %}
+
+    <div class="container mt-4">
+        <h1>Profil de {{ user.username }}</h1>
+        <br/>
+
+        <form method="post" action="{% url 'change_password_organisateur' %}">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="old_password">Ancien mot de passe:</label>
+                <input type="password" id="old_password" name="old_password" required class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label for="new_password">Nouveau mot de passe:</label>
+                <input type="password" id="new_password" name="new_password" required class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">Confirmer le nouveau mot de passe:</label>
+                <input type="password" id="confirm_password" name="confirm_password" required class="form-control">
+            </div>
+
+            <button type="submit" class="btn btn-primary">Modifier le mot de passe</button>
+        </form>
+        {% if messages %}
+            <div>
+                {% for message in messages %}
+                    <div class="{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+    </div>
+
+    
+
+{% endblock %}
