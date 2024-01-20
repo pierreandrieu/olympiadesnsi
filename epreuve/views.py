@@ -2,11 +2,14 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_protect
+from django.utils import timezone
+from django_ratelimit.decorators import ratelimit
+
 from epreuve.models import Epreuve, GroupeCreePar, GroupeParticipeAEpreuve, UserExercice, Exercice, UserEpreuve, \
     JeuDeTest
 from epreuve.forms import EpreuveForm
 import json
-from django.utils import timezone
 from datetime import timedelta
 
 
@@ -106,10 +109,11 @@ def afficher_epreuve(request, epreuve_id):
             'type_exercice': ex.type_exercice,
             'avec_jeu_de_test': ex.avec_jeu_de_test,
             'code_a_soumettre': ex.code_a_soumettre,
-            'peut_encore_soumettre': ex.nombre_max_soumissions < user_exercice.nb_soumissions,
+            'nb_soumissions' : user_exercice.nb_soumissions,
+            'nb_max_soumissions': ex.nombre_max_soumissions,
             'retour_en_direct': ex.retour_en_direct,
             'instance_de_test': instance_de_test,
-            'jeu_de_test_solution_ok': user_exercice.solution_instance_participant == bonne_reponse
+            'reponse_valide': user_exercice.solution_instance_participant == bonne_reponse
         }
 
         # Ajouter le dictionnaire à la liste
@@ -167,13 +171,42 @@ def traiter_reponse_code(request, exercice_id):
 
 
 @login_required
-def etat_exercices(request, epreuve_id):
-    user = request.user
-    # Logique pour déterminer l'état des exercices pour cet utilisateur
-    etat = {
-        # Exemple:
-        # 1: 'correct',
-        # 2: 'incorrect',
-        # 3: 'non_tente'
-    }
-    return JsonResponse(etat)
+@csrf_protect
+@ratelimit(key='user', rate='10/m', block=True)
+def soumettre(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            exercice_id = data.get('exercice_id')
+            code_soumis = data.get('code_soumis', "")
+            solution_instance = data.get('solution_instance', "")
+
+            # Récupérer l'exercice et le jeu de test associé
+            try:
+                exercice = Exercice.objects.get(id=exercice_id)
+                jeu_de_test = JeuDeTest.objects.filter(exercice=exercice).first()
+            except (Exercice.DoesNotExist, JeuDeTest.DoesNotExist):
+                return JsonResponse({'success': False, 'error': 'Exercice ou jeu de test introuvable'}, status=404)
+
+            # Récupérer ou créer une association UserExercice
+            user_exercice, created = UserExercice.objects.get_or_create(
+                participant=request.user,
+                exercice=exercice
+            )
+            if user_exercice.nb_soumissions >= exercice.nombre_max_soumissions:
+                return JsonResponse({'success': False, 'error': 'Nombre maximum de soumissions atteint'}, status=403)
+
+            # Mettre à jour les champs
+            user_exercice.code_participant = code_soumis
+            user_exercice.solution_instance_participant = solution_instance
+            user_exercice.nb_soumissions += 1
+            user_exercice.save()
+
+            # Vérification de la solution
+            reponse_correcte = solution_instance == jeu_de_test.reponse if jeu_de_test else False
+
+            return JsonResponse({'success': True, 'reponse_correcte': reponse_correcte})
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Données invalides'}, status=400)
+    else:
+        return JsonResponse({'success': False, 'error': 'Méthode non autorisée'}, status=405)
