@@ -88,9 +88,11 @@ def afficher_epreuve(request, epreuve_id):
         if ex.avec_jeu_de_test and user_exercice.jeu_de_test is not None:
             jeu_de_test = JeuDeTest.objects.get(id=user_exercice.jeu_de_test.id)
 
+        bonne_reponse: str = ""
         instance_de_test: str = ""
 
         if jeu_de_test is not None:
+            bonne_reponse = jeu_de_test.reponse
             instance_de_test = jeu_de_test.instance
 
         # Construire le dictionnaire pour cet exercice
@@ -107,7 +109,7 @@ def afficher_epreuve(request, epreuve_id):
             'peut_encore_soumettre': ex.nombre_max_soumissions < user_exercice.nb_soumissions,
             'retour_en_direct': ex.retour_en_direct,
             'instance_de_test': instance_de_test,
-            'jeu_de_test_solution_ok': user_exercice.solution_instance_participant == jeu_de_test.reponse
+            'jeu_de_test_solution_ok': user_exercice.solution_instance_participant == bonne_reponse
         }
 
         # Ajouter le dictionnaire à la liste

@@ -84,15 +84,23 @@
                     const etatExercicesContainer = document.getElementById('etat-exercices');
                     exercises.forEach(exercise => {
                         const indicateur = document.createElement('span');
-                        indicateur.className = 'indic-exo indic-exo-jaune';
+                        indicateur.className = 'indic-exo-non-soumis fa-regular fa-circle';
                         indicateur.id = `indic-exo-${exercise.id}`;
                         etatExercicesContainer.appendChild(indicateur);
                     });
                 }
 
+                function indicateurExoCourant(exoCourantId) {
+                    exercises.forEach(exercise => {
+                        indicateur.className = 'fa-regular';
+                    });
+                    exoCourant = document.getElementById(`indic-exo-${exoCourantId}`);
+                    exoCourant.className = 'fa-solid';
+                }
+
                 function mettreAJourIndicateur(exerciseId, isSuccess) {
                     const indicateur = document.getElementById(`indic-exo-${exerciseId}`);
-                    indicateur.className = isSuccess ? 'indic-exo indic-exo-vert' : 'indic-exo indic-exo-rouge';
+                    indicateur.className = isSuccess ? 'indic-exo-valide fa-solid fa-circle-check' : 'indic-exo-invalide fa-solid fa-circle-xmark';
                 }
 
                 function loadExercise(index) {

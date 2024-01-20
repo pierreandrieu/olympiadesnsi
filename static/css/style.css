@@ -192,29 +192,35 @@ code {
 }
 
 .indic-exo {
-    width: 20px; /* Taille des indicateurs d'état */
-    height: 20px; /* Hauteur des indicateurs d'état */
-    border-radius: 50%; /* Rend les indicateurs circulaires */
+    /*width: 20px;*/ /* Taille des indicateurs d'état */
+    /*height: 20px;*/ /* Hauteur des indicateurs d'état */
+    /*border-radius: 50%;*/ /* Rend les indicateurs circulaires */
     margin: 0 5px; /* Espacement entre les indicateurs */
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); /* Ombre pour les indicateurs */
+    /*box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);*/ /* Ombre pour les indicateurs */
 }
 
 /* Couleurs des indicateurs d'état */
-.indic-exo-non-soumis {
-    background-color: #999;
-}
 
 /* Gris pour non soumis */
-.indic-exo-rouge {
-    background-color: #f44336;
+.indic-exo-non-soumis {
+    /*background-color: #999;*/
+    margin: 0 5px;
+    color: gray;
 }
 
 /* Rouge pour soumission incorrecte */
-.indic-exo-vert {
-    background-color: #4CAF50;
+.indic-exo-invalide {
+    /*background-color: #f44336;*/
+    margin: 0 5px;
+    color: red;
 }
 
 /* Vert pour soumission correcte */
+.indic-exo-valide {
+    /*background-color: #4CAF50;*/
+    margin: 0 5px;
+    color: green;
+}
 
 .exercise-navigation {
     display: flex;
@@ -252,7 +258,8 @@ code {
 }
 
 .btn:hover {
-    background-color: #4cae4c; /* Assombrit le bouton au survol */
+    background-color: #204a87;/*#4cae4c;*/ /* Assombrit le bouton au survol */
+    color:white;
 }
 
 /* Style pour le titre de la section instance */
