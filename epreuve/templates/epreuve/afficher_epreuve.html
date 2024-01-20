@@ -84,7 +84,15 @@
                     const etatExercicesContainer = document.getElementById('etat-exercices');
                     exercises.forEach(exercise => {
                         const indicateur = document.createElement('span');
-                        indicateur.className = 'indic-exo-non-soumis fa-regular fa-circle';
+                        if(exercise.reponse_valide) {
+                            indicateur.className = 'indic-exo-valide fa-regular fa-circle-check fa-lg';
+                        } else {
+                            if (exercise.nb_soumissions > 0) {
+                                indicateur.className = 'indic-exo-invalide fa-regular fa-circle-xmark fa-lg';
+                            } else {
+                                indicateur.className = 'indic-exo-non-soumis fa-regular fa-circle-question fa-lg';
+                            }
+                        }
                         indicateur.id = `indic-exo-${exercise.id}`;
                         etatExercicesContainer.appendChild(indicateur);
                     });
@@ -92,15 +100,36 @@
 
                 function indicateurExoCourant(exoCourantId) {
                     exercises.forEach(exercise => {
-                        indicateur.className = 'fa-regular';
+                        exo = document.getElementById(`indic-exo-${exercise.id}`);
+                        exo.classList.remove('fa-solid');
+                        exo.classList.remove('fa-2xl');
+                        exo.classList.add('fa-regular');
+                        exo.classList.add('fa-lg');
                     });
                     exoCourant = document.getElementById(`indic-exo-${exoCourantId}`);
-                    exoCourant.className = 'fa-solid';
+                    exoCourant.classList.remove('fa-regular');
+                    exoCourant.classList.remove('fa-lg');
+                    exoCourant.classList.add('fa-solid');
+                    exoCourant.classList.add('fa-2xl');
                 }
 
                 function mettreAJourIndicateur(exerciseId, isSuccess) {
                     const indicateur = document.getElementById(`indic-exo-${exerciseId}`);
-                    indicateur.className = isSuccess ? 'indic-exo-valide fa-solid fa-circle-check' : 'indic-exo-invalide fa-solid fa-circle-xmark';
+                    if (isSuccess) {
+                        indicateur.classList.remove('indic-exo-non-soumis');
+                        indicateur.classList.remove('fa-circle-question');
+                        indicateur.classList.remove('indic-exo-invalide');
+                        indicateur.classList.remove('fa-circle-xmark');
+                        indicateur.classList.add('indic-exo-valide');
+                        indicateur.classList.add('fa-circle-check');
+                    } else {
+                        indicateur.classList.remove('indic-exo-non-soumis');
+                        indicateur.classList.remove('fa-circle-question');
+                        indicateur.classList.add('indic-exo-invalide');
+                        indicateur.classList.add('fa-circle-xmark');
+                        indicateur.classList.remove('indic-exo-valide');
+                        indicateur.classList.remove('fa-circle-check');
+                    }
                 }
 
                 function loadExercise(index) {
@@ -173,37 +202,31 @@
                     const submissionButton = document.createElement('button');
                     submissionButton.className = 'btn nav-btn';
                     submissionButton.innerText = 'Envoyez votre réponse';
-                    submissionButton.onclick = function () {
-                        soumettre(exercise.id);
-                    };
+                    submissionButton.addEventListener('click', function () {
+                        soumettreReponse(exercise.id);
+                    });
+                    container.appendChild(submissionButton);
                     container.appendChild(submissionButton);
                     updateNavigationButtons();
+                    indicateurExoCourant(exercise.id);
+                    document.getElementById('submit-button').disabled = exercise.nb_soumissions_actuelles >= exercise.nombre_max_soumissions;
                 }
 
-
-
-                function verifierInstance(exerciseId) {
+                function soumettreReponse(exerciseId) {
+                    // Récupérer les données de réponse
+                    const codeSubmission = document.getElementById(`code-submission-${exerciseId}`).value;
                     const instanceResponse = document.getElementById(`instance-response-${exerciseId}`).value;
-                    fetch(`{% url 'traiter_reponse_instance' %}`, {
-                        method: 'POST',
-                        body: JSON.stringify({exercise_id: exerciseId, response: instanceResponse}),
-                        headers: {
-                            'X-CSRFToken': getCookie('csrftoken'),
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            mettreAJourIndicateur(exerciseId, data.isSuccess);
-                        })
-                        .catch(error => console.error('Erreur:', error));
-                }
 
-                function soumettreCode(exerciceId) {
-                    const codeSubmission = document.getElementById(`code-submission-${exerciceId}`).value;
-                    fetch(`/epreuve/traiter_reponse_code/${exerciceId}/`, {
+                    // Créer l'objet de données à envoyer
+                    const data = {
+                        exercice_id: exerciseId,
+                        code_soumis: codeSubmission,
+                        solution_instance: instanceResponse
+                    };
+
+                    fetch('/epreuve/soumettre_reponse/', {
                         method: 'POST',
-                        body: JSON.stringify({code: codeSubmission}),
+                        body: JSON.stringify(data),
                         headers: {
                             'X-CSRFToken': getCookie('csrftoken'),
                             'Content-Type': 'application/json'
@@ -211,7 +234,7 @@
                     })
                         .then(response => response.json())
                         .then(data => {
-                            alert('Code soumis avec succès.');
+                            mettreAJourIndicateur(exerciseId, data.reponse_correcte)
                         })
                         .catch(error => console.error('Erreur:', error));
                 }
@@ -230,6 +253,8 @@
                     }
                     return cookieValue;
                 }
+
+                initIndicateursEtat();
 
                 btnPrev.addEventListener('click', function () {
                     if (currentExerciseIndex > 0) {
@@ -252,11 +277,12 @@
                     btnPrev.disabled = true;
                     btnNext.disabled = true;
                 }
-
-                initIndicateursEtat();
+                document.getElementById('submit-button').addEventListener('click', function () {
+                    const currentExercise = exercises[currentExerciseIndex];
+                    soumettreReponse(currentExercise.id);
+                });
             });
         </script>
-
 
 
     </div>
