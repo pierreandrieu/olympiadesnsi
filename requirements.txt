@@ -7,3 +7,4 @@ django-debug-toolbar
 psycopg2-binary
 celery
 redis
+django-ratelimit
