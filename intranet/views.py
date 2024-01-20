@@ -5,6 +5,8 @@ from django.http import HttpResponseForbidden
 from django.urls import reverse
 from django.contrib import messages
 from django.shortcuts import render
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
 from epreuve.models import User, GroupeCreePar, Epreuve, GroupeParticipeAEpreuve, UserEpreuve, MembreComite
 from django.http import HttpResponse
 from django.db.models import Q, Count
@@ -15,7 +17,7 @@ from django.utils import timezone
 
 
 @login_required
-def espace_candidat(request):
+def espace_participant(request):
     today = timezone.now()
     user = request.user
     user_groups = user.groups.all()
@@ -25,7 +27,7 @@ def espace_candidat(request):
     epreuves_user = Epreuve.objects.filter(id__in=epreuves_ids)
 
     # Epreuves spécifiques à l'utilisateur
-    epreuves_candidat = UserEpreuve.objects.filter(participant=user)
+    epreuves_participant = UserEpreuve.objects.filter(participant=user)
 
     # Classifiez les épreuves
     epreuves_en_cours = epreuves_user.filter(
@@ -43,17 +45,22 @@ def espace_candidat(request):
           association_UserEpreuve_Epreuve__participant=user)
     )
 
-    return render(request, 'intranet/espace_candidat.html', {
+    return render(request, 'intranet/espace_participant.html', {
         'epreuves_en_cours': epreuves_en_cours,
         'epreuves_a_venir': epreuves_a_venir,
         'epreuves_terminees': epreuves_terminees,
-        'epreuves_candidat': epreuves_candidat
+        'epreuves_participant': epreuves_participant,
     })
 
 
 @login_required
-def gestion_compte(request):
-    return render(request, 'intranet/gestion_compte.html')
+def gestion_compte_participant(request):
+    return render(request, 'intranet/gestion_compte_participant.html')
+
+
+@login_required
+def gestion_compte_organisateur(request):
+    return render(request, 'intranet/gestion_compte_organisateur.html')
 
 
 @login_required
@@ -176,3 +183,39 @@ def get_unique_username(id_user: int, num: int):
     partie_alea = get_random_string(length=3, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ')
     faux_id: str = str(2 * id_user + 100)
     return f"{partie_alea}{faux_id[:len(faux_id)//2]}_{num:03d}{faux_id[len(faux_id)//2:]}"
+
+
+from django.contrib import messages
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth import update_session_auth_hash
+from django.shortcuts import render, redirect
+
+
+@login_required
+def change_password_generic(request, template: str):
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)  # Important pour maintenir la session de l'utilisateur
+            messages.success(request, 'Votre mot de passe a été mis à jour avec succès!')
+            return render(request, template, {'form': form})
+        else:
+            for field in form:
+                for error in field.errors:
+                    messages.error(request, f"{field.label}: {error}")
+            for error in form.non_field_errors():
+                messages.error(request, f"Erreur: {error}")
+    else:
+        form = PasswordChangeForm(request.user)
+    return render(request, template, {'form': form})
+
+
+@login_required
+def change_password_participant(request):
+    return change_password_generic(request, "intranet/gestion_compte_participant.html")
+
+
+@login_required
+def change_password_organisateur(request):
+    return change_password_generic(request, "intranet/gestion_compte_organisateur.html")
