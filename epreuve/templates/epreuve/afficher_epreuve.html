@@ -38,11 +38,11 @@
         <div class="exercise-navigation">
 
 
-            <button id="prev-exercise" class="btn nav-btn" disabled>←</button>
+            <button id="prev-exercise" class="btn nav-btn" disabled><i class="fa-solid fa-arrow-left" style="color:white;"></i></button>
             <div id="exercice-container" class="exercise-box">
                 <!-- Les exercices seront chargés ici -->
             </div>
-            <button id="next-exercise" class="btn nav-btn">→</button>
+            <button id="next-exercise" class="btn nav-btn"><i class="fa-solid fa-arrow-right" style="color:white;"></i></button>
         </div>
 
 
@@ -51,7 +51,7 @@
             document.addEventListener('DOMContentLoaded', function () {
                 let currentExerciseIndex = 0;
                 const exercises = JSON.parse('{{ exercices_json|escapejs }}');
-                console.log(exercises);
+                /* console.log(exercises); */
                 const btnPrev = document.getElementById('prev-exercise');
                 const btnNext = document.getElementById('next-exercise');
 
@@ -105,6 +105,7 @@
                     titleElement.innerText = exercise.titre;
                     container.appendChild(titleElement);
 
+                    /* ANCIEN CODE
                     switch (exercise.type_enonce) {
                         case 'latex':
                             renderLatex(exercise.enonce);
@@ -115,18 +116,30 @@
                         default:
                             container.innerHTML += `<p>${escapeHtml(exercise.enonce)}</p>`;
                     }
+                    */
+                    renderLatex(exercise.enonce);
+
+                    if (exercise.enonce_code && exercise.enonce_code.trim().length > 0) {
+                        // Créer un élément pour afficher 'enonce_code'
+                        const codeElement = document.createElement('pre');
+                        const codeContent = document.createElement('code');
+                        codeContent.textContent = exercise.enonce_code;
+                        codeElement.appendChild(codeContent);
+                        container.appendChild(codeElement);
+                    }
+
 
                     // Création du titre de la section de l'instance
-                    if (exercise.instance_probleme_prog_a_resoudre) {
+                    if (exercise.avec_jeu_de_test) {
                         const instanceTitle = document.createElement('p');
                         instanceTitle.className = 'instance-title';
-                        instanceTitle.innerText = "Résolvez l'instance du problème suivante :";
+                        instanceTitle.innerText = "Résolvez le problème sur le jeu de test suivant :";
                         container.appendChild(instanceTitle);
 
                         // Création du conteneur de l'instance
                         const instanceContainer = document.createElement('div');
                         instanceContainer.className = 'instance-problem-container';
-                        instanceContainer.textContent = exercise.instance_probleme_prog_a_resoudre;
+                        instanceContainer.textContent = exercise.instance_de_test;/* exercise.instance_probleme_prog_a_resoudre;*/
                         container.appendChild(instanceContainer);
 
                         // Création du champ de réponse et du bouton de soumission
@@ -134,7 +147,6 @@
                         responseContainer.className = 'instance-response-container';
                         responseContainer.innerHTML = `
             <input type="text" id="instance-response-${exercise.id}" placeholder="Votre réponse">
-            <button onclick="verifierInstance(${exercise.id})">Vérifier</button>
         `;
                         container.appendChild(responseContainer);
                     }
@@ -145,14 +157,21 @@
                         codeContainer.className = 'code-submission-container';
                         codeContainer.innerHTML = `
             <p>Entrez votre code ici :</p>
-            <textarea id="code-submission-${exercise.id}"></textarea>
-            <button onclick="soumettreCode(${exercise.id})">Soumettre le code</button>
+            <textarea id="code-submission-${exercise.id}" placeholder="Votre code"></textarea>
         `;
                         container.appendChild(codeContainer);
                     }
-
+                    // Création du bouton de soumission
+                    const submissionButton = document.createElement('button');
+                    submissionButton.className = 'btn nav-btn';
+                    submissionButton.innerText = 'Envoyez votre réponse';
+                    submissionButton.onclick = function () {
+                        soumettre(exercise.id);
+                    };
+                    container.appendChild(submissionButton);
                     updateNavigationButtons();
                 }
+
 
 
                 function verifierInstance(exerciseId) {
