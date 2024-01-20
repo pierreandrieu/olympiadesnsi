@@ -15,7 +15,7 @@ def login_participant(request):
 
             if user is not None and not user.groups.filter(name='Organisateur').exists():
                 login(request, user)
-                return redirect('espace_candidat')
+                return redirect('espace_participant')
             else:
                 messages.error(request, 'Identifiant ou mot de passe incorrect.')
     else:
