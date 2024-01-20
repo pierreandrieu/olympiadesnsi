@@ -40,19 +40,25 @@ class Epreuve(models.Model):
 
 
 class Exercice(models.Model):
+    TYPE_EXERCICE_CHOIX = [
+        ('programmation', 'Programmation'),
+        ('qcm', 'QCM'),
+        ('qroc', 'QROC'),
+        ('qcs', 'QCS')
+    ]
 
     epreuve = models.ForeignKey(Epreuve, on_delete=models.CASCADE)
     auteur = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     titre = models.CharField(max_length=100)
     description = models.TextField(null=True, blank=True)
     bareme = models.IntegerField(null=True)
+    type_exercice = models.CharField(max_length=14, choices=TYPE_EXERCICE_CHOIX, default="programmation")
     enonce = models.TextField(null=True, blank=True)
     enonce_code = models.TextField(null=True, blank=True)
     avec_jeu_de_test = models.BooleanField(default=False)
     retour_en_direct = models.BooleanField(default=False)
-    nombre_max_soumissions_solution = models.IntegerField(default=50)
     code_a_soumettre = models.BooleanField(default=False)
-    nombre_max_soumissions_code = models.IntegerField(default=50)
+    nombre_max_soumissions = models.IntegerField(default=50)
 
     class Meta:
         db_table = 'Exercice'
@@ -116,21 +122,6 @@ class GroupeCreePar(models.Model):
         ]
 
 
-class UserExercice(models.Model):
-    participant = models.ForeignKey(User, related_name='association_UserExercice_User',
-                                    on_delete=models.CASCADE)
-    exercice = models.ForeignKey(Exercice, related_name='association_UserExercice_Exercice', on_delete=models.CASCADE)
-    instance_participant = models.TextField(null=True)
-    solution_instance_participant = models.TextField(null=True)
-    solution_instance_correction = models.TextField(null=True)
-    code_participant = models.TextField(null=True)
-    nombre_soumissions_solution_instance = models.IntegerField(default=0)
-    nombre_soumissions_code = models.IntegerField(default=0)
-
-    class Meta:
-        db_table = 'ParticipantExercice'
-
-
 class UserEpreuve(models.Model):
     participant = models.ForeignKey(User, related_name='association_UserEpreuve_User',
                                     on_delete=models.CASCADE)
@@ -158,3 +149,16 @@ class JeuDeTest(models.Model):
         indexes = [
             models.Index(fields=['exercice'])
         ]
+
+
+class UserExercice(models.Model):
+    participant = models.ForeignKey(User, related_name='association_UserExercice_User',
+                                    on_delete=models.CASCADE)
+    exercice = models.ForeignKey(Exercice, related_name='association_UserExercice_Exercice', on_delete=models.CASCADE)
+    jeu_de_test = models.ForeignKey(JeuDeTest, on_delete=models.SET_NULL, null=True, blank=True)
+    solution_instance_participant = models.TextField(null=True)
+    code_participant = models.TextField(null=True)
+    nb_soumissions = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = 'ParticipantExercice'

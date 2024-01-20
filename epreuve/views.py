@@ -2,7 +2,8 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from epreuve.models import Epreuve, GroupeCreePar, GroupeParticipeAEpreuve, Exercice, UserEpreuve
+from epreuve.models import Epreuve, GroupeCreePar, GroupeParticipeAEpreuve, UserExercice, Exercice, UserEpreuve, \
+    JeuDeTest
 from epreuve.forms import EpreuveForm
 import json
 from django.utils import timezone
@@ -11,8 +12,8 @@ from datetime import timedelta
 
 @login_required
 def gerer_epreuve(request, epreuve_id):
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id, referent=request.user)
-    form = EpreuveForm(request.POST or None, instance=epreuve)
+    epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id, referent=request.user)
+    form: EpreuveForm = EpreuveForm(request.POST or None, instance=epreuve)
 
     if request.method == 'POST' and form.is_valid():
         form.save()
@@ -29,7 +30,7 @@ def gerer_epreuve(request, epreuve_id):
 @login_required
 def inscrire_epreuves(request, id_groupe):
     if request.method == 'POST':
-        groupe_cree_par = get_object_or_404(GroupeCreePar, id=id_groupe)
+        groupe_cree_par: GroupeCreePar = get_object_or_404(GroupeCreePar, id=id_groupe)
         epreuves_ids = request.POST.getlist('epreuves')
 
         for epreuve_id in epreuves_ids:
@@ -72,27 +73,52 @@ def detail_epreuve(request, epreuve_id):
 @login_required
 def afficher_epreuve(request, epreuve_id):
     epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+    user = request.user
 
     # Récupérer tous les exercices liés à cette épreuve
     exercices = Exercice.objects.filter(epreuve=epreuve)
     # Préparer les données des exercices pour le JavaScript
-    # Convertir les exercices en un format JSON pour le frontend
-    exercices_json = json.dumps([{
-        'id': ex.id,
-        'titre': ex.titre,
-        'description': ex.description,
-        'type_exercice': ex.type_exercice,
-        'type_enonce': ex.type_enonce,
-        'enonce': ex.enonce,
-        'code_a_soumettre': ex.code_a_soumettre,
-        'instance_probleme_prog_a_resoudre': ex.instance_probleme_prog_a_resoudre,
-    } for ex in exercices])
 
+    exercices_json_list = []
+    for ex in exercices:
+        # Récupérer l'objet UserExercice correspondant
+        user_exercice, created = UserExercice.objects.get_or_create(exercice_id=ex.id, participant_id=user.id)
+        jeu_de_test = None
+
+        if ex.avec_jeu_de_test and user_exercice.jeu_de_test is not None:
+            jeu_de_test = JeuDeTest.objects.get(id=user_exercice.jeu_de_test.id)
+
+        instance_de_test: str = ""
+
+        if jeu_de_test is not None:
+            instance_de_test = jeu_de_test.instance
+
+        # Construire le dictionnaire pour cet exercice
+        exercice_dict = {
+            'id': ex.id,
+            'titre': ex.titre,
+            'description': ex.description,
+            'bareme': ex.bareme,
+            'enonce': ex.enonce,
+            'enonce_code': ex.enonce_code,
+            'type_exercice': ex.type_exercice,
+            'avec_jeu_de_test': ex.avec_jeu_de_test,
+            'code_a_soumettre': ex.code_a_soumettre,
+            'peut_encore_soumettre': ex.nombre_max_soumissions < user_exercice.nb_soumissions,
+            'retour_en_direct': ex.retour_en_direct,
+            'instance_de_test': instance_de_test,
+            'jeu_de_test_solution_ok': user_exercice.solution_instance_participant == jeu_de_test.reponse
+        }
+
+        # Ajouter le dictionnaire à la liste
+        exercices_json_list.append(exercice_dict)
+
+    # Convertir la liste en JSON
+    exercices_json = json.dumps(exercices_json_list)
     temps_restant = None
 
     if epreuve.duree and epreuve.temps_limite:
         # Préparer les informations de temps pour le frontend
-        user = request.user
         user_epreuve, created = UserEpreuve.objects.get_or_create(
             participant=user,
             epreuve=epreuve,
