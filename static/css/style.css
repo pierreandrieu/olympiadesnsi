@@ -242,7 +242,7 @@ code {
 
 /* Style des boutons */
 .btn {
-    background-color: #5cb85c; /* Couleur de fond des boutons */
+    background-color: #3465a4; /*vert vif: #5cb85c; /* Couleur de fond des boutons */
     color: white; /* Couleur de texte des boutons */
     border: none; /* Enlève la bordure */
     padding: 10px 20px; /* Espacement interne des boutons */

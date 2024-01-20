@@ -1,0 +1,42 @@
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+footer {
+    margin-top: auto; /* Pousse le footer en bas */
+}
+
+.add-button {
+    margin-left: 10px;
+}
+
+.tooltip-inner {
+    background-color: #fff;
+    color: #000;
+    border: 1px solid #ccc;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+.form-control {
+    margin-left: 10px; /* Ajoute de l'espace à gauche */
+    margin-right: 10px; /* Ajoute de l'espace à droite */
+}
+
+.date-input-container {
+    position: relative; /* Conteneur pour le champ de date et le calendrier */
+}
+
+.date-input-container input[type="date"] {
+    width: 100%; /* Assurez-vous que le champ de date occupe toute la largeur du conteneur */
+}
+
+.custom-checkbox {
+    padding-left: 20px; /* Ajoutez ou ajustez le padding pour les cases à cocher */
+}
+
+p {
+    color: red;
+}
