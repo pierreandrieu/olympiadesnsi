@@ -1,0 +1,259 @@
+{% extends 'olympiadesnsi/base_organisateur.html' %}
+
+{% block content %}
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Mes Épreuves</span>
+                        <!-- Bouton pour ajouter une épreuve -->
+                        <button type="button" class="btn btn-primary btn-sm" data-toggle="modal"
+                                data-target="#addEpreuveModal">
+                            Ajouter Épreuve
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <table class="table">
+                            <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Référent</th>
+                                <th>Participants</th>
+                                <th>Exercices</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for epreuve, exercices_info, nombre_participants in epreuves_info %}
+                                <tr>
+                                    <td>{{ epreuve.nom }}</td>
+                                    <td>{{ epreuve.referent.username }}</td>
+                                    <td>{{ nombre_participants }}</td>
+                                    <td>
+                                        <button onclick="toggleExercices('exercices-{{ epreuve.id }}')"
+                                                class="btn btn-info btn-sm">
+                                            Voir
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr id="exercices-{{ epreuve.id }}" class="table-secondary" style="display:none;">
+                                    <td colspan="4">
+                                        <table class="table">
+                                            <thead>
+                                            <tr>
+                                                <th>Titre</th>
+                                                <th>Auteur</th>
+                                                <th>Jeux de Tests</th>
+                                                <th>Participants sans Jeu de Test</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            {% for exercice, nb_participants_sans_jeu, nb_jeux_tests, nom_auteur in exercices_info %}
+                                                <tr>
+                                                    <td class="text-truncate" style="max-width: 150px;"
+                                                        title="{{ exercice.titre }}">{{ exercice.titre|truncatechars:30 }}</td>
+                                                    <td>{{ nom_auteur }}</td>
+                                                    <td>
+                                                        {% if nb_jeux_tests >= 0 %}
+                                                            {{ nb_jeux_tests }}
+                                                        {% else %}
+                                                            N/A
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if nb_participants_sans_jeu >= 0 %}
+                                                            {{ nb_participants_sans_jeu }}
+                                                        {% else %}
+                                                            N/A
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if nb_participants_sans_jeu > 0 %}
+                                                            <a href="{% url 'assigner_jeu_de_test' exercice.id %}"
+                                                               class="assign-test">
+                                                                <i class="fas fa-tasks"
+                                                                   title="Assigner des jeux de test"></i>
+                                                            </a>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pour Ajouter un Groupe -->
+    <div class="modal fade" id="addGroupModal" tabindex="-1" role="dialog" aria-labelledby="addGroupModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addGroupModalLabel">Ajouter un Groupe</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form method="post" action="{% url 'creer_groupe' %}">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="nom-groupe">Nom du groupe</label>
+                            <input type="text" class="form-control" id="nom-groupe" name="nom_groupe" maxlength="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="nombre-utilisateurs">Nombre d'utilisateurs</label>
+                            <input type="number" class="form-control" id="nombre-utilisateurs"
+                                   name="nombre_utilisateurs" min="0" max="1000">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Créer Groupe</button>
+                    </div>
+                </form>
+                {% if messages %}
+                    <ul class="messages">
+                        {% for message in messages %}
+                            <li class="{{ message.tags }}">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        Mes Groupes
+                        <!-- Bouton pour ajouter un groupe -->
+                        <button type="button" class="btn btn-primary" data-toggle="modal"
+                                data-target="#addGroupModal">
+                            +
+                        </button>
+                    </div>
+                
+                    <div class="card-body">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Nom du Groupe</th>
+                                    <th>Nombre de Membres</th>
+                                    <th>Membres</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for groupe in groupes_crees %}
+                                <tr>
+                                    <td>{{ groupe.groupe.name }}</td>
+                                    <td>{{ groupe.nombre_membres }}</td>
+                                    <td>
+                                        <button onclick="toggleMembres('membres-{{ groupe.groupe.id }}')"
+                                                class="btn btn-info btn-xs">
+                                            Afficher Membres
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr id="membres-{{ groupe.groupe.id }}" class="table-secondary" style="display:none;">
+                                    <td colspan="3">
+                                        <!-- Tableau imbriqué ou autre contenu pour les détails des membres -->
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    
+    <!-- Modal pour Ajouter une épreuve -->
+    <div class="modal fade" id="addEpreuveModal" tabindex="-1" role="dialog" aria-labelledby="addEpreuveModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addEpreuveModalLabel">Ajouter une Épreuve</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form method="post" action="{% url 'creer_epreuve' %}">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <button type="submit" class="btn btn-primary">Créer Épreuve</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        $(document).ready(function () {
+            $('[data-toggle="tooltip"]').tooltip();
+        });
+    </script>
+
+    <script>
+        $(document).ready(function () {
+            // Vérifier si l'indicateur 'openModal' est présent dans l'URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const openModal = urlParams.get('openModal');
+
+            if (openModal === 'true') {
+                // Ouvrir le modal d'ajout de groupe
+                $('#addGroupModal').modal('show');
+            }
+
+            $('[data-toggle="tooltip"]').tooltip();
+        });
+    </script>
+
+    <script>
+        function toggleExercices(id) {
+            var x = document.getElementById(id);
+            if (x.style.display === "none") {
+                x.style.display = "table-row";
+            } else {
+                x.style.display = "none";
+            }
+        }
+    </script>
+
+    <script>
+        function toggleExercices(id) {
+            var x = document.getElementById(id);
+            if (x.style.display === "none") {
+                x.style.display = "table-row";
+            } else {
+                x.style.display = "none";
+            }
+        }
+    </script>
+    <script>
+        $(function () {
+        $('[data-toggle="tooltip"]').tooltip();
+        });
+    
+        function toggleExercices(id) {
+        $('#' + id).toggle();
+        }
+    </script>
+{% endblock %}
