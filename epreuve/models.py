@@ -5,7 +5,6 @@ from django.db.models import CheckConstraint, Q, F
 
 class Epreuve(models.Model):
     nom = models.CharField(max_length=100)
-    description = models.TextField(null=True)
     date_debut = models.DateTimeField(null=True, blank=True)
     date_fin = models.DateTimeField(null=True, blank=True)
     duree = models.IntegerField(null=True)  # Durée en minutes
