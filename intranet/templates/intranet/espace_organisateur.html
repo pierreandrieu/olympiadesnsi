@@ -5,34 +5,34 @@
         <div class="row">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header">
-                        Mes Épreuves
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Mes Épreuves</span>
                         <!-- Bouton pour ajouter une épreuve -->
-                        <button type="button" class="btn btn-primary" data-toggle="modal"
+                        <button type="button" class="btn btn-primary btn-sm" data-toggle="modal"
                                 data-target="#addEpreuveModal">
-                            +
+                            Ajouter Épreuve
                         </button>
-
                     </div>
                     <div class="card-body">
                         <table class="table">
                             <thead>
-                                <tr>
-                                    <th>Nom</th>
-                                    <th>Référent</th>
-                                    <th>Participants</th>
-                                    <th>Exercices</th>
-                                </tr>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Référent</th>
+                                <th>Participants</th>
+                                <th>Exercices</th>
+                            </tr>
                             </thead>
                             <tbody>
-                                {% for epreuve, exercices, nombre_participants in epreuves_info %}
+                            {% for epreuve, exercices_info, nombre_participants in epreuves_info %}
                                 <tr>
                                     <td>{{ epreuve.nom }}</td>
                                     <td>{{ epreuve.referent.username }}</td>
                                     <td>{{ nombre_participants }}</td>
                                     <td>
-                                        <button onclick="toggleExercices('exercices-{{ epreuve.id }}')" class="btn btn-info btn-xs">
-                                            Afficher Exercices
+                                        <button onclick="toggleExercices('exercices-{{ epreuve.id }}')"
+                                                class="btn btn-info btn-sm">
+                                            Voir
                                         </button>
                                     </td>
                                 </tr>
@@ -40,25 +40,49 @@
                                     <td colspan="4">
                                         <table class="table">
                                             <thead>
-                                                <tr>
-                                                    <th>Titre</th>
-                                                    <th>Auteur</th>
-                                                    <th>Nombre de Jeux de Tests</th>
-                                                </tr>
+                                            <tr>
+                                                <th>Titre</th>
+                                                <th>Auteur</th>
+                                                <th>Jeux de Tests</th>
+                                                <th>Participants sans Jeu de Test</th>
+                                            </tr>
                                             </thead>
                                             <tbody>
-                                                {% for exercice in exercices %}
+                                            {% for exercice, nb_participants_sans_jeu, nb_jeux_tests, nom_auteur in exercices_info %}
                                                 <tr>
-                                                    <td>{{ exercice.titre }}</td>
-                                                    <td>{{ exercice.referent.username }}</td>
-                                                    <td>{{ exercice.nombre_jeux_tests }}</td>
+                                                    <td class="text-truncate" style="max-width: 150px;"
+                                                        title="{{ exercice.titre }}">{{ exercice.titre|truncatechars:30 }}</td>
+                                                    <td>{{ nom_auteur }}</td>
+                                                    <td>
+                                                        {% if nb_jeux_tests >= 0 %}
+                                                            {{ nb_jeux_tests }}
+                                                        {% else %}
+                                                            N/A
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if nb_participants_sans_jeu >= 0 %}
+                                                            {{ nb_participants_sans_jeu }}
+                                                        {% else %}
+                                                            N/A
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if nb_participants_sans_jeu > 0 %}
+                                                            <a href="{% url 'assigner_jeu_de_test' exercice.id %}"
+                                                               class="assign-test">
+                                                                <i class="fas fa-tasks"
+                                                                   title="Assigner des jeux de test"></i>
+                                                            </a>
+                                                        {% endif %}
+                                                    </td>
                                                 </tr>
-                                                {% endfor %}
+                                            {% endfor %}
                                             </tbody>
                                         </table>
                                     </td>
                                 </tr>
-                                {% endfor %}
+                            {% endfor %}
                             </tbody>
                         </table>
                     </div>
@@ -66,8 +90,6 @@
             </div>
         </div>
     </div>
-
-
 
     <!-- Modal pour Ajouter un Groupe -->
     <div class="modal fade" id="addGroupModal" tabindex="-1" role="dialog" aria-labelledby="addGroupModalLabel"
@@ -97,6 +119,13 @@
                         <button type="submit" class="btn btn-primary">Créer Groupe</button>
                     </div>
                 </form>
+                {% if messages %}
+                    <ul class="messages">
+                        {% for message in messages %}
+                            <li class="{{ message.tags }}">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -109,7 +138,12 @@
                     <div class="card-header">
                         Mes Groupes
                         <!-- Bouton pour ajouter un groupe -->
+                        <button type="button" class="btn btn-primary" data-toggle="modal"
+                                data-target="#addGroupModal">
+                            +
+                        </button>
                     </div>
+                
                     <div class="card-body">
                         <table class="table">
                             <thead>
@@ -213,5 +247,13 @@
             }
         }
     </script>
-
+    <script>
+        $(function () {
+        $('[data-toggle="tooltip"]').tooltip();
+        });
+    
+        function toggleExercices(id) {
+        $('#' + id).toggle();
+        }
+    </script>
 {% endblock %}
