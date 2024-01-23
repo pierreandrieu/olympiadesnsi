@@ -49,7 +49,6 @@ class Exercice(models.Model):
     epreuve = models.ForeignKey(Epreuve, on_delete=models.CASCADE)
     auteur = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     titre = models.CharField(max_length=100)
-    description = models.TextField(null=True, blank=True)
     bareme = models.IntegerField(null=True)
     type_exercice = models.CharField(max_length=14, choices=TYPE_EXERCICE_CHOIX, default="programmation")
     enonce = models.TextField(null=True, blank=True)
