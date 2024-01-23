@@ -5,10 +5,11 @@ from django.http import JsonResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_protect
 from django.utils import timezone
 from django_ratelimit.decorators import ratelimit
+from django.contrib import messages
 
 from epreuve.models import Epreuve, GroupeCreePar, GroupeParticipeAEpreuve, UserExercice, Exercice, UserEpreuve, \
     JeuDeTest
-from epreuve.forms import EpreuveForm
+from epreuve.forms import EpreuveForm, ExerciceForm
 import json
 from datetime import timedelta
 import random
@@ -221,3 +222,63 @@ def assigner_jeu_de_test(request, exercice_id):
 
     # Rediriger l'utilisateur vers la page précédente
     return redirect('espace_organisateur')
+
+
+@login_required
+def ajouter_exercice(request, epreuve_id):
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+
+    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+    if request.method == "POST":
+        form = ExerciceForm(request.POST)
+        if form.is_valid():
+            exercice = form.save(commit=False)
+            exercice.epreuve = epreuve
+            exercice.save()
+            messages.success(request, 'L\'exercice a été ajouté avec succès.')
+            return redirect('espace_organisateur')
+    else:
+        form = ExerciceForm()
+
+    return render(request, 'epreuve/ajouter_exercice.html', {'form': form, 'epreuve': epreuve})
+
+@login_required
+def visualiser_epreuve(request, epreuve_id):
+    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+    # TODO
+
+    return render(request, 'epreuve/visualiser_epreuve.html', {'epreuve': epreuve})
+
+
+@login_required
+def editer_epreuve(request, epreuve_id):
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+
+    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+
+    if request.user != epreuve.referent:
+        return HttpResponseForbidden()
+
+    # TODO
+
+    return render(request, 'epreuve/editer_epreuve.html', {'epreuve': epreuve})
+
+
+@login_required
+def supprimer_epreuve(request, epreuve_id):
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+
+    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+
+    # Assurez-vous que l'utilisateur est le référent de l'épreuve
+    if request.user != epreuve.referent:
+        return HttpResponseForbidden()
+
+    if request.method == "POST":
+        epreuve.delete()
+        return redirect('nom_de_la_vue_apres_suppression')
+
+    return render(request, 'epreuve/confirmer_suppression.html', {'epreuve': epreuve})
