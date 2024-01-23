@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_protect
 from django.utils import timezone
 from django_ratelimit.decorators import ratelimit
@@ -11,6 +11,7 @@ from epreuve.models import Epreuve, GroupeCreePar, GroupeParticipeAEpreuve, User
 from epreuve.forms import EpreuveForm
 import json
 from datetime import timedelta
+import random
 
 
 @login_required
@@ -69,8 +70,6 @@ def gerer_groupe(request, id_groupe):
 def detail_epreuve(request, epreuve_id):
     epreuve = get_object_or_404(Epreuve, id=epreuve_id)
     return render(request, 'epreuve/detail_epreuve.html', {'epreuve': epreuve})
-
-
 
 
 @login_required
@@ -144,33 +143,6 @@ def afficher_epreuve(request, epreuve_id):
 
 
 @login_required
-def traiter_reponse_instance(request, exercise_id):
-    if request.method == 'POST':
-        # ... Traitement ...
-        is_correct = True  # Vérifier si la réponse est correcte
-        message = "Réponse correcte !" if is_correct else "Réponse incorrecte."
-
-        return JsonResponse({'isSuccess': is_correct, 'message': message})
-
-    return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
-
-
-@login_required
-def traiter_reponse_code(request, exercice_id):
-    if request.method == 'POST':
-        # Récupérer les données du POST
-        data = json.loads(request.body)
-        code = data.get('code')
-
-        # TODO Ajouter la logique pour traiter le code soumis
-        # ...
-
-        return JsonResponse({'message': 'Code reçu et traité'})
-    else:
-        return JsonResponse({'error': 'Méthode non autorisée'}, status=405)
-
-
-@login_required
 @csrf_protect
 @ratelimit(key='user', rate='10/m', block=True)
 def soumettre(request):
@@ -210,3 +182,42 @@ def soumettre(request):
             return JsonResponse({'success': False, 'error': 'Données invalides'}, status=400)
     else:
         return JsonResponse({'success': False, 'error': 'Méthode non autorisée'}, status=405)
+
+
+@login_required
+def assigner_jeu_de_test(request, exercice_id):
+    exercice = get_object_or_404(Exercice, pk=exercice_id)
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+
+    # Récupérer tous les ID des Jeux de Test pour cet exercice
+    jeux_de_test_ids = set(JeuDeTest.objects.filter(exercice=exercice).values_list('id', flat=True))
+    # Récupérer les ID des Jeux de Test déjà attribués
+    jeux_attribues_ids = set(UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=False)
+                             .values_list('jeu_de_test_id', flat=True))
+    # Calculer les jeux de tests non attribués
+    jeux_non_attribues = jeux_de_test_ids - jeux_attribues_ids
+    jeux_non_attribues_copie = list(jeux_non_attribues)
+    random.shuffle(jeux_non_attribues_copie)
+    # Trouver les participants sans jeu de test attribué
+    participants_sans_jeu = UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=True)
+    cpt = 0
+    fusion: bool = True
+    for user_exercice in participants_sans_jeu:
+        if cpt == len(jeux_non_attribues_copie):
+            cpt = 0
+            if fusion:
+                for id_jeu_attribue in jeux_attribues_ids:
+                    jeux_non_attribues_copie.append(id_jeu_attribue)
+                    fusion = False
+            random.shuffle(jeux_non_attribues_copie)
+
+        jeu_de_test_id = jeux_non_attribues_copie[cpt]
+        cpt += 1
+
+        user_exercice.jeu_de_test_id = jeu_de_test_id
+        user_exercice.save()
+        # Supprimer l'ID attribué du set des jeux non attribués
+
+    # Rediriger l'utilisateur vers la page précédente
+    return redirect('espace_organisateur')
