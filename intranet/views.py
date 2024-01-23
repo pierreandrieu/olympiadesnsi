@@ -3,21 +3,23 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
 from django.http import HttpResponseForbidden
 from django.urls import reverse
-from django.contrib import messages
 from django.shortcuts import render
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-from epreuve.models import User, GroupeCreePar, Epreuve, GroupeParticipeAEpreuve, UserEpreuve, MembreComite
+from epreuve.models import User, GroupeCreePar, Epreuve, GroupeParticipeAEpreuve, UserEpreuve, UserExercice, JeuDeTest
 from django.http import HttpResponse
 from django.db.models import Q, Count
 from intranet.tasks import save_users_task  # La tâche Celery pour sauvegarder les utilisateurs
 from epreuve.forms import EpreuveForm
 from django.utils.crypto import get_random_string
 from django.utils import timezone
+from django.contrib import messages
 
 
 @login_required
 def espace_participant(request):
+    if not request.user.groups.filter(name='Participant').exists():
+        return HttpResponseForbidden()
     today = timezone.now()
     user = request.user
     user_groups = user.groups.all()
@@ -55,11 +57,17 @@ def espace_participant(request):
 
 @login_required
 def gestion_compte_participant(request):
+    if not request.user.groups.filter(name='Participant').exists():
+        return HttpResponseForbidden()
     return render(request, 'intranet/gestion_compte_participant.html')
 
 
 @login_required
 def gestion_compte_organisateur(request):
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
     return render(request, 'intranet/gestion_compte_organisateur.html')
 
 
@@ -108,6 +116,8 @@ def creer_groupe(request):
 
 
 def telecharger_csv(request):
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
     csv_data = request.session.get('csv_data')
     nom_groupe = request.session.get('nom_groupe', 'groupe_inconnu')
 
@@ -122,6 +132,8 @@ def telecharger_csv(request):
 
 # Dans views.py
 def afficher_page_telechargement(request):
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
     return render(request, 'intranet/telecharge_csv_users.html')
 
 
@@ -149,6 +161,9 @@ def creer_epreuve(request):
 
 @login_required
 def espace_organisateur(request):
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+
     user = request.user
 
     # Récupère les groupes créés par l'utilisateur avec le nombre de membres pour chaque groupe
@@ -163,13 +178,32 @@ def espace_organisateur(request):
     # Préparation des données pour les épreuves et les exercices
     epreuves_info = []
     for epreuve in epreuves_organisees:
-        exercices = epreuve.exercice_set.annotate(nombre_jeux_tests=Count('jeu_de_test'))
+        exercices_info = []
+        for exercice in epreuve.exercice_set.all():
+            # Vérifier si l'exercice utilise des jeux de test
+            if exercice.avec_jeu_de_test:
+                # Calculer le nombre de participants sans jeu de test
+                nb_participants_sans_jeu = UserExercice.objects.filter(
+                    exercice=exercice,
+                    jeu_de_test__isnull=True
+                ).count()
+                # Calculer le nombre de jeux de tests
+                nb_jeux_tests = JeuDeTest.objects.filter(exercice=exercice).count()
+            else:
+                # -1 pour indiquer que les jeux de test ne sont pas applicables
+                nb_participants_sans_jeu = -1
+                nb_jeux_tests = -1
+
+            # Récupérer le nom d'utilisateur de l'auteur de l'exercice
+            nom_auteur = exercice.auteur.username if exercice.auteur else "Inconnu"
+
+            exercices_info.append((exercice, nb_participants_sans_jeu, nb_jeux_tests, nom_auteur))
 
         # Calculer le nombre total de participants uniques dans les groupes associés à chaque épreuve
         groupes_participants = epreuve.groupes_participants.all()
         participants_uniques = User.objects.filter(groups__in=groupes_participants).distinct().count()
 
-        epreuves_info.append((epreuve, exercices, participants_uniques))
+        epreuves_info.append((epreuve, exercices_info, participants_uniques))
 
     epreuve_form = EpreuveForm()
 
@@ -179,16 +213,11 @@ def espace_organisateur(request):
         'form': epreuve_form
     })
 
+
 def get_unique_username(id_user: int, num: int):
     partie_alea = get_random_string(length=3, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ')
     faux_id: str = str(2 * id_user + 100)
     return f"{partie_alea}{faux_id[:len(faux_id)//2]}_{num:03d}{faux_id[len(faux_id)//2:]}"
-
-
-from django.contrib import messages
-from django.contrib.auth.forms import PasswordChangeForm
-from django.contrib.auth import update_session_auth_hash
-from django.shortcuts import render, redirect
 
 
 @login_required
