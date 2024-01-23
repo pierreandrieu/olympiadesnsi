@@ -2,7 +2,6 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # ... autres URLs ...
     path('participant/espace', views.espace_participant, name='espace_participant'),
     path('organisateur/espace', views.espace_organisateur, name='espace_organisateur'),
     path('organisateur/compte', views.gestion_compte_organisateur, name='gestion_compte_organisateur'),
