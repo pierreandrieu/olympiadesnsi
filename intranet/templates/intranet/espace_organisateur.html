@@ -57,9 +57,13 @@
                                             <a href="{% url 'editer_epreuve' epreuve.id %}">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                            <a href="{% url 'supprimer_epreuve' epreuve.id %}" class="text-danger">
+                                            <a href="#" data-toggle="modal" data-target="#confirmDeleteModal"
+                                               data-epreuve-url="{% url 'supprimer_epreuve' epreuve.id %}"
+                                               class="text-danger">
                                                 <i class="fas fa-trash-alt"></i>
                                             </a>
+
+
                                         </td>
                                     {% endif %}
                                 </tr>
@@ -206,6 +210,32 @@
         </div>
     </div>
 
+    <!-- Modal de Confirmation de Suppression -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" role="dialog"
+         aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmDeleteModalLabel">Confirmer la Suppression</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    Êtes-vous sûr de vouloir supprimer cette épreuve et tous ses exercices associés ? Cette action est
+                    irréversible.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                    <form method="post" action="">
+                        {% csrf_token %}
+                        <input type="submit" class="btn btn-danger" value="Supprimer">
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
 
 
 
@@ -243,6 +273,12 @@
             }
         }
     </script>
-    
 
+    <script>
+        $('#confirmDeleteModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget); // Bouton qui a déclenché le modal
+            var epreuveUrl = button.data('epreuve-url'); // Extraire l'URL de suppression
+            $(this).find('form').attr('action', epreuveUrl);
+        });
+    </script>
 {% endblock %}
