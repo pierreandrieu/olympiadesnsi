@@ -8,7 +8,6 @@ urlpatterns = [
     path('organisateur/gerer-groupe/<int:id_groupe>/', views.gerer_groupe, name='gerer_groupe'),
     path('detail/<int:epreuve_id>/', views.detail_epreuve, name='detail_epreuve'),
     path('afficher/<int:epreuve_id>/', views.afficher_epreuve, name='afficher_epreuve'),
-    path('traiter_reponse_instance/', views.traiter_reponse_instance, name='traiter_reponse_instance'),
-    path('traiter_reponse_code/<int:exercice_id>/', views.traiter_reponse_code, name='traiter_reponse_code'),
     path('soumettre_reponse/', views.soumettre, name='soumettre'),
+    path('assigner-jeu-de-test/<int:exercice_id>/', views.assigner_jeu_de_test, name='assigner_jeu_de_test'),
 ]
