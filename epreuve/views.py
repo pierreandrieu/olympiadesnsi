@@ -1,3 +1,4 @@
+from django.core.serializers import serialize
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -102,7 +103,6 @@ def afficher_epreuve(request, epreuve_id):
         exercice_dict = {
             'id': ex.id,
             'titre': ex.titre,
-            'description': ex.description,
             'bareme': ex.bareme,
             'enonce': ex.enonce,
             'enonce_code': ex.enonce_code,
@@ -154,14 +154,14 @@ def soumettre(request):
             code_soumis = data.get('code_soumis', "")
             solution_instance = data.get('solution_instance', "")
 
-            # Récupérer l'exercice et le jeu de test associé
+            #  Exercice et le jeu de test associé
             try:
                 exercice = Exercice.objects.get(id=exercice_id)
                 jeu_de_test = JeuDeTest.objects.filter(exercice=exercice).first()
             except (Exercice.DoesNotExist, JeuDeTest.DoesNotExist):
                 return JsonResponse({'success': False, 'error': 'Exercice ou jeu de test introuvable'}, status=404)
 
-            # Récupérer ou créer une association UserExercice
+            # Association UserExercice
             user_exercice, created = UserExercice.objects.get_or_create(
                 participant=request.user,
                 exercice=exercice
@@ -169,7 +169,7 @@ def soumettre(request):
             if user_exercice.nb_soumissions >= exercice.nombre_max_soumissions:
                 return JsonResponse({'success': False, 'error': 'Nombre maximum de soumissions atteint'}, status=403)
 
-            # Mettre à jour les champs
+            # Mise à jour des champs
             user_exercice.code_participant = code_soumis
             user_exercice.solution_instance_participant = solution_instance
             user_exercice.nb_soumissions += 1
@@ -243,27 +243,27 @@ def ajouter_exercice(request, epreuve_id):
 
     return render(request, 'epreuve/ajouter_exercice.html', {'form': form, 'epreuve': epreuve})
 
-@login_required
-def visualiser_epreuve(request, epreuve_id):
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-    # TODO
-
-    return render(request, 'epreuve/visualiser_epreuve.html', {'epreuve': epreuve})
-
 
 @login_required
 def editer_epreuve(request, epreuve_id):
     if not request.user.groups.filter(name='Organisateur').exists():
         return HttpResponseForbidden()
-
     epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-
     if request.user != epreuve.referent:
         return HttpResponseForbidden()
 
-    # TODO
+    if request.method == 'POST':
+        form = EpreuveForm(request.POST, instance=epreuve)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "L'épreuve a été mise à jour avec succès.")
+            return redirect('espace_organisateur')
+        else:
+            messages.error(request, "Erreur détectée lors de la mise à jour de l'épreuve.")
+    else:
+        form = EpreuveForm(instance=epreuve)
 
-    return render(request, 'epreuve/editer_epreuve.html', {'epreuve': epreuve})
+    return render(request, 'epreuve/editer_epreuve.html', {'form': form, 'epreuve': epreuve})
 
 
 @login_required
@@ -273,12 +273,28 @@ def supprimer_epreuve(request, epreuve_id):
 
     epreuve = get_object_or_404(Epreuve, id=epreuve_id)
 
-    # Assurez-vous que l'utilisateur est le référent de l'épreuve
     if request.user != epreuve.referent:
         return HttpResponseForbidden()
 
     if request.method == "POST":
         epreuve.delete()
-        return redirect('nom_de_la_vue_apres_suppression')
+        return redirect('espace_organisateur')
 
-    return render(request, 'epreuve/confirmer_suppression.html', {'epreuve': epreuve})
+    return redirect('espace_organisateur')
+
+
+@login_required
+def visualiser_epreuve_organisateur(request, epreuve_id):
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+
+    exercices = Exercice.objects.filter(epreuve=epreuve).prefetch_related('jeu_de_test')
+
+    exercices_json = json.loads(serialize('json', exercices))
+
+    return render(request, 'epreuve/visualiser_epreuve.html', {
+        'epreuve': epreuve,
+        'exercices_json': json.dumps(exercices_json)
+    })
+
