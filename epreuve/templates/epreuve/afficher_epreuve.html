@@ -40,7 +40,7 @@
 
             <button id="prev-exercise" class="btn nav-btn" disabled><i class="fa-solid fa-arrow-left" style="color:white;"></i></button>
             <div id="exercice-container" class="exercise-box">
-                <!-- Les exercices seront chargés ici -->
+                <!-- Les exercices sont chargés ici -->
             </div>
             <button id="next-exercise" class="btn nav-btn"><i class="fa-solid fa-arrow-right" style="color:white;"></i></button>
         </div>
@@ -183,8 +183,7 @@
                         const responseContainer = document.createElement('div');
                         responseContainer.className = 'instance-response-container';
                         responseContainer.innerHTML = `
-            <input type="text" id="instance-response-${exercise.id}" placeholder="Votre réponse">
-        `;
+            <input type="text" id="instance-response-${exercise.id}" placeholder="Votre réponse"> `;
                         container.appendChild(responseContainer);
                     }
 
