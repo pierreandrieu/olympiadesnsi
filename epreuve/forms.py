@@ -1,5 +1,7 @@
 from django import forms
-from epreuve.models import Epreuve
+from django.core.exceptions import ValidationError
+
+from epreuve.models import Epreuve, Exercice
 
 
 class EpreuveForm(forms.ModelForm):
@@ -76,3 +78,97 @@ class EpreuveForm(forms.ModelForm):
             self.add_error('date_fin', 'La date de fin doit être postérieure à la date de début.')
 
         return cleaned_data
+
+
+class ExerciceForm(forms.ModelForm):
+    jeux_de_tests = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control jeux-de-tests',
+            'rows': 5,
+        }),
+        required=False
+    )
+    resultats_jeux_de_tests = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control resultats-jeux-de-tests',
+            'rows': 5,
+        }),
+        required=False
+    )
+
+    class Meta:
+        model = Exercice
+        fields = ['titre', 'enonce', 'enonce_code', 'avec_jeu_de_test', 'retour_en_direct', 'code_a_soumettre',
+                  'nombre_max_soumissions']
+        labels = {
+            'titre': 'Titre',
+            'enonce': 'Énoncé',
+            'enonce_code': 'Code de l\'énoncé',
+            'avec_jeu_de_test': 'Avec jeu de test',
+            'retour_en_direct': 'Retour en direct',
+            'code_a_soumettre': 'Code à soumettre',
+            'nombre_max_soumissions': 'Nombre maximum de soumissions'
+        }
+        widgets = {
+            'titre': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Entrez le titre de l\'exercice'
+            }),
+            'enonce': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'title': "L'énoncé de l'exercice, version textuelle, format latex supporté. \nFacultatif si le champ suivant est rempli."
+            }),
+            'enonce_code': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'title': "L'énoncé de l'exercice, version code. \nFacultatif si le champ précédent est rempli."
+            }),
+            'avec_jeu_de_test': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'title': "Si coché, les participants se verront attribuer un jeu de test."
+            }),
+            'retour_en_direct': forms.CheckboxInput(attrs={
+                'id': 'id_retour_en_direct',
+                'class': 'form-check-input',
+                'disabled': True,
+                'title': "Si coché, les participants sauront au moment de soumettre leur réponse si leur réponse pour le jeu de test est correcte."
+            }),
+            'code_a_soumettre': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'title': "Si coché, les participants doivent soumettre leur code."
+            }),
+            'nombre_max_soumissions': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'value': 50  # Valeur par défaut
+            }),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        enonce = cleaned_data.get('enonce')
+        enonce_code = cleaned_data.get('enonce_code')
+        avec_jeu_de_test = cleaned_data.get('avec_jeu_de_test')
+        if not enonce and not enonce_code:
+            raise ValidationError('Vous devez fournir un énoncé, qu\'il soit sous forme de texte ou de code.')
+
+        if avec_jeu_de_test:
+            jeux_de_tests = cleaned_data.get('jeux_de_tests', '').split("\n")
+            resultats_jeux_de_tests = cleaned_data.get('resultats_jeux_de_tests', '').split("\n")
+
+            nb_jeux_test = len([jeu for jeu in jeux_de_tests if jeu.strip()])  # Ignorer les lignes vides
+            nb_resultats = len(
+                [resultat for resultat in resultats_jeux_de_tests if resultat.strip()])  # Ignorer les lignes vides
+            if nb_jeux_test == 0:
+                raise ValidationError('Vous avez coché la case jeux de tests et devez donc insérer au moins un jeu de test avec sa réponse.\nD\'autres jeux de tests pourront être ajoutés ultérieurement')
+            if nb_resultats != nb_jeux_test:
+                raise ValidationError('Le nombre de jeux de tests inséré doit être le même que le nombre de résultats à ces jeux de tests.\nJeux de tests : ' + str(nb_jeux_test) + " et réponses : " + str(nb_resultats))
+        return cleaned_data
+
+    def __init__(self, *args, **kwargs):
+        super(ExerciceForm, self).__init__(*args, **kwargs)
+        self.fields['titre'].required = True
+        self.fields['nombre_max_soumissions'].required = True
+        self.initial['nombre_max_soumissions'] = 50
+
+
