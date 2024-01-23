@@ -326,3 +326,13 @@ code {
     border-color: #bce8f1;
     color: #31708f;
 }
+
+.jeux-de-tests, .resultats-jeux-de-tests {
+    width: 48%;
+    display: inline-block;
+}
+
+
+textarea.form-control {
+    height: auto;
+}
