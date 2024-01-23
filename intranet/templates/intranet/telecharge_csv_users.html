@@ -1,20 +1,33 @@
-{% extends 'olympiadesnsi/base.html' %}
+{% extends 'olympiadesnsi/base_organisateur.html' %}
 
 {% block content %}
-<body onload="setTimeout(downloadCSV, 1000)">
-<p>Votre fichier CSV contenant les noms et mot de passe des participants est prêt. Le téléchargement va commencer...</p>
-<p>Avertissement : Il peut falloir quelques secondes à quelques minutes pour que les utilisateurs soient définitivement rentrés en base de données ! </p>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <h2 class="mb-3">Téléchargement du fichier CSV</h2>
+                <p class="lead">Votre fichier CSV contenant les noms et mots de passe des participants est prêt.</p>
+                <p class="lead">Avertissement : Il peut falloir quelques secondes à quelques minutes pour que les
+                    utilisateurs soient définitivement rentrés en base de données !</p>
+                <p class="lead">Les participants pourront changer leur mot de passe sur leur espace participant une
+                    fois connectés.</p>
+                <p class="text-info">Veuillez noter que ce fichier ne pourra pas être généré ultérieurement.
+                    Assurez-vous de le télécharger maintenant.</p>
 
-<a href="{% url 'telecharger_csv' %}" id="downloadLink" style="display:none;">Télécharger CSV</a>
+                <!-- Bouton pour télécharger le fichier CSV -->
+                <button class="btn btn-primary btn-lg btn-block" onclick="downloadCSV()">Télécharger le fichier CSV
+                </button>
 
+                <a href="{% url 'telecharger_csv' %}" id="downloadLink" style="display:none;">Lien de Téléchargement</a>
+            </div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block scripts %}
-<script type="text/javascript">
-    function downloadCSV() {
-        var link = document.getElementById('downloadLink');
-        link.click();
-        window.location.href = '{% url "espace_organisateur" %}';
-    }
-</script>
+    <script type="text/javascript">
+        function downloadCSV() {
+            var link = document.getElementById('downloadLink');
+            link.click();
+        }
+    </script>
 {% endblock %}
