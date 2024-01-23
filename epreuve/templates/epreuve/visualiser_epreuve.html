@@ -1,10 +1,142 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+{% extends 'olympiadesnsi/base_organisateur.html' %}
 
-</body>
-</html>
+{% block content %}
+    <div class="container mt-4">
+        <h1>{{ epreuve.nom }}</h1>
+        <div id="chronometre">Temps restant : <span id="temps-restant"></span></div>
+        <div class="exercise-navigation">
+            <button id="prev-exercise" class="btn nav-btn" disabled><i class="fa-solid fa-arrow-left"></i></button>
+            <div id="exercice-container" class="exercise-box">
+                <!-- Les exercices seront chargés ici -->
+            </div>
+            <button id="next-exercise" class="btn nav-btn"><i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            let currentExerciseIndex = 0;
+            const exercises = JSON.parse('{{ exercices_json|escapejs }}');
+            const btnPrev = document.getElementById('prev-exercise');
+            const btnNext = document.getElementById('next-exercise');
+
+            function updateNavigationButtons() {
+                btnPrev.disabled = currentExerciseIndex === 0;
+                btnNext.disabled = currentExerciseIndex === exercises.length - 1;
+            }
+
+            function loadExercise(index) {
+                const exercise = exercises[index];
+                const container = document.getElementById('exercice-container');
+                container.innerHTML = '';
+
+                // Ajout du titre
+                const titleElement = document.createElement('h2');
+                titleElement.innerText = exercise.fields.titre;
+                container.appendChild(titleElement);
+
+                // Ajout de l'énoncé
+                if (exercise.fields.enonce) {
+                    const enonceElement = document.createElement('div');
+                    enonceElement.className = 'enonce';
+                    enonceElement.innerHTML = exercise.fields.enonce;
+                    container.appendChild(enonceElement);
+                }
+
+                // Ajout de l'énoncé code
+                if (exercise.fields.enonce_code) {
+                    const codeElement = document.createElement('pre');
+                    const codeContent = document.createElement('code');
+                    codeContent.innerText = exercise.fields.enonce_code;
+                    codeElement.appendChild(codeContent);
+                    container.appendChild(codeElement);
+                }
+
+                // Affichage du jeu de test si nécessaire
+                if (exercise.fields.avec_jeu_de_test) {
+                    const instanceTitle = document.createElement('p');
+                    instanceTitle.className = 'instance-title';
+                    instanceTitle.innerText = 'Résolvez le problème sur le jeu de test suivant :';
+                    container.appendChild(instanceTitle);
+
+                    const instanceContainer = document.createElement('input');
+                    instanceContainer.type = 'text';
+                    instanceContainer.value = "Le jeu de test";
+                    instanceContainer.readOnly = true;
+                    container.appendChild(instanceContainer);
+                }
+
+                // Champ pour la réponse de l'utilisateur
+                const responseContainer = document.createElement('input');
+                responseContainer.type = 'text';
+                responseContainer.placeholder = 'Votre réponse';
+                container.appendChild(responseContainer);
+
+                // Champ pour soumettre le code si nécessaire
+                if (exercise.fields.code_a_soumettre) {
+                    const codeSubmissionLabel = document.createElement('p');
+                    codeSubmissionLabel.innerText = 'Entrez votre code ici :';
+                    container.appendChild(codeSubmissionLabel);
+
+                    const codeSubmissionArea = document.createElement('textarea');
+                    codeSubmissionArea.placeholder = 'Votre code';
+                    container.appendChild(codeSubmissionArea);
+                }
+                // Bouton de soumission (dans le cas de l'organisateur, ce bouton peut ne pas être nécessaire)
+                const submissionButton = document.createElement('button');
+                submissionButton.className = 'btn nav-btn';
+                submissionButton.innerText = 'Envoyez votre réponse';
+                // Ici, vous pouvez ajouter un event listener pour simuler la soumission ou simplement omettre ce bouton.
+                container.appendChild(submissionButton);
+
+                // Appel MathJax pour rendre tout contenu LaTeX dans ce nouvel exercice chargé
+                MathJax.typesetPromise([container]).catch((err) => console.error('Erreur de rendu LaTeX:', err));
+
+                // Mise à jour des boutons de navigation
+                updateNavigationButtons();
+            }
+
+            btnPrev.addEventListener('click', () => {
+                if (currentExerciseIndex > 0) {
+                    currentExerciseIndex--;
+                    loadExercise(currentExerciseIndex);
+                }
+            });
+
+            btnNext.addEventListener('click', () => {
+                if (currentExerciseIndex < exercises.length - 1) {
+                    currentExerciseIndex++;
+                    loadExercise(currentExerciseIndex);
+                }
+            });
+
+            if (exercises.length > 0) {
+                loadExercise(currentExerciseIndex);
+            } else {
+                document.getElementById('exercice-container').innerHTML = '<p>Aucun exercice disponible pour cette épreuve.</p>';
+            }
+        });
+    </script>
+    <script>
+        var dureeEpreuveMinutes = {{ epreuve.duree }};
+        var tempsRestant = dureeEpreuveMinutes * 60; // Convertir en secondes
+
+        var intervalId = setInterval(function () {
+            if (tempsRestant <= 0) {
+                clearInterval(intervalId);
+                document.getElementById('temps-restant').textContent = '00:00:00';
+            } else {
+                tempsRestant--;
+                var heures = Math.floor(tempsRestant / 3600);
+                var minutes = Math.floor((tempsRestant % 3600) / 60);
+                var secondes = tempsRestant % 60;
+                document.getElementById('temps-restant').textContent =
+                    heures.toString().padStart(2, '0') + ':' +
+                    minutes.toString().padStart(2, '0') + ':' +
+                    secondes.toString().padStart(2, '0');
+            }
+        }, 1000);
+    </script>
+{% endblock %}
