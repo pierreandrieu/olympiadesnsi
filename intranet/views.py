@@ -165,6 +165,41 @@ def espace_organisateur(request):
         return HttpResponseForbidden()
 
     user = request.user
+    groupes_crees = GroupeCreePar.objects.filter(createur=user) \
+        .annotate(nombre_membres=Count('groupe__user'))
+
+    epreuves_organisees = Epreuve.objects.filter(
+        Q(referent=user) | Q(comite=user)
+    ).distinct()
+
+    epreuves_info = []
+    for epreuve in epreuves_organisees:
+        exercices = epreuve.exercice_set.all()
+        groupes_participants = epreuve.groupes_participants.all()
+        participants_uniques = User.objects.filter(groups__in=groupes_participants).distinct().count()
+
+        # Ajout du nombre de groupes et d'exercices
+        nombre_groupes = groupes_participants.count()
+        nombre_exercices = exercices.count()
+
+        epreuves_info.append((epreuve, nombre_groupes, participants_uniques, nombre_exercices))
+
+    epreuve_form = EpreuveForm()
+
+    return render(request, 'intranet/espace_organisateur.html', {
+        'groupes_crees': groupes_crees,
+        'epreuves_info': epreuves_info,
+        'form': epreuve_form
+    })
+
+
+""""
+@login_required
+def espace_organisateur(request):
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+
+    user = request.user
 
     # Récupère les groupes créés par l'utilisateur avec le nombre de membres pour chaque groupe
     groupes_crees = GroupeCreePar.objects.filter(createur=user) \
@@ -212,7 +247,7 @@ def espace_organisateur(request):
         'epreuves_info': epreuves_info,
         'form': epreuve_form
     })
-
+"""
 
 def get_unique_username(id_user: int, num: int):
     partie_alea = get_random_string(length=3, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ')
