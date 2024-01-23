@@ -5,12 +5,11 @@ from epreuve.models import Epreuve
 class EpreuveForm(forms.ModelForm):
     class Meta:
         model = Epreuve
-        fields = ['nom', 'description', 'date_debut', 'date_fin', 'duree', 'temps_limite',
+        fields = ['nom', 'date_debut', 'date_fin', 'duree', 'temps_limite',
                   'exercices_un_par_un']
 
         labels = {
             'nom': "Nom",
-            'description': "Description",
             'date_debut': "Date/Heure d'ouverture",
             'date_fin': "Date/Heure de cloture",
             'exercices_un_par_un': "Ordre exercices imposé",
@@ -25,13 +24,6 @@ class EpreuveForm(forms.ModelForm):
                 'data-toggle': 'tooltip',
                 'data-placement': 'right',
                 'title': 'Nom de l’épreuve, tel qu’il apparaîtra aux participants.'
-            }),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'placeholder': 'Décrivez l\'épreuve',
-                'data-toggle': 'tooltip',
-                'data-placement': 'right',
-                'title': 'Description détaillée de l’épreuve.'
             }),
             'date_debut': forms.DateTimeInput(attrs={
                 'class': 'form-control datetimepicker-input',
@@ -67,12 +59,11 @@ class EpreuveForm(forms.ModelForm):
             }),
         }
         required_fields = ['nom', 'duree']
-        optional_fields = ['description', 'date_debut', 'date_fin']
+        optional_fields = ['date_debut', 'date_fin']
 
     def __init__(self, *args, **kwargs):
         super(EpreuveForm, self).__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
-            print(field_name, field.required)
             if field.required:
                 field.label = f"{field.label} *"
 
