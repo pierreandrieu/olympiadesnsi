@@ -12,4 +12,5 @@ urlpatterns = [
     path('<int:epreuve_id>/visualiser/', views.visualiser_epreuve_organisateur, name='visualiser_epreuve'),
     path('<int:epreuve_id>/editer/', views.editer_epreuve, name='editer_epreuve'),
     path('<int:epreuve_id>/supprimer/', views.supprimer_epreuve, name="supprimer_epreuve"),
+    path('<int:epreuve_id>/ajouter_orga/', views.ajouter_organisateur, name="ajouter_organisateur"),
 ]
