@@ -48,25 +48,33 @@
 
         <!-- Script pour charger et naviguer entre les exercices -->
         <script>
+
             document.addEventListener('DOMContentLoaded', function () {
-                let currentExerciseIndex = 0;
-                const exercises = JSON.parse('{{ exercices_json|escapejs }}');
-                /* console.log(exercises); */
                 const btnPrev = document.getElementById('prev-exercise');
                 const btnNext = document.getElementById('next-exercise');
+                let currentExerciseIndex = 0;
+                const exercises = JSON.parse('{{ exercices_json|escapejs }}');
+                const unParUn = {{ epreuve.exercices_un_par_un|yesno:"true,false" }};
+
 
                 function updateNavigationButtons() {
-                    btnPrev.disabled = currentExerciseIndex === 0;
-                    btnNext.disabled = currentExerciseIndex === exercises.length - 1;
-                }
+                    if (unParUn) {
+                        // Cacher le bouton précédent si l'option "forcer l'ordre des exercices" est activée
+                        btnPrev.style.visibility = 'hidden';
+                        // Désactiver le bouton suivant jusqu'à ce qu'il y ait au moins une soumission pour l'exercice actuel
+                        btnNext.disabled = exercises[currentExerciseIndex].nb_soumissions === 0;
+                        btnNext.addEventListener('click', function () {
+                            if (exercises[currentExerciseIndex].nb_soumissions > 0) {
+                                // Rafraîchir la page
+                                location.reload();
+                            }
+                        });
 
-                function escapeHtml(unsafe) {
-                    return unsafe
-                        .replace(/&/g, "&amp;")
-                        .replace(/</g, "&lt;")
-                        .replace(/>/g, "&gt;")
-                        .replace(/"/g, "&quot;")
-                        .replace(/'/g, "&#039;");
+                    } else {
+                        btnPrev.style.visibility = 'visible';
+                        btnPrev.disabled = currentExerciseIndex === 0;
+                        btnNext.disabled = currentExerciseIndex === exercises.length - 1;
+                    }
                 }
 
                 function renderLatex(latex) {
@@ -199,6 +207,7 @@
                     }
                     // Création du bouton de soumission
                     const submissionButton = document.createElement('button');
+                    submissionButton.id = 'btn-submit-participant'
                     submissionButton.className = 'btn nav-btn';
                     submissionButton.innerText = 'Envoyez votre réponse';
                     submissionButton.addEventListener('click', function () {
@@ -208,13 +217,12 @@
                     container.appendChild(submissionButton);
                     updateNavigationButtons();
                     indicateurExoCourant(exercise.id);
-                    document.getElementById('submit-button').disabled = exercise.nb_soumissions_actuelles >= exercise.nombre_max_soumissions;
                 }
 
                 function soumettreReponse(exerciseId) {
                     // Récupérer les données de réponse
-                    const codeSubmission = document.getElementById(`code-submission-${exerciseId}`).value;
-                    const instanceResponse = document.getElementById(`instance-response-${exerciseId}`).value;
+                    const codeSubmission = document.getElementById(`code-submission-${exerciseId}`) ? document.getElementById(`code-submission-${exerciseId}`).value : '';
+                    const instanceResponse = document.getElementById(`instance-response-${exerciseId}`) ? document.getElementById(`instance-response-${exerciseId}`).value : '';
 
                     // Créer l'objet de données à envoyer
                     const data = {
@@ -233,10 +241,13 @@
                     })
                         .then(response => response.json())
                         .then(data => {
-                            mettreAJourIndicateur(exerciseId, data.reponse_correcte)
+                            mettreAJourIndicateur(exerciseId, data.reponse_valide);
+                            exercises[currentExerciseIndex].nb_soumissions += 1; // Mise à jour du nombre de soumissions
+                            updateNavigationButtons(); // Mise à jour de l'état des boutons
                         })
                         .catch(error => console.error('Erreur:', error));
                 }
+
 
                 function getCookie(name) {
                     let cookieValue = null;
@@ -273,8 +284,8 @@
                     loadExercise(currentExerciseIndex);
                 } else {
                     document.getElementById('exercice-container').innerHTML = '<p>Aucun exercice disponible pour cette épreuve.</p>';
-                    btnPrev.disabled = true;
-                    btnNext.disabled = true;
+                    btnPrev.style.visibility="hidden";
+                    btnNext.style.visibility = "hidden";
                 }
                 document.getElementById('submit-button').addEventListener('click', function () {
                     const currentExercise = exercises[currentExerciseIndex];

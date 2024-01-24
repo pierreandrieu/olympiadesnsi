@@ -17,23 +17,6 @@ import random
 
 
 @login_required
-def gerer_epreuve(request, epreuve_id):
-    epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id, referent=request.user)
-    form: EpreuveForm = EpreuveForm(request.POST or None, instance=epreuve)
-
-    if request.method == 'POST' and form.is_valid():
-        form.save()
-        # Logique pour gérer les ajouts/suppressions de MaTemplateDoesNotExist at /epreuve/organisateur/epreuve/3/gerernyToMany
-        return redirect('espace_organisateur')
-
-    return render(request, 'epreuve/gerer_epreuve.html', {
-        'form': form,
-        'epreuve': epreuve,
-        'epreuve_id': epreuve_id,
-    })
-
-
-@login_required
 def inscrire_epreuves(request, id_groupe):
     if request.method == 'POST':
         groupe_cree_par: GroupeCreePar = get_object_or_404(GroupeCreePar, id=id_groupe)
@@ -83,8 +66,19 @@ def afficher_epreuve(request, epreuve_id):
     exercices = Exercice.objects.filter(epreuve=epreuve)
     # Préparer les données des exercices pour le JavaScript
 
+    if epreuve.exercices_un_par_un:
+        # Trouver le premier exercice non soumis ou invalide
+        exercices_list = []
+        for ex in exercices:
+            user_exercice, _ = UserExercice.objects.get_or_create(exercice_id=ex.id, participant_id=user.id)
+            if not user_exercice.solution_instance_participant and not user_exercice.code_participant:
+                exercices_list = [ex]
+                break
+        exercices = exercices_list
+
     exercices_json_list = []
     for ex in exercices:
+        print("exercice ", ex)
         # Récupérer l'objet UserExercice correspondant
         user_exercice, created = UserExercice.objects.get_or_create(exercice_id=ex.id, participant_id=user.id)
         jeu_de_test = None
@@ -96,8 +90,12 @@ def afficher_epreuve(request, epreuve_id):
         instance_de_test: str = ""
 
         if jeu_de_test is not None:
+            print("jeu de test : ", jeu_de_test)
             bonne_reponse = jeu_de_test.reponse
+            print("bonen reponse : ", bonne_reponse)
             instance_de_test = jeu_de_test.instance
+            print("instance de test : ", instance_de_test)
+            print("rep part : ", user_exercice.solution_instance_participant)
 
         # Construire le dictionnaire pour cet exercice
         exercice_dict = {
@@ -176,9 +174,9 @@ def soumettre(request):
             user_exercice.save()
 
             # Vérification de la solution
-            reponse_correcte = solution_instance == jeu_de_test.reponse if jeu_de_test else False
+            reponse_valide = solution_instance == jeu_de_test.reponse if jeu_de_test else False
 
-            return JsonResponse({'success': True, 'reponse_correcte': reponse_correcte})
+            return JsonResponse({'success': True, 'reponse_valide': reponse_valide})
         except json.JSONDecodeError:
             return JsonResponse({'success': False, 'error': 'Données invalides'}, status=400)
     else:
