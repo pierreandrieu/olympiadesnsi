@@ -1,16 +1,19 @@
+from django.contrib.auth.models import User
 from django.core.serializers import serialize
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.views.decorators.csrf import csrf_protect
 from django.utils import timezone
 from django_ratelimit.decorators import ratelimit
 from django.contrib import messages
+from django.urls import reverse
 
 from epreuve.models import Epreuve, GroupeCreePar, GroupeParticipeAEpreuve, UserExercice, Exercice, UserEpreuve, \
-    JeuDeTest
-from epreuve.forms import EpreuveForm, ExerciceForm
+    JeuDeTest, MembreComite
+from epreuve.forms import EpreuveForm, ExerciceForm, AjoutOrganisateurForm
+from intranet.views import espace_organisateur
 import json
 from datetime import timedelta
 import random
@@ -258,10 +261,12 @@ def editer_epreuve(request, epreuve_id):
             return redirect('espace_organisateur')
         else:
             messages.error(request, "Erreur détectée lors de la mise à jour de l'épreuve.")
-    else:
-        form = EpreuveForm(instance=epreuve)
+            return render(request, 'epreuve/editer_epreuve.html', {'form': form, 'epreuve': epreuve})
 
-    return render(request, 'epreuve/editer_epreuve.html', {'form': form, 'epreuve': epreuve})
+    form = EpreuveForm(instance=epreuve)
+    exercices = Exercice.objects.filter(epreuve_id=epreuve_id)
+
+    return render(request, 'epreuve/editer_epreuve.html', {'form': form, 'epreuve': epreuve, 'exercices': exercices})
 
 
 @login_required
@@ -296,3 +301,30 @@ def visualiser_epreuve_organisateur(request, epreuve_id):
         'exercices_json': json.dumps(exercices_json)
     })
 
+
+@login_required
+def ajouter_organisateur(request, epreuve_id):
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+    if request.user != epreuve.referent:
+        return HttpResponseForbidden()
+    form = AjoutOrganisateurForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        username = form.cleaned_data['username']
+        print(username)
+        try:
+            organisateur_a_ajouter = User.objects.get(username=username)
+            if organisateur_a_ajouter.groups.filter(name='Organisateur').exists():
+                if organisateur_a_ajouter.username == request.user.username:
+                    messages.error(request, "Vous ne pouvez pas vous ajouter vous-même.")
+                else:
+                    MembreComite.objects.create(epreuve=epreuve, membre=organisateur_a_ajouter)
+                    messages.success(request, "Membre ajouté avec succès.")
+            else:
+                messages.error(request, "L'utilisateur n'a pas les privilèges nécessaires pour devenir membre d'un comité d'organisation.")
+        except User.DoesNotExist:
+            messages.error(request, "Utilisateur introuvable.")
+        return HttpResponseRedirect(reverse('espace_organisateur'))
+
+    return render(request, 'intranet/espace_organisateur.html', {'form': form})
