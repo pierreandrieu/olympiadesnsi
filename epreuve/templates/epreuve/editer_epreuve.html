@@ -7,8 +7,64 @@
         <form method="post">
             {% csrf_token %}
             {{ form.as_p }}
-            <button type="submit" class="btn btn-primary">Enregistrer</button>
-            <a href="{% url 'espace_organisateur' %}" class="btn btn-secondary">Annuler</a>
+
         </form>
+        {% for exercice in epreuve.exercice_set.all %}
+            <div class="exercice-row" data-exercice-id="{{ exercice.id }}">
+                <button type="button" class="move-up"><i class="fa fa-chevron-up"></i></button>
+                <button type="button" class="move-down"><i class="fa fa-chevron-down"></i></button>
+                {{ exercice.titre }}
+
+            </div>
+        {% endfor %}
+
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+        <a href="{% url 'espace_organisateur' %}" class="btn btn-secondary">Annuler</a>
     </div>
+
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const exerciceRows = document.querySelectorAll('.exercice-row');
+
+            exerciceRows.forEach(row => {
+                row.querySelector('.move-up').addEventListener('click', function () {
+                    let previous = row.previousElementSibling;
+                    if (previous) {
+                        row.parentNode.insertBefore(row, previous);
+                        updateButtonStates();
+                    }
+                });
+
+                row.querySelector('.move-down').addEventListener('click', function () {
+                    let next = row.nextElementSibling;
+                    if (next) {
+                        // Insérer l'élément actuel après l'élément suivant
+                        row.parentNode.insertBefore(row, next.nextSibling);
+                        updateButtonStates();
+                    }
+                });
+            });
+
+            function updateButtonStates() {
+                // Mettre à jour la liste des exerciceRows à chaque appel
+                const exerciceRows = document.querySelectorAll('.exercice-row');
+                exerciceRows.forEach((row, index) => {
+                    let isFirst = index === 0;
+                    let isLast = index === exerciceRows.length - 1;
+
+                    row.querySelector('.move-up').disabled = isFirst;
+                    row.querySelector('.move-down').disabled = isLast;
+                });
+            }
+
+            updateButtonStates(); // Initialisation des états des boutons
+        });
+
+
+    </script>
+
+
 {% endblock %}
