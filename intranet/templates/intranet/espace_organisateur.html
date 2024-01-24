@@ -53,7 +53,8 @@
                                     <td>{{ participants_uniques }}</td>
                                     <td>
                                         {{ nombre_exercices }}
-                                        <a href="#" onclick="toggleExercices('exercices-{{ epreuve.id }}')">
+                                        <a href="#"
+                                           onclick="toggleComite('exercices-{{ epreuve.id }}'); return false;">
                                             <i class="fas fa-list-ul"></i>
                                         </a>
                                         <a href="{% url 'ajouter_exercice' epreuve.id %}">
@@ -79,7 +80,7 @@
                                         </td>
                                     {% endif %}
                                 </tr>
-                                <tr id="exercices-{{ epreuve.id }}" class="table-secondary" style="display:none;">
+                                <tr id="exercices-{{ epreuve.id }}" class="table-secondary toggle-element" style="display:none;">
                                     <td colspan="5">
                                         <ul>
                                             {% for exercice in epreuve.exercice_set.all %}
@@ -88,7 +89,8 @@
                                         </ul>
                                     </td>
                                 </tr>
-                                <tr id="comite-{{ epreuve.id }}" class="table-secondary" style="display:none;">
+
+                                <tr id="comite-{{ epreuve.id }}" class="table-secondary toggle-element" style="display:none;">
                                     <td colspan="7">
                                         <ul>
                                             {% for membre_comite in membres_comite %}
@@ -388,8 +390,19 @@
 
     <script>
         function toggleComite(id) {
+            var element = $('#' + id);
+
+            // Vérifie si l'élément est actuellement visible
+            var isVisible = element.is(":visible");
+
+            // Masque tous les éléments
             $('[id^="exercices-"], [id^="comite-"]').hide();
-            $('#' + id).toggle();
+
+            // Si l'élément n'était pas visible, on l'affiche
+            if (!isVisible) {
+                element.show();
+            }
         }
     </script>
+    
 {% endblock %}

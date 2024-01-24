@@ -167,9 +167,11 @@ def creer_epreuve(request):
         if form.is_valid():
             epreuve = form.save(commit=False)
             epreuve.referent = request.user  # Définir l'utilisateur actuel comme référent
-
             epreuve.save()
             form.save_m2m()  # Important pour enregistrer les relations ManyToMany
+
+            # Ajouter le référent au comité d'organisation
+            MembreComite.objects.create(epreuve=epreuve, membre=request.user)
 
             messages.success(request, "L'épreuve a été créée avec succès.")
             return redirect('espace_organisateur')
@@ -191,7 +193,7 @@ def espace_organisateur(request):
 
     exercice_prefetch = Prefetch('exercice_set', queryset=Exercice.objects.order_by('numero'))
     epreuves_organisees = Epreuve.objects.filter(
-        Q(referent=user) | Q(comite=user)
+        comite=user  # Filtrer sur la base de l'appartenance au comité d'organisation uniquement
     ).prefetch_related(
         exercice_prefetch,
         'groupes_participants',
@@ -220,6 +222,7 @@ def espace_organisateur(request):
         'epreuves_info': epreuves_info,
         'form': epreuve_form
     })
+
 
 """"
 @login_required
