@@ -83,6 +83,7 @@ class MembreComite(models.Model):
 
     class Meta:
         db_table = 'MembreComite'
+        unique_together = ['epreuve', 'membre']
         indexes = [
             models.Index(fields=['epreuve', 'membre']),
             models.Index(fields=['membre', 'epreuve']),

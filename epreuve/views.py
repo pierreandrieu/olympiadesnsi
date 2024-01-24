@@ -318,6 +318,8 @@ def ajouter_organisateur(request, epreuve_id):
             if organisateur_a_ajouter.groups.filter(name='Organisateur').exists():
                 if organisateur_a_ajouter.username == request.user.username:
                     messages.error(request, "Vous ne pouvez pas vous ajouter vous-même.")
+                elif MembreComite.objects.filter(membre_id=organisateur_a_ajouter, epreuve_id=epreuve_id).exists():
+                    messages.error(request, f"{organisateur_a_ajouter.username} fait déjà partie du comité d'organisation de l'épreuve {epreuve.nom}")
                 else:
                     MembreComite.objects.create(epreuve=epreuve, membre=organisateur_a_ajouter)
                     messages.success(request, "Membre ajouté avec succès.")
