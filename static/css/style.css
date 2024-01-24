@@ -336,3 +336,22 @@ code {
 textarea.form-control {
     height: auto;
 }
+
+.exercice-row {
+    border: 1px solid #ddd;
+    padding: 8px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.move-up, .move-down {
+    cursor: pointer;
+    font-size: 12px; /* Taille plus petite */
+    margin: 0 5px;
+}
+
+.move-up:first-child, .move-down:last-child {
+    visibility: hidden; /* Cacher les flèches pour le premier et le dernier élément */
+}
+
