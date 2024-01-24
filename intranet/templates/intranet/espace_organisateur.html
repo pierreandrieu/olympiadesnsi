@@ -26,17 +26,30 @@
                             <tr>
                                 <th>Nom</th>
                                 <th>Référent</th>
-                                <th> Groupes</th>
+                                <th>Comité</th>
+                                <th>Groupes</th>
                                 <th>Participants</th>
                                 <th>Exercices</th>
                                 <th>Actions</th>
                             </tr>
                             </thead>
                             <tbody>
-                            {% for epreuve, nombre_groupes, participants_uniques, nombre_exercices in epreuves_info %}
+                            {% for epreuve, nombre_groupes, participants_uniques, nombre_exercices, membres_comite in epreuves_info %}
                                 <tr>
                                     <td>{{ epreuve.nom }}</td>
                                     <td>{{ epreuve.referent.username }}</td>
+                                    <td>
+                                        {{ nombre_comite }}
+                                        <a href="#" onclick="toggleExercices('organisateurs-{{ epreuve.id }}')">
+                                            <i class="fas fa-list-ul"></i>
+                                        </a>
+                                        <a href="#" data-toggle="modal" data-target="#addOrganizerModal"
+                                           data-ajout-orga-url="{% url 'ajouter_organisateur' epreuve.id %}">
+                                            <i class="fas fa-plus-circle"></i>
+                                        </a>
+
+
+                                    </td>
                                     <td>{{ nombre_groupes }}</td>
                                     <td>{{ participants_uniques }}</td>
                                     <td>
@@ -237,6 +250,36 @@
         </div>
     </div>
 
+    <!-- Modal pour ajouter un organisateur -->
+    <div class="modal fade" id="addOrganizerModal" tabindex="-1" role="dialog" aria-labelledby="addOrganizerModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addOrganizerModalLabel">Ajouter un Organisateur</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form method="post" id="addOrganizerForm">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="username-organisateur">Nom d'utilisateur</label>
+                            <input type="text" class="form-control" id="username-organisateur" name="username"
+                                   maxlength="100">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Ajouter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+
 
 
 {% endblock %}
@@ -280,5 +323,16 @@
             var epreuveUrl = button.data('epreuve-url'); // Extraire l'URL de suppression
             $(this).find('form').attr('action', epreuveUrl);
         });
+    </script>
+
+
+    <script>
+        $('#addOrganizerModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget); // Bouton qui a déclenché le modal
+            var ajoutOrgaUrl = button.data('ajout-orga-url'); // Extraire l'URL d'ajout d'organisateur
+            $(this).find('form').attr('action', ajoutOrgaUrl);
+        });
+
+
     </script>
 {% endblock %}
