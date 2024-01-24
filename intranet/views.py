@@ -6,9 +6,9 @@ from django.urls import reverse
 from django.shortcuts import render
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-from epreuve.models import User, GroupeCreePar, Epreuve, GroupeParticipeAEpreuve, UserEpreuve, UserExercice, JeuDeTest
+from epreuve.models import User, GroupeCreePar, Epreuve, GroupeParticipeAEpreuve, UserEpreuve, UserExercice, JeuDeTest, MembreComite
 from django.http import HttpResponse
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Prefetch
 from intranet.tasks import save_users_task  # La tâche Celery pour sauvegarder les utilisateurs
 from epreuve.forms import EpreuveForm
 from django.utils.crypto import get_random_string
@@ -170,6 +170,10 @@ def espace_organisateur(request):
 
     epreuves_organisees = Epreuve.objects.filter(
         Q(referent=user) | Q(comite=user)
+    ).prefetch_related(
+        'exercice_set',
+        'groupes_participants',
+        Prefetch('membrecomite_set', queryset=MembreComite.objects.select_related('membre'))
     ).distinct()
 
     epreuves_info = []
@@ -178,11 +182,12 @@ def espace_organisateur(request):
         groupes_participants = epreuve.groupes_participants.all()
         participants_uniques = User.objects.filter(groups__in=groupes_participants).distinct().count()
 
-        # Ajout du nombre de groupes et d'exercices
+        # Ajout du nombre de groupes, d'exercices et de membres du comité
         nombre_groupes = groupes_participants.count()
         nombre_exercices = exercices.count()
+        membres_comite = [membre.membre for membre in epreuve.membrecomite_set.all()]
 
-        epreuves_info.append((epreuve, nombre_groupes, participants_uniques, nombre_exercices))
+        epreuves_info.append((epreuve, nombre_groupes, participants_uniques, nombre_exercices, membres_comite))
 
     epreuve_form = EpreuveForm()
 
@@ -191,7 +196,6 @@ def espace_organisateur(request):
         'epreuves_info': epreuves_info,
         'form': epreuve_form
     })
-
 
 """"
 @login_required
@@ -248,6 +252,7 @@ def espace_organisateur(request):
         'form': epreuve_form
     })
 """
+
 
 def get_unique_username(id_user: int, num: int):
     partie_alea = get_random_string(length=3, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ')
