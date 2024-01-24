@@ -66,7 +66,8 @@ def afficher_epreuve(request, epreuve_id):
     user = request.user
 
     # Récupérer tous les exercices liés à cette épreuve
-    exercices = Exercice.objects.filter(epreuve=epreuve)
+    exercices = Exercice.objects.filter(epreuve=epreuve).order_by('numero')
+
     # Préparer les données des exercices pour le JavaScript
 
     if epreuve.exercices_un_par_un:
@@ -81,7 +82,6 @@ def afficher_epreuve(request, epreuve_id):
 
     exercices_json_list = []
     for ex in exercices:
-        print("exercice ", ex)
         # Récupérer l'objet UserExercice correspondant
         user_exercice, created = UserExercice.objects.get_or_create(exercice_id=ex.id, participant_id=user.id)
         jeu_de_test = None
@@ -93,12 +93,8 @@ def afficher_epreuve(request, epreuve_id):
         instance_de_test: str = ""
 
         if jeu_de_test is not None:
-            print("jeu de test : ", jeu_de_test)
             bonne_reponse = jeu_de_test.reponse
-            print("bonen reponse : ", bonne_reponse)
             instance_de_test = jeu_de_test.instance
-            print("instance de test : ", instance_de_test)
-            print("rep part : ", user_exercice.solution_instance_participant)
 
         # Construire le dictionnaire pour cet exercice
         exercice_dict = {
@@ -257,6 +253,10 @@ def editer_epreuve(request, epreuve_id):
         form = EpreuveForm(request.POST, instance=epreuve)
         if form.is_valid():
             form.save()
+            # modification de l'ordre des exercices
+            exercice_ids_order = request.POST.getlist('exercice_order')
+            for index, exercice_id in enumerate(exercice_ids_order, start=1):
+                Exercice.objects.filter(id=exercice_id).update(numero=index)
             messages.success(request, "L'épreuve a été mise à jour avec succès.")
             return redirect('espace_organisateur')
         else:
@@ -264,7 +264,7 @@ def editer_epreuve(request, epreuve_id):
             return render(request, 'epreuve/editer_epreuve.html', {'form': form, 'epreuve': epreuve})
 
     form = EpreuveForm(instance=epreuve)
-    exercices = Exercice.objects.filter(epreuve_id=epreuve_id)
+    exercices = Exercice.objects.filter(epreuve_id=epreuve_id).order_by("numero")
 
     return render(request, 'epreuve/editer_epreuve.html', {'form': form, 'epreuve': epreuve, 'exercices': exercices})
 
@@ -292,7 +292,7 @@ def visualiser_epreuve_organisateur(request, epreuve_id):
         return HttpResponseForbidden()
     epreuve = get_object_or_404(Epreuve, id=epreuve_id)
 
-    exercices = Exercice.objects.filter(epreuve=epreuve).prefetch_related('jeu_de_test')
+    exercices = Exercice.objects.filter(epreuve=epreuve).order_by('numero').prefetch_related('jeu_de_test')
 
     exercices_json = json.loads(serialize('json', exercices))
 
@@ -312,7 +312,6 @@ def ajouter_organisateur(request, epreuve_id):
     form = AjoutOrganisateurForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         username = form.cleaned_data['username']
-        print(username)
         try:
             organisateur_a_ajouter = User.objects.get(username=username)
             if organisateur_a_ajouter.groups.filter(name='Organisateur').exists():

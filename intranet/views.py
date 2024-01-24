@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.shortcuts import render
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-from epreuve.models import User, GroupeCreePar, Epreuve, GroupeParticipeAEpreuve, UserEpreuve, UserExercice, JeuDeTest, MembreComite
+from epreuve.models import User, GroupeCreePar, Epreuve, GroupeParticipeAEpreuve, UserEpreuve, MembreComite, Exercice
 from django.http import HttpResponse
 from django.db.models import Q, Count, Prefetch
 from intranet.tasks import save_users_task  # La tâche Celery pour sauvegarder les utilisateurs
@@ -117,26 +117,19 @@ def creer_groupe(request):
 
 @login_required
 def supprimer_groupe(request, groupe_id):
-    print("enter, groupe_id = ", groupe_id)
     if not request.user.groups.filter(name='Organisateur').exists():
-        print("non orga")
         return HttpResponseForbidden()
 
     groupe = get_object_or_404(Group, id=groupe_id)
-    print("ahah id", groupe_id)
     groupe_cree_par = GroupeCreePar.objects.get(groupe_id=groupe_id)
-    print("groupecreepar: ", groupe_cree_par.id)
     if request.user.id != groupe_cree_par.createur_id:
-        print("pas toi ! ")
         return HttpResponseForbidden()
 
     if request.method == "POST":
-        print("post")
         try:
             groupe.delete()
             messages.success(request, "Groupe supprimé avec succès.")
         except:
-            print("exception")
             messages.error(request, "Une erreur s'est produite pendant la suppression.")
         return redirect('espace_organisateur')
 
@@ -196,17 +189,19 @@ def espace_organisateur(request):
     groupes_crees = GroupeCreePar.objects.filter(createur=user) \
         .annotate(nombre_membres=Count('groupe__user'))
 
+    exercice_prefetch = Prefetch('exercice_set', queryset=Exercice.objects.order_by('numero'))
     epreuves_organisees = Epreuve.objects.filter(
         Q(referent=user) | Q(comite=user)
     ).prefetch_related(
-        'exercice_set',
+        exercice_prefetch,
         'groupes_participants',
         Prefetch('membrecomite_set', queryset=MembreComite.objects.select_related('membre'))
     )
 
     epreuves_info = []
     for epreuve in epreuves_organisees:
-        exercices = epreuve.exercice_set.all()
+        exercices = epreuve.exercice_set.all().order_by('numero')
+
         groupes_participants = epreuve.groupes_participants.all()
         participants_uniques = User.objects.filter(groups__in=groupes_participants).count()
 

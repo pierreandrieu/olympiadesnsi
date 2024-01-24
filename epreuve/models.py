@@ -57,6 +57,18 @@ class Exercice(models.Model):
     retour_en_direct = models.BooleanField(default=False)
     code_a_soumettre = models.BooleanField(default=False)
     nombre_max_soumissions = models.IntegerField(default=50)
+    numero = models.IntegerField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        # Si le numéro n'est pas déjà défini (nouvel exercice)
+        if self.numero is None:
+            # On récupère le plus grand numéro existant pour cette épreuve
+            dernier_numero = Exercice.objects.filter(epreuve=self.epreuve).aggregate(max_numero=models.Max('numero'))[
+                'max_numero']
+            # Si aucun exercice n'existe, on commence à 1, sinon on ajoute 1 au plus grand numéro
+            self.numero = 1 if dernier_numero is None else dernier_numero + 1
+
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = 'Exercice'

@@ -351,7 +351,7 @@ textarea.form-control {
     margin: 0 5px;
 }
 
-.move-up:first-child, .move-down:last-child {
-    visibility: hidden; /* Cacher les flèches pour le premier et le dernier élément */
+div#exercice-container div.exercice-row:first-child .move-up,
+div#exercice-container div.exercice-row:last-child .move-down {
+    visibility: hidden;
 }
-
