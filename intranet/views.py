@@ -1,4 +1,4 @@
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
 from django.http import HttpResponseForbidden
@@ -115,6 +115,34 @@ def creer_groupe(request):
     return redirect('espace_organisateur')
 
 
+@login_required
+def supprimer_groupe(request, groupe_id):
+    print("enter, groupe_id = ", groupe_id)
+    if not request.user.groups.filter(name='Organisateur').exists():
+        print("non orga")
+        return HttpResponseForbidden()
+
+    groupe = get_object_or_404(Group, id=groupe_id)
+    print("ahah id", groupe_id)
+    groupe_cree_par = GroupeCreePar.objects.get(groupe_id=groupe_id)
+    print("groupecreepar: ", groupe_cree_par.id)
+    if request.user.id != groupe_cree_par.createur_id:
+        print("pas toi ! ")
+        return HttpResponseForbidden()
+
+    if request.method == "POST":
+        print("post")
+        try:
+            groupe.delete()
+            messages.success(request, "Groupe supprimé avec succès.")
+        except:
+            print("exception")
+            messages.error(request, "Une erreur s'est produite pendant la suppression.")
+        return redirect('espace_organisateur')
+
+    return redirect('espace_organisateur')
+
+
 def telecharger_csv(request):
     if not request.user.groups.filter(name='Organisateur').exists():
         return HttpResponseForbidden()
@@ -174,20 +202,21 @@ def espace_organisateur(request):
         'exercice_set',
         'groupes_participants',
         Prefetch('membrecomite_set', queryset=MembreComite.objects.select_related('membre'))
-    ).distinct()
+    )
 
     epreuves_info = []
     for epreuve in epreuves_organisees:
         exercices = epreuve.exercice_set.all()
         groupes_participants = epreuve.groupes_participants.all()
-        participants_uniques = User.objects.filter(groups__in=groupes_participants).distinct().count()
+        participants_uniques = User.objects.filter(groups__in=groupes_participants).count()
 
         # Ajout du nombre de groupes, d'exercices et de membres du comité
         nombre_groupes = groupes_participants.count()
         nombre_exercices = exercices.count()
         membres_comite = [membre.membre for membre in epreuve.membrecomite_set.all()]
-
-        epreuves_info.append((epreuve, nombre_groupes, participants_uniques, nombre_exercices, membres_comite))
+        nombre_organisateurs = len(membres_comite)
+        epreuves_info.append((epreuve, nombre_organisateurs, groupes_participants, nombre_groupes,
+                              participants_uniques, nombre_exercices, membres_comite))
 
     epreuve_form = EpreuveForm()
 
