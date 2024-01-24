@@ -172,3 +172,7 @@ class ExerciceForm(forms.ModelForm):
         self.initial['nombre_max_soumissions'] = 50
 
 
+class AjoutOrganisateurForm(forms.Form):
+    username = forms.CharField(label='Nom d’utilisateur', max_length=100)
+
+
