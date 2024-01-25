@@ -149,20 +149,34 @@ class ExerciceForm(forms.ModelForm):
         enonce = cleaned_data.get('enonce')
         enonce_code = cleaned_data.get('enonce_code')
         avec_jeu_de_test = cleaned_data.get('avec_jeu_de_test')
+
+        # Vérifier la présence de l'énoncé
         if not enonce and not enonce_code:
             raise ValidationError('Vous devez fournir un énoncé, qu\'il soit sous forme de texte ou de code.')
-
+        # Vérifier la présence des jeux de test si nécessaire
         if avec_jeu_de_test:
-            jeux_de_tests = cleaned_data.get('jeux_de_tests', '').split("\n")
-            resultats_jeux_de_tests = cleaned_data.get('resultats_jeux_de_tests', '').split("\n")
+            # Obtenir et filtrer les jeux de tests et les résultats
+            jeux_de_tests = [jeu.strip() for jeu in cleaned_data.get('jeux_de_tests', '').split("\n") if
+                             jeu.strip()]
+            resultats_jeux_de_tests = [resultat.strip() for resultat in
+                                       cleaned_data.get('resultats_jeux_de_tests', '').split("\n") if
+                                       resultat.strip()]
 
-            nb_jeux_test = len([jeu for jeu in jeux_de_tests if jeu.strip()])  # Ignorer les lignes vides
-            nb_resultats = len(
-                [resultat for resultat in resultats_jeux_de_tests if resultat.strip()])  # Ignorer les lignes vides
-            if nb_jeux_test == 0:
-                raise ValidationError('Vous avez coché la case jeux de tests et devez donc insérer au moins un jeu de test avec sa réponse.\nD\'autres jeux de tests pourront être ajoutés ultérieurement')
+            nb_jeux_test = len(jeux_de_tests)
+            nb_resultats = len(resultats_jeux_de_tests)
+
             if nb_resultats != nb_jeux_test:
-                raise ValidationError('Le nombre de jeux de tests inséré doit être le même que le nombre de résultats à ces jeux de tests.\nJeux de tests : ' + str(nb_jeux_test) + " et réponses : " + str(nb_resultats))
+                raise ValidationError(
+                    'Le nombre de jeux de test inséré doit être le même que le nombre de résultats à ces jeux de test.')
+
+            if nb_jeux_test == 0:
+                if self.instance.pk and self.instance.jeudetest_set.exists():
+                    # L'exercice est en cours de modification et a déjà des jeux de test
+                    return cleaned_data
+
+                raise ValidationError(
+                    'Vous avez coché la case jeux de test et devez donc insérer au moins un jeu de test avec sa réponse.')
+
         return cleaned_data
 
     def __init__(self, *args, **kwargs):
