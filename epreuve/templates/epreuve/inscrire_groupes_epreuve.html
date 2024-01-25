@@ -1,0 +1,28 @@
+{% extends 'olympiadesnsi/base.html' %}
+
+{% block content %}
+    <div class="container mt-4">
+        <h1 class="mb-4">Épreuve : {{ epreuve.nom }}</h1>
+
+        <form action="{% url 'inscrire_groupe_epreuves' epreuve_id=epreuve.id %}" method="post" class="card">
+            {% csrf_token %}
+            <div class="card-header">
+                <h2>Inscrire les groupes suivants :</h2>
+            </div>
+            <div class="card-body">
+                {% for group in groups %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="groups" value="{{ group.id }}"
+                               id="group-{{ group.id }}">
+                        <label class="form-check-label" for="group-{{ group.id }}">
+                            {{ group.name }}
+                        </label>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="card-footer text-right">
+                <button type="submit" class="btn btn-primary">Valider</button>
+            </div>
+        </form>
+    </div>
+{% endblock %}
