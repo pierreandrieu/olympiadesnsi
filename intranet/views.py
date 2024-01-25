@@ -26,25 +26,28 @@ def espace_participant(request):
     group_ids = user_groups.values_list('id', flat=True)
 
     epreuves_ids = GroupeParticipeAEpreuve.objects.filter(groupe_id__in=group_ids).values_list('epreuve_id', flat=True)
+
     epreuves_user = Epreuve.objects.filter(id__in=epreuves_ids)
 
     # Epreuves spécifiques à l'utilisateur
     epreuves_participant = UserEpreuve.objects.filter(participant=user)
 
-    # Classifiez les épreuves
-    epreuves_en_cours = epreuves_user.filter(
-        date_debut__lte=today,
-        date_fin__gte=today,
-        association_UserEpreuve_Epreuve__fin_epreuve__gte=today,
-        association_UserEpreuve_Epreuve__participant=user
-    )
+    # Classification des épreuvesv
 
+    # Epreuves à Venir
     epreuves_a_venir = epreuves_user.filter(date_debut__gt=today)
 
+    # Epreuves Terminées
     epreuves_terminees = epreuves_user.filter(
         Q(date_fin__lt=today) |
-        Q(association_UserEpreuve_Epreuve__fin_epreuve__lt=today,
-          association_UserEpreuve_Epreuve__participant=user)
+        Q(association_UserEpreuve_Epreuve__fin_epreuve__lt=today, association_UserEpreuve_Epreuve__participant=user)
+    )
+
+    # Epreuves en Cours (ni à venir, ni terminées)
+    epreuves_en_cours = epreuves_user.exclude(
+        id__in=epreuves_a_venir.values_list('id', flat=True)
+    ).exclude(
+        id__in=epreuves_terminees.values_list('id', flat=True)
     )
 
     return render(request, 'intranet/espace_participant.html', {
