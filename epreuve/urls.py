@@ -13,5 +13,7 @@ urlpatterns = [
     path('<int:epreuve_id>/editer/', views.editer_epreuve, name='editer_epreuve'),
     path('<int:epreuve_id>/supprimer/', views.supprimer_epreuve, name="supprimer_epreuve"),
     path('<int:epreuve_id>/ajouter_orga/', views.ajouter_organisateur, name="ajouter_organisateur"),
-    path('<int:epreuve_id>/inscrire_groupes_epreuve/', views.inscrire_groupes_epreuve, name="inscrire_groupe_epreuves")
+    path('<int:epreuve_id>/inscrire_groupes_epreuve/', views.inscrire_groupes_epreuve, name="inscrire_groupe_epreuves"),
+    path('exercice/editer/<int:id_exercice>/', views.editer_exercice, name='editer_exercice'),
+    path('exercice/supprimer/<int:id_exercice>/', views.supprimer_exercice, name='supprimer_exercice')
 ]
