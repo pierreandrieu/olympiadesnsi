@@ -76,9 +76,11 @@ class Exercice(models.Model):
             models.Index(fields=['epreuve']),
         ]
 
+
 class GroupeParticipeAEpreuve(models.Model):
     groupe = models.ForeignKey(Group, on_delete=models.CASCADE)
     epreuve = models.ForeignKey(Epreuve, on_delete=models.CASCADE)
+
 
     class Meta:
         db_table = 'GroupeParticipeAEpreuve'
@@ -87,6 +89,7 @@ class GroupeParticipeAEpreuve(models.Model):
             models.Index(fields=['epreuve']),
 
         ]
+        unique_together = ['groupe', 'epreuve']
 
 
 class MembreComite(models.Model):
@@ -132,6 +135,8 @@ class GroupeCreePar(models.Model):
             models.Index(fields=['createur']),
         ]
 
+        unique_together = ['groupe', 'createur']
+
 
 class UserEpreuve(models.Model):
     participant = models.ForeignKey(User, related_name='association_UserEpreuve_User',
@@ -139,6 +144,7 @@ class UserEpreuve(models.Model):
     epreuve = models.ForeignKey(Epreuve, related_name='association_UserEpreuve_Epreuve',
                                  on_delete=models.CASCADE)
     fin_epreuve = models.DateTimeField(auto_now=False, null=True)
+
 
     class Meta:
         db_table = 'UserEpreuve'
@@ -148,6 +154,8 @@ class UserEpreuve(models.Model):
             models.Index(fields=['epreuve', 'participant']),
 
         ]
+
+        unique_together = ['participant', 'epreuve']
 
 
 class JeuDeTest(models.Model):
