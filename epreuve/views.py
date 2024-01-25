@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User, Group
 from django.core.serializers import serialize
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -56,6 +57,14 @@ def gerer_groupe(request, id_groupe):
 @login_required
 def detail_epreuve(request, epreuve_id):
     epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+    user = request.user
+
+    # Vérifier si l'utilisateur appartient à un groupe qui participe à l'épreuve
+    user_groups = user.groups.all()
+    groupe_participation = GroupeParticipeAEpreuve.objects.filter(epreuve=epreuve, groupe__in=user_groups).exists()
+
+    if not groupe_participation:
+        return HttpResponseForbidden("Vous n'avez pas l'autorisation de voir cette épreuve.")
     return render(request, 'epreuve/detail_epreuve.html', {'epreuve': epreuve})
 
 
@@ -64,9 +73,14 @@ def afficher_epreuve(request, epreuve_id):
     epreuve = get_object_or_404(Epreuve, id=epreuve_id)
     user = request.user
 
+    # Vérifier si l'utilisateur appartient à un groupe qui participe à l'épreuve
+    user_groups = user.groups.all()
+    groupe_participation = GroupeParticipeAEpreuve.objects.filter(epreuve=epreuve, groupe__in=user_groups).exists()
+
+    if not groupe_participation:
+        return HttpResponseForbidden("Vous n'avez pas l'autorisation de voir cette épreuve.")
     # Récupérer tous les exercices liés à cette épreuve
     exercices = Exercice.objects.filter(epreuve=epreuve).order_by('numero')
-
     # Préparer les données des exercices pour le JavaScript
 
     if epreuve.exercices_un_par_un:
@@ -84,10 +98,8 @@ def afficher_epreuve(request, epreuve_id):
         # Récupérer l'objet UserExercice correspondant
         user_exercice, created = UserExercice.objects.get_or_create(exercice_id=ex.id, participant_id=user.id)
         jeu_de_test = None
-
         if ex.avec_jeu_de_test and user_exercice.jeu_de_test is not None:
             jeu_de_test = JeuDeTest.objects.get(id=user_exercice.jeu_de_test.id)
-
         bonne_reponse: str = ""
         instance_de_test: str = ""
 
@@ -118,14 +130,19 @@ def afficher_epreuve(request, epreuve_id):
     # Convertir la liste en JSON
     exercices_json = json.dumps(exercices_json_list)
     temps_restant = None
-
     if epreuve.duree and epreuve.temps_limite:
         # Préparer les informations de temps pour le frontend
+        # Récupérer ou créer l'objet UserEpreuve
         user_epreuve, created = UserEpreuve.objects.get_or_create(
             participant=user,
-            epreuve=epreuve,
-            defaults={'fin_epreuve': timezone.now() + timedelta(minutes=epreuve.duree)}
+            epreuve=epreuve
         )
+
+        # Vérifier si l'épreuve a une durée limitée et si l'heure de fin est NULL
+        if epreuve.duree and not user_epreuve.fin_epreuve:
+            # Calculer l'heure de fin basée sur la durée de l'épreuve
+            user_epreuve.fin_epreuve = timezone.now() + timedelta(minutes=epreuve.duree)
+            user_epreuve.save()
 
         # Préparer les informations de temps pour le frontend
         if epreuve.duree and epreuve.temps_limite:
@@ -341,14 +358,68 @@ def inscrire_groupes_epreuve(request, epreuve_id):
 
     if request.method == 'POST':
         group_ids = request.POST.getlist('groups')
-        for group_id in group_ids:
-            groupe = get_object_or_404(Group, id=group_id)
-            GroupeParticipeAEpreuve.objects.create(groupe=groupe, epreuve=epreuve)
 
-        messages.success(request, "Les groupes ont été inscrits avec succès à l'épreuve.")
-        return redirect('espace_organisateur')  # Redirigez vers la page appropriée
+        if request.method == 'POST':
+            group_ids = request.POST.getlist('groups')
 
+            with transaction.atomic():
+                groupes = Group.objects.filter(id__in=group_ids).prefetch_related('user_set')
+                for groupe in groupes:
+                    GroupeParticipeAEpreuve.objects.create(groupe=groupe, epreuve=epreuve)
+
+                    for user in groupe.user_set.all():
+                        _, _ = UserEpreuve.objects.get_or_create(participant=user, epreuve=epreuve)
+
+            messages.success(request, "Les groupes et leurs membres ont été inscrits avec succès à l'épreuve.")
+            return redirect('espace_organisateur')
+        return redirect('espace_organisateur')
     else:
         groupes_inscrits = GroupeParticipeAEpreuve.objects.filter(epreuve=epreuve).values_list('groupe', flat=True)
         groups = Group.objects.filter(associations_groupe_createur__createur=request.user).exclude(id__in=groupes_inscrits)
     return render(request, 'epreuve/inscrire_groupes_epreuve.html', {'epreuve': epreuve, 'groups': groups})
+
+
+@login_required()
+def editer_exercice(request, id_exercice):
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+    exercice = get_object_or_404(Exercice, id=id_exercice)
+    epreuve_exercice = Epreuve.objects.get(id=exercice.epreuve_id)
+    if epreuve_exercice.referent != request.user and exercice.auteur != request.user:
+        return HttpResponseForbidden()
+
+    if request.method == 'POST':
+        form = ExerciceForm(request.POST, instance=exercice)
+        if form.is_valid():
+            saved_exercice = form.save()
+
+            # Traiter les jeux de test si nécessaire
+            if form.cleaned_data.get('avec_jeu_de_test'):
+                jeux_de_tests = form.cleaned_data.get('jeux_de_tests', '').split("\n")
+                resultats_jeux_de_tests = form.cleaned_data.get('resultats_jeux_de_tests', '').split("\n")
+
+                # Supprimer les anciens jeux de test et enregistrer les nouveaux
+                JeuDeTest.objects.filter(exercice=saved_exercice).delete()
+                for jeu, resultat in zip(jeux_de_tests, resultats_jeux_de_tests):
+                    if jeu.strip() and resultat.strip():
+                        JeuDeTest.objects.create(exercice=saved_exercice, instance=jeu, reponse=resultat)
+
+            messages.success(request, "L'exercice a été mis à jour avec succès.")
+            return redirect('espace_organisateur')
+    else:
+        form = ExerciceForm(instance=exercice)
+
+    return render(request, 'epreuve/editer_exercice.html', {'form': form, 'epreuve': epreuve_exercice})
+
+
+@login_required()
+def supprimer_exercice(request, id_exercice):
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+    exercice = get_object_or_404(Exercice, id=id_exercice)
+    epreuve_exercice = Epreuve.objects.get(id=exercice.epreuve_id)
+    if epreuve_exercice.referent != request.user and exercice.auteur != request.user:
+        return HttpResponseForbidden()
+    exercice.delete()
+    messages.success(request, "L'exercice a été supprimé")
+    return redirect('espace_organisateur')
