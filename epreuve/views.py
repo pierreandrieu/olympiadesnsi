@@ -1,4 +1,4 @@
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.core.serializers import serialize
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
@@ -13,7 +13,6 @@ from django.urls import reverse
 from epreuve.models import Epreuve, GroupeCreePar, GroupeParticipeAEpreuve, UserExercice, Exercice, UserEpreuve, \
     JeuDeTest, MembreComite
 from epreuve.forms import EpreuveForm, ExerciceForm, AjoutOrganisateurForm
-from intranet.views import espace_organisateur
 import json
 from datetime import timedelta
 import random
@@ -329,3 +328,27 @@ def ajouter_organisateur(request, epreuve_id):
         return HttpResponseRedirect(reverse('espace_organisateur'))
 
     return render(request, 'intranet/espace_organisateur.html', {'form': form})
+
+
+@login_required
+def inscrire_groupes_epreuve(request, epreuve_id):
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+
+    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+    if epreuve.referent != request.user:
+        return HttpResponseForbidden()
+
+    if request.method == 'POST':
+        group_ids = request.POST.getlist('groups')
+        for group_id in group_ids:
+            groupe = get_object_or_404(Group, id=group_id)
+            GroupeParticipeAEpreuve.objects.create(groupe=groupe, epreuve=epreuve)
+
+        messages.success(request, "Les groupes ont été inscrits avec succès à l'épreuve.")
+        return redirect('espace_organisateur')  # Redirigez vers la page appropriée
+
+    else:
+        groupes_inscrits = GroupeParticipeAEpreuve.objects.filter(epreuve=epreuve).values_list('groupe', flat=True)
+        groups = Group.objects.filter(associations_groupe_createur__createur=request.user).exclude(id__in=groupes_inscrits)
+    return render(request, 'epreuve/inscrire_groupes_epreuve.html', {'epreuve': epreuve, 'groups': groups})
