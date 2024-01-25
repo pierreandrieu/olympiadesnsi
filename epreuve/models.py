@@ -159,7 +159,7 @@ class UserEpreuve(models.Model):
 
 
 class JeuDeTest(models.Model):
-    exercice = models.ForeignKey(Exercice, related_name="jeu_de_test", on_delete=models.CASCADE)
+    exercice = models.ForeignKey(Exercice, on_delete=models.CASCADE)
     instance = models.TextField(null=False)
     reponse = models.TextField(null=False)
     class Meta:
