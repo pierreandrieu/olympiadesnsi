@@ -43,13 +43,27 @@
                                         <a href="#" onclick="toggleComite('comite-{{ epreuve.id }}'); return false;">
                                             <i class="fas fa-users"></i>
                                         </a>
-                                        <a href="#" data-toggle="modal" data-target="#addOrganizerModal"
-                                           data-ajout-orga-url="{% url 'ajouter_organisateur' epreuve.id %}">
-                                            <i class="fas fa-plus-circle"></i>
+                                        {% if request.user == epreuve.referent %}
+
+                                            <a href="#" data-toggle="modal" data-target="#addOrganizerModal"
+                                               data-ajout-orga-url="{% url 'ajouter_organisateur' epreuve.id %}">
+                                                <i class="fas fa-plus-circle"></i>
+                                            </a>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ nombre_groupes }}
+                                        <a href="#" onclick="toggleComite('groupes-{{ epreuve.id }}'); return false;">
+                                            <i class="fas fa-users"></i>
                                         </a>
 
+                                        {% if request.user == epreuve.referent %}
+
+                                            <a href="{% url 'inscrire_groupe_epreuves' epreuve.id %}">
+                                                <i class="fas fa-plus-circle"></i>
+                                            </a>
+                                        {% endif %}
                                     </td>
-                                    <td>{{ nombre_groupes }}</td>
                                     <td>{{ participants_uniques }}</td>
                                     <td>
                                         {{ nombre_exercices }}
@@ -62,12 +76,13 @@
                                         </a>
 
                                     </td>
-                                    {% if request.user == epreuve.referent %}
                                         <td>
                                             <a href="{% url 'visualiser_epreuve' epreuve.id %}">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            <a href="{% url 'editer_epreuve' epreuve.id %}">
+                                            {% if request.user == epreuve.referent %}
+
+                                                <a href="{% url 'editer_epreuve' epreuve.id %}">
                                                 <i class="fas fa-edit"></i>
                                             </a>
                                             <a href="#" data-toggle="modal" data-target="#confirmDeleteModal"
@@ -75,17 +90,25 @@
                                                class="text-danger">
                                                 <i class="fas fa-trash-alt"></i>
                                             </a>
-
-
+                                            {% endif %}
                                         </td>
-                                    {% endif %}
                                 </tr>
                                 <tr id="exercices-{{ epreuve.id }}" class="table-secondary toggle-element" style="display:none;">
                                     <td colspan="5">
                                         <ul>
                                             {% for exercice in epreuve.exercice_set.all %}
-                                                <li>{{ exercice.titre }}</li>
+                                                <li>
+                                                    {{ exercice.titre }}
+                                                    <a href="{% url 'modifier_exercice' exercice.id %}">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <a href="{% url 'supprimer_exercice' exercice.id %}"
+                                                       onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?');">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </a>
+                                                </li>
                                             {% endfor %}
+
                                         </ul>
                                     </td>
                                 </tr>
@@ -100,6 +123,19 @@
                                     </td>
                                 </tr>
 
+                                <tr id="groupes-{{ epreuve.id }}" class="table-secondary toggle-element"
+                                    style="display:none;">
+                                    <td colspan="7">
+                                        <ul>
+                                            {% for groupe in groupes_participants %}
+                                                <li>{{ groupe.name }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </td>
+                                </tr>
+
+
+
                             {% endfor %}
 
                             </tbody>
@@ -109,7 +145,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="container mt-4">
         <div class="row">
             <div class="col-12">
@@ -160,6 +196,8 @@
                                         <!-- Tableau imbriqué ou autre contenu pour les détails des membres -->
                                     </td>
                                 </tr>
+
+
 
                             {% endfor %}
                             </tbody>
@@ -390,19 +428,20 @@
 
     <script>
         function toggleComite(id) {
-            var element = $('#' + id);
+            const element = $('#' + id);
 
-            // Vérifie si l'élément est actuellement visible
-            var isVisible = element.is(":visible");
+            // Vérifiez si l'élément est actuellement visible
+            const isVisible = element.is(":visible");
 
-            // Masque tous les éléments
-            $('[id^="exercices-"], [id^="comite-"]').hide();
+            // Masquez tous les éléments
+            $('[id^="exercices-"], [id^="comite-"], [id^="groupes-"]').hide();
 
-            // Si l'élément n'était pas visible, on l'affiche
+            // Basculer l'état de l'élément actuel
             if (!isVisible) {
                 element.show();
             }
         }
+
     </script>
-    
+
 {% endblock %}
