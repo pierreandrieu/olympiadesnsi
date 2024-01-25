@@ -11,47 +11,13 @@ from django_ratelimit.decorators import ratelimit
 from django.contrib import messages
 from django.urls import reverse
 
-from epreuve.models import Epreuve, GroupeCreePar, GroupeParticipeAEpreuve, UserExercice, Exercice, UserEpreuve, \
+from epreuve.models import Epreuve, GroupeParticipeAEpreuve, UserExercice, Exercice, UserEpreuve, \
     JeuDeTest, MembreComite
 from epreuve.forms import EpreuveForm, ExerciceForm, AjoutOrganisateurForm
 import json
 from datetime import timedelta
 import random
 
-
-@login_required
-def inscrire_epreuves(request, id_groupe):
-    if request.method == 'POST':
-        groupe_cree_par: GroupeCreePar = get_object_or_404(GroupeCreePar, id=id_groupe)
-        epreuves_ids = request.POST.getlist('epreuves')
-
-        for epreuve_id in epreuves_ids:
-            epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-
-            # Nouvelle inscription en utilisant l'ID du groupe
-            _, created = GroupeParticipeAEpreuve.objects.get_or_create(
-                groupe_id=groupe_cree_par.groupe_id,
-                epreuve=epreuve
-            )
-
-        return redirect('espace_organisateur')
-
-    return redirect('gerer_groupe', id_groupe=id_groupe)
-
-
-@login_required
-def gerer_groupe(request, id_groupe):
-    groupe_cree_par = get_object_or_404(GroupeCreePar, id=id_groupe)
-    nombre_utilisateurs = groupe_cree_par.nombre_participants
-    epreuves_inscrites = GroupeParticipeAEpreuve.objects.filter(groupe_id=id_groupe)
-    epreuves = Epreuve.objects.all()  # Récupérer toutes les épreuves disponibles
-
-    return render(request, 'epreuve/gerer_groupe.html', {
-        'groupe': groupe_cree_par,
-        'nombre_utilisateurs': nombre_utilisateurs,
-        'epreuves_inscrites': epreuves_inscrites,
-        'epreuves': epreuves,
-    })
 
 
 @login_required
@@ -198,43 +164,8 @@ def soumettre(request):
         return JsonResponse({'success': False, 'error': 'Méthode non autorisée'}, status=405)
 
 
-@login_required
-def assigner_jeu_de_test(request, exercice_id):
-    exercice = get_object_or_404(Exercice, pk=exercice_id)
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
-
-    # Récupérer tous les ID des Jeux de Test pour cet exercice
-    jeux_de_test_ids = set(JeuDeTest.objects.filter(exercice=exercice).values_list('id', flat=True))
-    # Récupérer les ID des Jeux de Test déjà attribués
-    jeux_attribues_ids = set(UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=False)
-                             .values_list('jeu_de_test_id', flat=True))
-    # Calculer les jeux de tests non attribués
-    jeux_non_attribues = jeux_de_test_ids - jeux_attribues_ids
-    jeux_non_attribues_copie = list(jeux_non_attribues)
-    random.shuffle(jeux_non_attribues_copie)
-    # Trouver les participants sans jeu de test attribué
-    participants_sans_jeu = UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=True)
-    cpt = 0
-    fusion: bool = True
-    for user_exercice in participants_sans_jeu:
-        if cpt == len(jeux_non_attribues_copie):
-            cpt = 0
-            if fusion:
-                for id_jeu_attribue in jeux_attribues_ids:
-                    jeux_non_attribues_copie.append(id_jeu_attribue)
-                    fusion = False
-            random.shuffle(jeux_non_attribues_copie)
-
-        jeu_de_test_id = jeux_non_attribues_copie[cpt]
-        cpt += 1
-
-        user_exercice.jeu_de_test_id = jeu_de_test_id
-        user_exercice.save()
-        # Supprimer l'ID attribué du set des jeux non attribués
-
-    # Rediriger l'utilisateur vers la page précédente
-    return redirect('espace_organisateur')
+from django.db.models import Q
+from django.contrib.auth.models import User
 
 
 @login_required
@@ -249,6 +180,23 @@ def ajouter_exercice(request, epreuve_id):
             exercice = form.save(commit=False)
             exercice.epreuve = epreuve
             exercice.save()
+
+            # Traiter les jeux de test si nécessaire
+            if form.cleaned_data.get('avec_jeu_de_test'):
+                jeux_de_tests = form.cleaned_data.get('jeux_de_tests', '').split("\n")
+                resultats_jeux_de_tests = form.cleaned_data.get('resultats_jeux_de_tests', '').split("\n")
+
+                for jeu, resultat in zip(jeux_de_tests, resultats_jeux_de_tests):
+                    if jeu.strip() and resultat.strip():
+                        JeuDeTest.objects.create(exercice=exercice, instance=jeu, reponse=resultat)
+            # Récupérer tous les groupes inscrits à cette épreuve
+            groupes_inscrits = epreuve.groupes_participants.all()
+            for groupe in groupes_inscrits:
+                # Pour chaque utilisateur dans le groupe
+                for user in groupe.user_set.all():
+                    # Créer une entrée dans UserExercice
+                    UserExercice.objects.create(participant=user, exercice=exercice)
+
             messages.success(request, 'L\'exercice a été ajouté avec succès.')
             return redirect('espace_organisateur')
     else:
@@ -308,8 +256,7 @@ def visualiser_epreuve_organisateur(request, epreuve_id):
         return HttpResponseForbidden()
     epreuve = get_object_or_404(Epreuve, id=epreuve_id)
 
-    exercices = Exercice.objects.filter(epreuve=epreuve).order_by('numero').prefetch_related('jeu_de_test')
-
+    exercices = Exercice.objects.filter(epreuve=epreuve).order_by('numero').prefetch_related('jeudetest_set')
     exercices_json = json.loads(serialize('json', exercices))
 
     return render(request, 'epreuve/visualiser_epreuve.html', {
@@ -358,21 +305,20 @@ def inscrire_groupes_epreuve(request, epreuve_id):
 
     if request.method == 'POST':
         group_ids = request.POST.getlist('groups')
+        exercices = Exercice.objects.filter(epreuve=epreuve_id)
+        print("exercices : ", exercices)
+        with transaction.atomic():
+            groupes = Group.objects.filter(id__in=group_ids).prefetch_related('user_set')
+            for groupe in groupes:
+                GroupeParticipeAEpreuve.objects.create(groupe=groupe, epreuve=epreuve)
 
-        if request.method == 'POST':
-            group_ids = request.POST.getlist('groups')
-
-            with transaction.atomic():
-                groupes = Group.objects.filter(id__in=group_ids).prefetch_related('user_set')
-                for groupe in groupes:
-                    GroupeParticipeAEpreuve.objects.create(groupe=groupe, epreuve=epreuve)
-
-                    for user in groupe.user_set.all():
-                        _, _ = UserEpreuve.objects.get_or_create(participant=user, epreuve=epreuve)
-
-            messages.success(request, "Les groupes et leurs membres ont été inscrits avec succès à l'épreuve.")
-            return redirect('espace_organisateur')
+                for user in groupe.user_set.all():
+                    _, _ = UserEpreuve.objects.get_or_create(participant=user, epreuve=epreuve)
+                    for exercice in exercices:
+                        _, _ = UserExercice.objects.get_or_create(exercice_id=exercice.id, participant_id=user.id)
+        messages.success(request, "Les groupes et leurs membres ont été inscrits avec succès à l'épreuve.")
         return redirect('espace_organisateur')
+
     else:
         groupes_inscrits = GroupeParticipeAEpreuve.objects.filter(epreuve=epreuve).values_list('groupe', flat=True)
         groups = Group.objects.filter(associations_groupe_createur__createur=request.user).exclude(id__in=groupes_inscrits)
@@ -393,23 +339,43 @@ def editer_exercice(request, id_exercice):
         if form.is_valid():
             saved_exercice = form.save()
 
-            # Traiter les jeux de test si nécessaire
+            # Ajouter de nouveaux jeux de test sans supprimer les anciens
             if form.cleaned_data.get('avec_jeu_de_test'):
                 jeux_de_tests = form.cleaned_data.get('jeux_de_tests', '').split("\n")
                 resultats_jeux_de_tests = form.cleaned_data.get('resultats_jeux_de_tests', '').split("\n")
 
-                # Supprimer les anciens jeux de test et enregistrer les nouveaux
-                JeuDeTest.objects.filter(exercice=saved_exercice).delete()
                 for jeu, resultat in zip(jeux_de_tests, resultats_jeux_de_tests):
                     if jeu.strip() and resultat.strip():
-                        JeuDeTest.objects.create(exercice=saved_exercice, instance=jeu, reponse=resultat)
+                        # Créer un nouveau jeu de test uniquement s'il n'existe pas déjà
+                        JeuDeTest.objects.create(
+                            exercice=saved_exercice,
+                            instance=jeu,
+                            reponse=resultat
+                        )
 
             messages.success(request, "L'exercice a été mis à jour avec succès.")
             return redirect('espace_organisateur')
+        else:
+            messages.error(request, "Problème détecté lors de la mise à jour de l'exercice.")
     else:
         form = ExerciceForm(instance=exercice)
 
-    return render(request, 'epreuve/editer_exercice.html', {'form': form, 'epreuve': epreuve_exercice})
+    # Récupérer les informations pour l'affichage
+    nb_jeux_test_bd = JeuDeTest.objects.filter(exercice=exercice).count()
+    nb_participants = UserExercice.objects.filter(exercice_id=id_exercice).count()
+    print('exercice id = ', exercice.id)
+    print("nb participants de l'exercice = ", nb_participants)
+    nb_participants_sans_jeu = UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=True).count()
+
+    return render(request, 'epreuve/editer_exercice.html', {
+        'form': form,
+        'id_exercice': id_exercice,
+        'nom_exercice': exercice.titre,
+        'epreuve': epreuve_exercice,
+        'nb_jeux_test_bd': nb_jeux_test_bd,
+        'nb_participants': nb_participants,
+        'nb_participants_sans_jeu': nb_participants_sans_jeu,
+    })
 
 
 @login_required()
@@ -423,3 +389,71 @@ def supprimer_exercice(request, id_exercice):
     exercice.delete()
     messages.success(request, "L'exercice a été supprimé")
     return redirect('espace_organisateur')
+
+
+@login_required
+def redistribuer_jeux_de_test(request, id_exercice):
+    exercice = get_object_or_404(Exercice, pk=id_exercice)
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+
+    # Récupérer tous les ID des Jeux de Test pour cet exercice
+    jeux_de_test_ids = JeuDeTest.objects.filter(exercice=exercice).values_list('id', flat=True)
+    jeux_de_test_list = list(jeux_de_test_ids)
+    random.shuffle(jeux_de_test_list)
+    # Trouver les participants sans jeu de test attribué
+    participants = UserExercice.objects.filter(exercice=exercice)
+    cpt = 0
+    fusion: bool = True
+    for user_exercice in participants:
+        if cpt == len(jeux_de_test_list):
+            cpt = 0
+            random.shuffle(jeux_de_test_list)
+
+        jeu_de_test_id = jeux_de_test_list[cpt]
+        cpt += 1
+
+        user_exercice.jeu_de_test_id = jeu_de_test_id
+        user_exercice.save()
+        # Supprimer l'ID attribué du set des jeux non attribués
+
+    # Rediriger l'utilisateur vers la page précédente
+    messages.success(request, "Jeux de test redistribués avec succès.")
+    return redirect('editer_exercice', id_exercice=id_exercice)
+
+@login_required
+def assigner_jeux_de_test(request, id_exercice):
+    exercice = get_object_or_404(Exercice, pk=id_exercice)
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+
+    # Récupérer tous les ID des Jeux de Test pour cet exercice
+    jeux_de_test_ids = set(JeuDeTest.objects.filter(exercice=exercice).values_list('id', flat=True))
+    # Récupérer les ID des Jeux de Test déjà attribués
+    jeux_attribues_ids = set(UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=False)
+                             .values_list('jeu_de_test_id', flat=True))
+    # Calculer les jeux de tests non attribués
+    jeux_non_attribues = jeux_de_test_ids - jeux_attribues_ids
+    jeux_non_attribues_copie = list(jeux_non_attribues)
+    random.shuffle(jeux_non_attribues_copie)
+    # Trouver les participants sans jeu de test attribué
+    participants_sans_jeu = UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=True)
+    cpt = 0
+    fusion: bool = True
+    for user_exercice in participants_sans_jeu:
+        if cpt == len(jeux_non_attribues_copie):
+            cpt = 0
+            if fusion:
+                for id_jeu_attribue in jeux_attribues_ids:
+                    jeux_non_attribues_copie.append(id_jeu_attribue)
+                    fusion = False
+            random.shuffle(jeux_non_attribues_copie)
+
+        jeu_de_test_id = jeux_non_attribues_copie[cpt]
+        cpt += 1
+
+        user_exercice.jeu_de_test_id = jeu_de_test_id
+        user_exercice.save()
+        # Supprimer l'ID attribué du set des jeux non attribués
+
+    return redirect('editer_exercice', id_exercice=id_exercice)

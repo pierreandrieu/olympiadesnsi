@@ -2,8 +2,8 @@
 
 {% block content %}
     <div class="container mt-4">
-        <h1 style="text-align: center">Modification de l'Exercice</h1>
-        <h2 style="text-align: center">{{ epreuve.nom }}</h2>
+        <h1 style="text-align: center">Modification d'exercice</h1>
+        <h2 style="text-align: center">{{ nom_exercice }}</h2>
 
         <form method="post" onsubmit="return verifierJeuxDeTests()">
             {% csrf_token %}
@@ -58,6 +58,33 @@
             <p id="annonce">Insérez ci-dessous vos nouveaux jeux de test</p>
 
             <div id="div_jeux_de_tests" style="display: none;">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Nombre de jeux de test en BD</th>
+                        <th>Nombre de participants</th>
+                        <th>Participants sans jeu de test</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>{{ nb_jeux_test_bd }}</td>
+                        <td>{{ nb_participants }}</td>
+                        <td>{{ nb_participants_sans_jeu }}</td>
+                        <td>
+                            <!-- Icône pour assigner les jeux de test -->
+                            <a href="{% url 'assigner_jeux_de_test' id_exercice %}">
+                                <i class="fas fa-tasks"></i>
+                            </a>
+                            <!-- Icône pour redistribuer les jeux de test -->
+                            <a href="{% url 'redistribuer_jeux_de_test' id_exercice %}">
+                                <i class="fas fa-random"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
                 <div style="float: left; width: 50%;">
                     <label>Jeu de Test</label>
                     {{ form.jeux_de_tests }}
