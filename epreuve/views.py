@@ -306,7 +306,6 @@ def inscrire_groupes_epreuve(request, epreuve_id):
     if request.method == 'POST':
         group_ids = request.POST.getlist('groups')
         exercices = Exercice.objects.filter(epreuve=epreuve_id)
-        print("exercices : ", exercices)
         with transaction.atomic():
             groupes = Group.objects.filter(id__in=group_ids).prefetch_related('user_set')
             for groupe in groupes:
@@ -363,8 +362,6 @@ def editer_exercice(request, id_exercice):
     # Récupérer les informations pour l'affichage
     nb_jeux_test_bd = JeuDeTest.objects.filter(exercice=exercice).count()
     nb_participants = UserExercice.objects.filter(exercice_id=id_exercice).count()
-    print('exercice id = ', exercice.id)
-    print("nb participants de l'exercice = ", nb_participants)
     nb_participants_sans_jeu = UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=True).count()
 
     return render(request, 'epreuve/editer_exercice.html', {
