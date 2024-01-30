@@ -42,17 +42,7 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 
 # configurations
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = config('EMAIL_HOST')
-EMAIL_PORT = config('EMAIL_PORT')
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-SERVER_EMAIL = EMAIL_HOST
-ADMINS = [(config('ADMIN_NAME'), config('ADMIN_EMAIL'))]
-SESSION_COOKIE_HTTPONLY = config('SESSION_COOKIE_HTTPONLY')
-SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE')
-CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE')
 
 INSTALLED_APPS = [
     "django.contrib.admin",
