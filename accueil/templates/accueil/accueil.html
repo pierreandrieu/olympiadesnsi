@@ -1,46 +1,71 @@
 {% extends 'olympiadesnsi/base.html' %}
 
-{% block title %} Olympiades NSI - Accueuil {% endblock %}
+{% block title %} Olympiades NSI - Accueil {% endblock %}
 
 {% block content %}
     <div class="container mt-4">
-        <h1 class="text-center">Olympiades Nationales de NSI</h1>
-        
+        <h1 class="text-center">Olympiades NSI de l'Académie de Versailles</h1>
+
         <div class="row mt-3">
             <div class="col-md-12">
-                <h2>Participation</h2>
-                <p>
-                    Les professeurs de NSI inscrivent [...]
+                <h2>Objectifs</h2>
+                <p>Les Olympiades NSI sont conçues pour susciter un intérêt accru pour l'informatique et les sciences
+                    numériques parmi les lycéens. Cette compétition offre une opportunité de s'immerger dans des
+                    problématiques informatiques diversifiées à travers une épreuve théorique sur papier et 
+                    une épreuve de programmation.
                 </p>
             </div>
         </div>
 
         <div class="row mt-3">
             <div class="col-md-12">
-                <h2>Les Objectifs</h2>
-                <p>Les Olympiades NSI visent à stimuler l'intérêt pour l'informatique et les sciences numériques. Elles
-                    permettent aux lycéens de découvrir de nouveaux horizons dans ces domaines et de renforcer leurs
-                    compétences en résolution de problèmes complexes, à la fois sur une épreuve théorique et sur une épreuve de programmation sur machine</p>
+                <h2>Déroulement de l'épreuve de programmation</h2>
+                <p>
+                    L'épreuve de programmation est une épreuve collaborative où chaque équipe, constituée de 1 à 3
+                    élèves de Première NSI, s'affronte dans une course contre-la-montre de 1h45. Chaque équipe soumet
+                    une seule solution collective.
+                </p>
             </div>
         </div>
 
+        <div class="row mt-3">
+            <div class="col-md-12">
+                <h2>Structure des exercices</h2>
+                <p>Chaque exercice est un défi de programmation qui met à l'épreuve la créativité et les aptitudes
+                    techniques des participants. Les équipes doivent résoudre des puzzles algorithmiques, chacune
+                    recevant un jeu de tests spécifique.</p>
+                <p>
+                    Pour qu'un exercice soit considéré comme réussi, il faut non seulement apporter la solution correcte
+                    aux jeux de tests, mais aussi soumettre le code source correspondant. Un système d'indicateurs de
+                    couleur fournira un retour immédiat sur la validité des réponses, tandis que l'évaluation du code
+                    sera réalisée ultérieurement par le jury.
+                </p>
+            </div>
+        </div>
 
         <div class="row mt-3">
             <div class="col-md-12">
-                <h2>Épreuves et Format</h2>
-                <p>Les épreuves des Olympiades NSI comprennent des défis de programmation, des puzzles algorithmiques et
-                    des projets collaboratifs. Chaque épreuve est conçue pour tester à la fois la créativité et les
-                    compétences techniques des participants.</p>
+                <h2>Modalités d'inscription</h2>
+                <p>
+                    Les inscriptions se font par l'intermédiaire des professeurs de NSI. Chaque enseignant peut inscrire
+                    plusieurs équipes en fournissant une adresse email académique et en spécifiant le nombre d'équipes à
+                    inscrire. Un email avec un identifiant et un mot de passe par équipe, générés automatiquement, sera 
+                    envoyé sur l'adresse email du professeur de NSI.
+                </p>
+                <p>
+                    Afin de protéger la vie privée des élèves, aucune donnée personnelle n'est demandée. Il incombe
+                    donc aux enseignants de NSI de gérer l'attribution des identifiants aux équipes.
+                </p>
             </div>
         </div>
 
         <div class="row mt-3">
             <div class="col-md-12">
                 <h2>Session 2024</h2>
-                <a href="{% url 'login_participant' %}" class="btn btn-primary">Espace Candidat</a>
-                <a href="{% url 'login_organisateur' %}" class="btn btn-secondary">Espace Jury</a>
+                <a href="{% url 'login_participant' %}" class="btn btn-primary">Accéder à l'Espace Candidat</a>
+                <a href="{% url 'login_organisateur' %}" class="btn btn-secondary">Accéder à l'Espace Jury</a>
             </div>
         </div>
-        <!-- Autres sections selon besoin -->
+
     </div>
 {% endblock %}
