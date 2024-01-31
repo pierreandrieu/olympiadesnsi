@@ -33,6 +33,10 @@ config = Config(env_path)
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY')
 
+SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', cast=bool)
+CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', cast=bool)
+SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool)
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 
@@ -67,7 +71,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    'olympiadesnsi.middleware.NoCacheMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
@@ -108,7 +111,7 @@ DATABASES = {
     }
 }
 
-
+CELERY_RESULT_BACKEND = f'db+postgresql://{config("USER_ADMIN_OLYMPIADESNSI_DB")}:{config("PASSWORD_ADMIN_OLYMPIADESNSI_DB")}@localhost/{config("NAME_OLYMPIADESNSI_DB")}'
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
@@ -155,9 +158,5 @@ DIRS = [os.path.join(BASE_DIR, 'templates')]
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-# Configuration de Celery
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
 LOGOUT_REDIRECT_URL = 'home'
