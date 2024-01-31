@@ -129,15 +129,22 @@ def supprimer_groupe(request, groupe_id):
         return HttpResponseForbidden()
 
     if request.method == "POST":
+        # Récupérer tous les utilisateurs du groupe
+        users_du_groupe = groupe.user_set.all()
+        print("users = ", users_du_groupe)
         try:
+
+            for user in users_du_groupe:
+            # Vérifier si l'utilisateur appartient à d'autres groupes.
+            # Par defaut, dans groupe "Participant" et dans le groupe nommé par l'organisateur
+                if user.groups.count() == 2 and user.groups.filter(name="Participant").exists():                # Si l'utilisateur n'appartient à aucun autre groupe, le supprimer
+                    user.delete()
+
             groupe.delete()
             messages.success(request, "Groupe supprimé avec succès.")
         except:
             messages.error(request, "Une erreur s'est produite pendant la suppression.")
         return redirect('espace_organisateur')
-
-    return redirect('espace_organisateur')
-
 
 def telecharger_csv(request):
     if not request.user.groups.filter(name='Organisateur').exists():
