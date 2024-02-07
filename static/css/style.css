@@ -355,3 +355,7 @@ div#exercice-container div.exercice-row:first-child .move-up,
 div#exercice-container div.exercice-row:last-child .move-down {
     visibility: hidden;
 }
+
+.text-justify{
+    text-align: justify;
+}
