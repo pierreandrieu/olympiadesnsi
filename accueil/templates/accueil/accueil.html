@@ -3,69 +3,58 @@
 {% block title %} Olympiades NSI - Accueil {% endblock %}
 
 {% block content %}
-    <div class="container mt-4">
-        <h1 class="text-center">Olympiades NSI de l'Académie de Versailles</h1>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Olympiades académiques de NSI</h1>
+        <h2 class="text-center mb-3">Académie de Versailles</h2>
 
-        <div class="row mt-3">
-            <div class="col-md-12">
-                <h2>Objectifs</h2>
-                <p>Les Olympiades NSI sont conçues pour susciter un intérêt accru pour l'informatique et les sciences
+        <!-- Objectifs avec icônes minimalistes -->
+        <div class="row mt-4">
+            <div class="col-md-12 mb-3">
+                <h3><i class="fas fa-bullseye" style="color: #0056b3;"></i> Objectifs</h3>
+                <p class="text-justify">Les Olympiades NSI sont conçues pour susciter un intérêt accru pour l'informatique et les sciences
                     numériques parmi les lycéens. Cette compétition offre une opportunité de s'immerger dans des
-                    problématiques informatiques diversifiées à travers une épreuve théorique sur papier et 
-                    une épreuve de programmation.
-                </p>
+                    problématiques informatiques diversifiées à travers une épreuve théorique sur papier et
+                    une épreuve de programmation.</p>
             </div>
-        </div>
 
-        <div class="row mt-3">
-            <div class="col-md-12">
-                <h2>Déroulement de l'épreuve de programmation</h2>
-                <p>
-                    L'épreuve de programmation est une épreuve collaborative où chaque équipe, constituée de 1 à 3
-                    élèves de Première NSI, s'affronte dans une course contre-la-montre de 1h45. Chaque équipe soumet
-                    une seule solution collective.
-                </p>
+            <!-- Déroulement de l'épreuve -->
+            <div class="col-md-12 mb-3">
+                <h3><i class="fas fa-history" style="color: #0056b3;"></i> Déroulement de l'épreuve</h3>
+                <p class="text-justify">L'épreuve de programmation est une épreuve collaborative où chaque équipe, constituée de 1 à 3 élèves
+                    de Première NSI, s'affronte dans une course contre-la-montre de 1h45. Chaque équipe soumet
+                    une seule solution collective.</p>
             </div>
-        </div>
 
-        <div class="row mt-3">
-            <div class="col-md-12">
-                <h2>Structure des exercices</h2>
-                <p>Chaque exercice est un défi de programmation qui met à l'épreuve la créativité et les aptitudes
+            <!-- Structure des exercices -->
+            <div class="col-md-12 mb-3">
+                <h3><i class="fas fa-puzzle-piece" style="color: #0056b3;"></i> Format des exercices</h3>
+                <p class="text-justify">Chaque exercice est un défi de programmation qui met à l'épreuve la créativité et les aptitudes
                     techniques des participants. Les équipes doivent résoudre des puzzles algorithmiques, chacune
-                    recevant un jeu de tests spécifique.</p>
-                <p>
-                    Pour qu'un exercice soit considéré comme réussi, il faut non seulement apporter la solution correcte
+                    recevant un jeu de test spécifique.</p>
+
+                <p class="text-justify">Pour qu'un exercice soit considéré comme réussi, il faut non seulement apporter la solution correcte
                     aux jeux de tests, mais aussi soumettre le code source correspondant. Un système d'indicateurs de
                     couleur fournira un retour immédiat sur la validité des réponses, tandis que l'évaluation du code
-                    sera réalisée ultérieurement par le jury.
-                </p>
+                    sera réalisée ultérieurement par le jury. </p>
             </div>
-        </div>
 
-        <div class="row mt-3">
-            <div class="col-md-12">
-                <h2>Modalités d'inscription</h2>
-                <p>
-                    Les inscriptions se font par l'intermédiaire des professeurs de NSI. Chaque enseignant peut inscrire
+            <!-- Modalités d'inscription -->
+            <div class="col-md-12 mb-4">
+                <h3><i class="fas fa-pencil-alt" style="color: #0056b3;"></i> Modalités d'inscription</h3>
+                <p class="text-justify">Les inscriptions se font par l'intermédiaire des professeurs de NSI. Chaque enseignant peut inscrire
                     plusieurs équipes en fournissant une adresse email académique et en spécifiant le nombre d'équipes à
-                    inscrire. Un email avec un identifiant et un mot de passe par équipe, générés automatiquement, sera 
-                    envoyé sur l'adresse email du professeur de NSI.
-                </p>
-                <p>
-                    Afin de protéger la vie privée des élèves, aucune donnée personnelle n'est demandée. Il incombe
-                    donc aux enseignants de NSI de gérer l'attribution des identifiants aux équipes.
-                </p>
+                    inscrire. Un email avec un identifiant et un mot de passe par équipe, générés automatiquement, sera
+                    envoyé sur l'adresse email du professeur de NSI.</p>
+
+                <p class="text-justify"> Afin de protéger la vie privée des élèves, aucune donnée personnelle n'est demandée. Il incombe donc
+                    aux enseignants de NSI de gérer l'attribution des identifiants aux équipes. </p>
+            </div>
+
+            <!-- Boutons d'action -->
+            <div class="d-flex justify-content-center">
+                <a href="{% url 'login_participant' %}" class="btn btn-primary me-2">Espace Candidat</a>
+                <a href="{% url 'login_organisateur' %}" class="btn btn-secondary">Espace Jury</a>
             </div>
         </div>
-
-        <div class="row mt-3">
-            <div class="col-md-12">
-                <h2>Session 2024</h2>
-                <a href="{% url 'login_participant' %}" class="btn btn-primary">Accéder à l'Espace Candidat</a>
-                <a href="{% url 'login_organisateur' %}" class="btn btn-secondary">Accéder à l'Espace Jury</a>
-            </div>
-        </div>
-
     </div>
 {% endblock %}
