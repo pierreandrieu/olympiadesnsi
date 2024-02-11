@@ -72,7 +72,6 @@ def afficher_epreuve(request, epreuve_id):
         if jeu_de_test is not None:
             bonne_reponse = jeu_de_test.reponse
             instance_de_test = jeu_de_test.instance
-
         # Construire le dictionnaire pour cet exercice
         exercice_dict = {
             'id': ex.id,
@@ -454,3 +453,23 @@ def assigner_jeux_de_test(request, id_exercice):
         # Supprimer l'ID attribué du set des jeux non attribués
 
     return redirect('editer_exercice', id_exercice=id_exercice)
+
+
+@login_required
+def supprimer_jeux_de_test(request, id_exercice):
+    exercice = Exercice.objects.get(pk=id_exercice)
+    if not est_admin_exercice(request, exercice):
+        return HttpResponseForbidden("Vous n'avez pas les droits pour supprimer les jeux de tests pour cet exercice.")
+    jdts = JeuDeTest.objects.filter(exercice_id=id_exercice)
+    for jdt in jdts:
+        jdt.delete()
+    return redirect('editer_exercice', id_exercice=id_exercice)
+
+
+def est_admin_exercice(request, exercice: Exercice) -> bool:
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return False
+    epreuve_exercice = Epreuve.objects.get(id=exercice.epreuve_id)
+    if epreuve_exercice.referent == request.user or exercice.auteur == request.user:
+        return True
+    return False
