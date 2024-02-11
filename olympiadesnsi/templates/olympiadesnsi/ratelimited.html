@@ -1,0 +1,19 @@
+{% extends 'olympiadesnsi/base.html' %}
+
+{% block title %}Limitation de Taux Atteinte{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="alert alert-warning" role="alert">
+                    <h4 class="alert-heading">Trop de connexions détectées !</h4>
+                    <p>Nous avons détecté un nombre élevé de requêtes venant de votre adresse IP. Afin de protéger nos
+                        services, nous avons temporairement limité l'accès.</p>
+                    <hr>
+                    <p class="mb-0">Veuillez réessayer dans quelques instants.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
