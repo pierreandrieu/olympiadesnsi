@@ -1,17 +1,19 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
-        <a class="navbar-brand" href="#">Intranet Participant</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                 aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ml-auto">
+        <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+        <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'home' %}">Accueil Olympiades 2024</a>
+                </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'espace_participant' %}">Mon espace</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'gestion_compte_organisateur' %}">Mon compte</a>
+                    <a class="nav-link" href="{% url 'gestion_compte_participant' %}">Mon compte</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'logout' %}">Déconnexion</a>

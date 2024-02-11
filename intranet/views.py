@@ -69,8 +69,6 @@ def gestion_compte_participant(request):
 def gestion_compte_organisateur(request):
     if not request.user.groups.filter(name='Organisateur').exists():
         return HttpResponseForbidden()
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
     return render(request, 'intranet/gestion_compte_organisateur.html')
 
 
