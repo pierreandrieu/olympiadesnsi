@@ -14,6 +14,8 @@ urlpatterns = [
     path('exercice/editer/<int:id_exercice>/', views.editer_exercice, name='editer_exercice'),
     path('exercice/supprimer/<int:id_exercice>/', views.supprimer_exercice, name='supprimer_exercice'),
     path('exercice/assigner-jeux-de-test/<int:id_exercice>/', views.assigner_jeux_de_test, name='assigner_jeux_de_test'),
+    path('exercice/supprimer-jeux-de-test/<int:id_exercice>/', views.supprimer_jeux_de_test,
+         name='supprimer_jeux_de_test'),
     path('exercice/redistribuer-jeux-de-test/<int:id_exercice>/', views.redistribuer_jeux_de_test,
          name='redistribuer_jeux_de_test'),
 ]
