@@ -1,0 +1,13 @@
+{% extends 'olympiadesnsi/base.html' %}
+
+{% block navbar %}
+    {% if request.user.is_authenticated %}
+        {% if utilisateur_est_organisateur %}
+            {% include 'olympiadesnsi/nav_organisateur.html' %}
+        {% elif utilisateur_est_participant %}
+            {% include 'olympiadesnsi/nav_participant.html' %}
+        {% endif %}
+    {% else %}
+        {% include 'olympiadesnsi/nav_extranet.html' %}
+    {% endif %}
+{% endblock %}
