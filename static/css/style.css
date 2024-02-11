@@ -46,32 +46,6 @@ h1 {
     border-radius: 5px;
 }
 
-.form-control {
-    margin-left: 10px; /* Ajoute de l'espace à gauche */
-    margin-right: 10px; /* Ajoute de l'espace à droite */
-}
-
-/* Ajoutez ceci dans votre fichier CSS */
-.form-group {
-    display: flex;
-    align-items: center;
-    margin-top: 10px;
-    margin-bottom: 1rem; /* Ajustez selon votre préférence */
-}
-
-.form-group label {
-    text-align: left;
-    margin-left: 20px;
-    flex: 0 0 10%; /* Ajustez la largeur du label selon vos besoins */
-}
-
-.form-group input,
-.form-group textarea {
-    flex: 0.25; /* Le champ de formulaire occupe l'espace restant */
-    margin-left: 10px;
-}
-
-
 .date-input-container {
     position: relative; /* Conteneur pour le champ de date et le calendrier */
 }
@@ -80,15 +54,6 @@ h1 {
     width: 100%; /* le champ de date occupe toute la largeur du conteneur */
 }
 
-
-.form-check {
-    margin-bottom: 1rem; /* l'espace en dessous de chaque case à cocher */
-}
-
-.form-check-input {
-    margin-left: 70px;
-    padding-left: 50px;
-}
 
 .tooltip {
     position: relative;
@@ -358,4 +323,27 @@ div#exercice-container div.exercice-row:last-child .move-down {
 
 .text-justify{
     text-align: justify;
+}
+
+/* Assure que tous les labels ont un espacement uniforme par rapport aux champs de saisie */
+.mb-3 label {
+    display: block;
+    margin-bottom: 0.5rem; /* Ajustez cette valeur selon vos besoins */
+}
+
+/* Garantit que tous les champs de formulaire ont une taille uniforme */
+.mb-3 .form-control {
+    width: 100%; /* Cela garantit que la largeur est la même pour tous les champs */
+    max-width: 100%; /* Assure que la largeur ne dépasse pas celle de son conteneur */
+}
+
+/* Uniformiser la largeur et la hauteur des champs de saisie */
+.form-control {
+    width: 100%; /* Assure que la largeur est la même pour tous les champs */
+    height: auto; /* Permet aux champs de s'ajuster à la hauteur du contenu */
+    padding: 0.375rem 0.75rem;
+}
+
+.form-control {
+    height: 38px;
 }
