@@ -6,12 +6,14 @@ from captcha.fields import CaptchaField
 class LoginForm(forms.Form):
     username = forms.CharField(
         max_length=100,
-        error_messages={'required': _('Veuillez entrer votre nom d’utilisateur.')}
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('Nom d’utilisateur')}),
+        error_messages={'required': _('Veuillez entrer votre nom d’utilisateur.')},
+        label=_('Nom d’utilisateur')
     )
     password = forms.CharField(
-        widget=forms.PasswordInput,            #print("form 1", form.fields)
-
-        error_messages={'required': _('Veuillez entrer votre mot de passe.')}
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': _('Mot de passe')}),
+        error_messages={'required': _('Veuillez entrer votre mot de passe.')},
+        label=_('Mot de passe')
     )
     captcha = CaptchaField(required=False)
 
@@ -20,9 +22,9 @@ class LoginForm(forms.Form):
         self.request = kwargs.pop('request', None)
         super(LoginForm, self).__init__(*args, **kwargs)
 
-        # Activation conditionnelle du captcha basée sur le nombre de tentatives échouées
+        # Ajustement conditionnel des champs
         if self.request and hasattr(self.request, 'session'):
             if self.request.session.get('failed_login_attempts', 0) > 3:
                 self.fields['captcha'].required = True
-                # Message d'erreur personnalisé pour le captcha
+                self.fields['captcha'].widget.attrs.update({'class': 'form-control'})
                 self.fields['captcha'].error_messages = {'required': _('Veuillez résoudre le captcha.')}
