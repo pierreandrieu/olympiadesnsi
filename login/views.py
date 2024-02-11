@@ -21,7 +21,12 @@ def generic_login(request: HttpRequest, user_group: str, redirect_url: str, form
         HttpResponse: Réponse HTTP générée pour la requête.
     """
 
+    @ratelimit(key='ip', rate='3/s', method='POST', block=True)
     @ratelimit(key='ip', rate='120/m', method='POST', block=True)
+    @ratelimit(key='ip', rate='5000/h', method='POST', block=True)
+    @ratelimit(key='ip', rate='5/s', method='GET', block=True)
+    @ratelimit(key='ip', rate='200/m', method='GET', block=True)
+    @ratelimit(key='ip', rate='5000/h', method='GET', block=True)
     def process_request(request: HttpRequest) -> HttpResponse:
         """
         Traite la requête de connexion avec un rate limiting. Si la requête est une soumission de formulaire,
@@ -36,6 +41,7 @@ def generic_login(request: HttpRequest, user_group: str, redirect_url: str, form
             HttpResponse: Réponse HTTP à renvoyer au client.
         """
         # Traitement des requêtes POST (soumission du formulaire de connexion)
+
         if request.method == 'POST':
             # Initialisation du formulaire avec les données POST et la requête
             form = LoginForm(request.POST, request=request)
