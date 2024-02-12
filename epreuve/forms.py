@@ -8,7 +8,7 @@ class EpreuveForm(forms.ModelForm):
     class Meta:
         model = Epreuve
         fields = ['nom', 'date_debut', 'date_fin', 'duree', 'temps_limite',
-                  'exercices_un_par_un']
+                  'exercices_un_par_un', 'inscription_externe']
 
         labels = {
             'nom': "Nom",
@@ -16,7 +16,8 @@ class EpreuveForm(forms.ModelForm):
             'date_fin': "Date/Heure de cloture",
             'exercices_un_par_un': "Ordre exercices imposé",
             'duree': "Durée de l'épreuve par candidat (minutes)",
-            'temps_limite': "Empêcher la soumission après expiration de la durée"
+            'temps_limite': "Empêcher la soumission après expiration de la durée",
+            'inscription_externe': "Autoriser des personnes exernes à l'application à inscrire des participants",
         }
 
         widgets = {
@@ -58,6 +59,12 @@ class EpreuveForm(forms.ModelForm):
                 'data-toggle': 'tooltip',
                 'data-placement': 'right',
                 'title': 'Si coché, l\'heure de début de l’épreuve est enregistrée et les participants ne peuvent pas soumettre de réponses après le temps indiqué dans "Durée de l’épreuve".'
+            }),
+            'inscription_externe': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'data-toggle': 'tooltip',
+                'data-placement': 'right',
+                'title': 'Si coché, des personnes extérieures à l\'application peuvent inscrire des participants.'
             }),
         }
         required_fields = ['nom', 'duree']
