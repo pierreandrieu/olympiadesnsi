@@ -10,5 +10,4 @@ def home(request):
         'utilisateur_est_organisateur': request.user.groups.filter(name="Organisateur").exists(),
         'utilisateur_est_participant': request.user.groups.filter(name="Participant").exists(),
     }
-    print(context)
     return render(request, 'accueil/accueil.html', context)
