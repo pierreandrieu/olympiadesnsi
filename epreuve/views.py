@@ -1,4 +1,4 @@
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import Group, User
 from django.core.serializers import serialize
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -10,10 +10,9 @@ from django.utils import timezone
 from django_ratelimit.decorators import ratelimit
 from django.contrib import messages
 from django.urls import reverse
-
-from epreuve.models import Epreuve, GroupeParticipeAEpreuve, UserExercice, Exercice, UserEpreuve, \
-    JeuDeTest, MembreComite
+from epreuve.models import Epreuve, UserExercice, Exercice, UserEpreuve, JeuDeTest, MembreComite
 from epreuve.forms import EpreuveForm, ExerciceForm, AjoutOrganisateurForm
+from inscription.models import GroupeParticipeAEpreuve
 import json
 from datetime import timedelta
 import random
@@ -161,10 +160,6 @@ def soumettre(request):
             return JsonResponse({'success': False, 'error': 'Données invalides'}, status=400)
     else:
         return JsonResponse({'success': False, 'error': 'Méthode non autorisée'}, status=405)
-
-
-from django.db.models import Q
-from django.contrib.auth.models import User
 
 
 @login_required
