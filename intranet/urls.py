@@ -12,5 +12,5 @@ urlpatterns = [
     path('organisateur/afficher-telechargement', views.afficher_page_telechargement, name='afficher_page_telechargement'),
     path('participant/compte/update', views.change_password_participant, name='change_password_participant'),
     path('organisateur/compte/update', views.change_password_organisateur, name='change_password_organisateur'),
-
+    path('organisateur/creer-epreuve', views.creer_epreuve, name='creer_epreuve'),
 ]
