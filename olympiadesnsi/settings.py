@@ -35,6 +35,15 @@ config = Config(env_path)
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY')
 
+EMAIL_HOST = config('EMAIL_HOST')
+EMAIL_PORT = config('EMAIL_PORT')
+ADMIN_NAME = config('ADMIN_NAME')
+EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+ADMIN_EMAIL = config('ADMIN_EMAIL')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
+EMAIL_BACKEND = config('EMAIL_BACKEND')
+EMAIL_USE_TLS = config('EMAIL_USE_TLS')
+
 SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', cast=bool)
 CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', cast=bool)
 SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool)
@@ -45,10 +54,6 @@ SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost', cast=Csv())
 
 DEBUG = config("DEBUG", default=False, cast=bool)
-
-# configurations
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_USE_TLS = True
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -62,6 +67,7 @@ INSTALLED_APPS = [
     "login",
     "epreuve",
     "intranet",
+    "inscription",
     "captcha",
 ]
 
@@ -157,7 +163,6 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
-DIRS = [os.path.join(BASE_DIR, 'templates')]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
