@@ -26,13 +26,13 @@ class Command(BaseCommand):
                 if len(cols) >= 2:
                     username = cols[0]
                     password = cols[1].strip()
-                    print(username, password, len(password))
                     user, created = User.objects.get_or_create(username=username)
                     user.set_password(password)
                     user.save()
-                    self.stdout.write(self.style.SUCCESS(f'Organisateur {username} créé avec succès'))
                     if created:
                         groupe_organisateurs.user_set.add(user)
+                        self.stdout.write(self.style.SUCCESS(f'Organisateur {username} créé avec succès'))
+                    else:
                         self.stdout.write(self.style.SUCCESS(f"Mot de passe de l'organisateur {username} modifié avec succès"))
 
 
