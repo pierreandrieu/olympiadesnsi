@@ -26,4 +26,6 @@ urlpatterns = [
     path('logout/', custom_logout, name='logout'),
     path('intranet/', include('intranet.urls')),
     path('epreuve/', include('epreuve.urls')),
+    path('inscription/', include('inscription.urls')),
+
 ]
