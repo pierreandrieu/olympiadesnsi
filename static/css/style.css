@@ -347,3 +347,18 @@ div#exercice-container div.exercice-row:last-child .move-down {
 .form-control {
     height: 38px;
 }
+
+.domaine-select {
+    width: auto; /* Ajustez cette valeur si nécessaire */
+    min-width: 100px; /* Assure une largeur minimale */
+}
+
+.email-input {
+    width: 40%;
+}
+
+#id_domaines_autorises {
+    width: 100%; /* Contrôle la largeur du textarea */
+    height: 150px; /* Augmente la hauteur */
+    resize: vertical; /* Permet à l'utilisateur de redimensionner verticalement le textarea */
+}
