@@ -5,8 +5,8 @@ from django.db.models import CheckConstraint, Q, F
 
 class Epreuve(models.Model):
     nom = models.CharField(max_length=100)
-    date_debut = models.DateTimeField(null=True, blank=True)
-    date_fin = models.DateTimeField(null=True, blank=True)
+    date_debut = models.DateTimeField(null=False, blank=False)
+    date_fin = models.DateTimeField(null=False, blank=False)
     duree = models.IntegerField(null=True)  # Durée en minutes
     referent = models.ForeignKey(User, on_delete=models.CASCADE, related_name='epreuve_referent')
     exercices_un_par_un = models.BooleanField(default=False)
