@@ -67,8 +67,8 @@ class EpreuveForm(forms.ModelForm):
                 'title': 'Si coché, des personnes extérieures à l\'application peuvent inscrire des participants.'
             }),
         }
-        required_fields = ['nom', 'duree']
-        optional_fields = ['date_debut', 'date_fin']
+        required_fields = ['nom', 'duree', 'date_debut', 'date_fin']
+        optional_fields = ['exercices_un_par_un', 'temps_limite', 'inscription_externe']
 
     def __init__(self, *args, **kwargs):
         super(EpreuveForm, self).__init__(*args, **kwargs)
@@ -88,16 +88,16 @@ class EpreuveForm(forms.ModelForm):
 
 
 class ExerciceForm(forms.ModelForm):
-    jeux_de_tests = forms.CharField(
+    jeux_de_test = forms.CharField(
         widget=forms.Textarea(attrs={
-            'class': 'form-control jeux-de-tests',
+            'class': 'form-control jeux-de-tests hiddenjdt',
             'rows': 5,
         }),
         required=False
     )
-    resultats_jeux_de_tests = forms.CharField(
+    resultats_jeux_de_test = forms.CharField(
         widget=forms.Textarea(attrs={
-            'class': 'form-control resultats-jeux-de-tests',
+            'class': 'form-control resultats-jeux-de-tests hiddenjdt',
             'rows': 5,
         }),
         required=False
@@ -105,16 +105,16 @@ class ExerciceForm(forms.ModelForm):
 
     class Meta:
         model = Exercice
-        fields = ['titre', 'enonce', 'enonce_code', 'avec_jeu_de_test', 'retour_en_direct', 'code_a_soumettre',
-                  'nombre_max_soumissions']
+        fields = ['titre', 'enonce', 'enonce_code', 'code_a_soumettre', 'nombre_max_soumissions',
+                  'avec_jeu_de_test', 'retour_en_direct',]
         labels = {
             'titre': 'Titre',
             'enonce': 'Énoncé',
             'enonce_code': 'Code de l\'énoncé',
+            'code_a_soumettre': 'Code à soumettre',
+            'nombre_max_soumissions': 'Nombre maximum de soumissions',
             'avec_jeu_de_test': 'Avec jeu de test',
             'retour_en_direct': 'Retour en direct',
-            'code_a_soumettre': 'Code à soumettre',
-            'nombre_max_soumissions': 'Nombre maximum de soumissions'
         }
         widgets = {
             'titre': forms.TextInput(attrs={
@@ -131,16 +131,6 @@ class ExerciceForm(forms.ModelForm):
                 'rows': 3,
                 'title': "L'énoncé de l'exercice, version code. \nFacultatif si le champ précédent est rempli."
             }),
-            'avec_jeu_de_test': forms.CheckboxInput(attrs={
-                'class': 'form-check-input',
-                'title': "Si coché, les participants se verront attribuer un jeu de test."
-            }),
-            'retour_en_direct': forms.CheckboxInput(attrs={
-                'id': 'id_retour_en_direct',
-                'class': 'form-check-input',
-                'disabled': True,
-                'title': "Si coché, les participants sauront au moment de soumettre leur réponse si leur réponse pour le jeu de test est correcte."
-            }),
             'code_a_soumettre': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
                 'title': "Si coché, les participants doivent soumettre leur code."
@@ -148,6 +138,16 @@ class ExerciceForm(forms.ModelForm):
             'nombre_max_soumissions': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'value': 50  # Valeur par défaut
+            }),
+            'avec_jeu_de_test': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'title': "Si coché, les participants se verront attribuer un jeu de test."
+            }),
+            'retour_en_direct': forms.CheckboxInput(attrs={
+                'id': 'id_retour_en_direct',
+                'class': 'form-check-input hiddenjdt',
+                'disabled': True,
+                'title': "Si coché, les participants sauront au moment de soumettre leur réponse si leur réponse pour le jeu de test est correcte."
             }),
         }
 
@@ -163,10 +163,10 @@ class ExerciceForm(forms.ModelForm):
         # Vérifier la présence des jeux de test si nécessaire
         if avec_jeu_de_test:
             # Obtenir et filtrer les jeux de tests et les résultats
-            jeux_de_tests = [jeu.strip() for jeu in cleaned_data.get('jeux_de_tests', '').split("\n") if
+            jeux_de_tests = [jeu.strip() for jeu in cleaned_data.get('jeux_de_test', '').split("\n") if
                              jeu.strip()]
             resultats_jeux_de_tests = [resultat.strip() for resultat in
-                                       cleaned_data.get('resultats_jeux_de_tests', '').split("\n") if
+                                       cleaned_data.get('resultats_jeux_de_test', '').split("\n") if
                                        resultat.strip()]
 
             nb_jeux_test = len(jeux_de_tests)
