@@ -1,0 +1,45 @@
+{% extends 'olympiadesnsi/base_organisateur.html' %}
+
+{% block content %}
+    <div class="container mt-4">
+        <h1 style="text-align: center">Ajouter un Groupe</h1>
+
+        <form method="post" action="{% url 'creer_groupe' %}">
+            {% csrf_token %}
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="form-group mb-3">
+                <label for="nom-groupe">Nom du groupe</label>
+                <input type="text" class="form-control" id="nom-groupe" name="nom_groupe" maxlength="100"
+                       placeholder="Entrez le nom du groupe">
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="nombre-utilisateurs">Nombre d'utilisateurs</label>
+                <input type="number" class="form-control" id="nombre-utilisateurs" name="nombre_utilisateurs" min="0"
+                       max="1000" placeholder="Nombre d'utilisateurs dans le groupe">
+            </div>
+
+            <button type="submit" class="btn btn-primary">Créer Groupe</button>
+        </form>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialisation des tooltips pour Bootstrap 5
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+    </script>
+{% endblock %}
