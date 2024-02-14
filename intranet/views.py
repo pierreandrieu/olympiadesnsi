@@ -81,21 +81,26 @@ def creer_groupe(request):
 
     if request.method == 'POST':
         nom_groupe = request.POST.get('nom_groupe')
+
+        if len(nom_groupe) == 0:
+            messages.error(request, "Le nom du groupe ne peut pas être vide.")
+            return redirect('creer_groupe')
+
         entree_utilisateur_nb_users = str(request.POST.get('nombre_utilisateurs'))
         if not entree_utilisateur_nb_users.isdigit():
-            messages.error(request, "Le champ 'nombre d'utilisateurs' doit etre entier")
-            return redirect(reverse('espace_organisateur') + '?openModal=true')
+            messages.error(request, "Le champ 'nombre de participants' doit être entier")
+            return redirect('creer_groupe')
 
         nombre_utilisateurs = int(request.POST.get('nombre_utilisateurs'))
 
-        if nombre_utilisateurs >= 1000:
-            messages.error(request, '999 utilisateurs max par groupe.')
-            return redirect(reverse('espace_organisateur') + '?openModal=true')
+        if not 0 < nombre_utilisateurs < 1000:
+            messages.error(request, 'Le nombre de participants doit être entre 1 et 999.')
+            return redirect('creer_groupe')
 
         groupe_existe = Group.objects.filter(name=nom_groupe).exists()
         if groupe_existe:
-            messages.error(request, 'Un groupe du même nom existe déjà.')
-            return redirect(reverse('espace_organisateur') + '?openModal=true')
+            messages.error(request, f'Vous avez déjà un groupe nommé {nom_groupe}.')
+            return redirect('creer_groupe')
 
         id_createur = request.user.id
         # nombre_groupes = GroupeCreePar.objects.filter(createur_id=request.user.id).count()
@@ -115,7 +120,7 @@ def creer_groupe(request):
         request.session['csv_data'] = "\n".join(user_data)
         request.session['nom_groupe'] = nom_groupe
         return redirect('afficher_page_telechargement')
-    return redirect('espace_organisateur')
+    return render(request, 'intranet/creer_groupe.html')
 
 
 @login_required
@@ -191,7 +196,7 @@ def creer_epreuve(request):
             for domaine in domaines_list:
                 Inscription_domaine.objects.create(epreuve=epreuve, domaine=domaine)
 
-            messages.success(request, "L'épreuve a été créée avec succès.")
+            messages.success(request, f"L'épreuve {epreuve.nom} a été créée avec succès.")
             return redirect('espace_organisateur')
         else:
             messages.error(request, "Il y a eu une erreur dans la création de l'épreuve.")
