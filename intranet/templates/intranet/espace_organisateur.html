@@ -44,10 +44,11 @@
                                         </a>
                                         {% if request.user == epreuve.referent %}
 
-                                            <a href="#" data-toggle="modal" data-target="#addOrganizerModal"
+                                            <a href="#" data-bs-toggle="modal" data-bs-target="#addOrganizerModal"
                                                data-ajout-orga-url="{% url 'ajouter_organisateur' epreuve.id %}">
                                                 <i class="fas fa-plus-circle"></i>
                                             </a>
+
                                         {% endif %}
                                     </td>
                                     <td>
@@ -70,7 +71,7 @@
                                            onclick="toggleComite('exercices-{{ epreuve.id }}'); return false;">
                                             <i class="fas fa-list-ul"></i>
                                         </a>
-                                        <a href="{% url 'ajouter_exercice' epreuve.id %}">
+                                        <a href="{% url 'creer_exercice' epreuve.id %}">
                                             <i class="fas fa-plus-circle"></i>
                                         </a>
 
@@ -84,11 +85,12 @@
                                                 <a href="{% url 'editer_epreuve' epreuve.id %}">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                            <a href="#" data-toggle="modal" data-target="#confirmDeleteModal"
-                                               data-epreuve-url="{% url 'supprimer_epreuve' epreuve.id %}"
-                                               class="text-danger">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </a>
+                                                <a href="#" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal"
+                                                   data-epreuve-url="{% url 'supprimer_epreuve' epreuve.id %}"
+                                                   class="text-danger">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </a>
+
                                             {% endif %}
                                         </td>
                                 </tr>
@@ -150,12 +152,10 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        Mes Groupes
-                        <!-- Bouton pour ajouter un groupe -->
-                        <button type="button" class="btn btn-primary btn-sm" data-toggle="modal"
-                                data-target="#addGroupModal">
-                            Créer Groupe
-                        </button>
+                        <span>Mes Groupes</span>
+                        <a href="{% url 'creer_groupe' %}" class="btn btn-primary btn-sm">
+                            Créer groupe
+                        </a>
                     </div>
                 
                     <div class="card-body">
@@ -205,27 +205,27 @@
     </div>
 
     <!-- Modal de confirmation de suppression d'épreuve-->
-    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" role="dialog"
-         aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
-        <div class="modal-dialog" role="document">
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="confirmDeleteModalLabel">Confirmer la Suppression</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <h5 class="modal-title" id="confirmDeleteModalLabel">Confirmation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    Êtes-vous sûr de vouloir supprimer cette épreuve et tous ses exercices associés ? Cette action est
-                    irréversible.
+                    Êtes-vous sûr de vouloir supprimer cette épreuve ? Seront également supprimés :
+                    - tous ses exercices associés
+                    - toutes les données associées aux candidats pour cette épreuve
+                    
+                    Cette action est irréversible.
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
-                    <form method="post" action="">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <form method="post" action="" id="confirmDeleteForm">
                         {% csrf_token %}
                         <input type="submit" class="btn btn-danger" value="Supprimer">
                     </form>
-
                 </div>
             </div>
         </div>
@@ -243,7 +243,7 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    Cette action supprimera ce groupe, tous ses utilisateurs ainsi les données reliant ses utilisateurs aux épreuves.
+                    Cette action supprimera ce groupe, toutes les données associant ce groupe aux épreuves auxquelles ils étaient inscrits, ainsi que tous les utilisateurs ne faisant partie d'aucun autre groupe.
                     Cette action est irréversible. Confirmez :
                 </div>
                 <div class="modal-footer">
@@ -259,17 +259,15 @@
     </div>
 
     <!-- Modal pour ajouter un organisateur -->
-    <div class="modal fade" id="addOrganizerModal" tabindex="-1" role="dialog" aria-labelledby="addOrganizerModalLabel"
+    <div class="modal fade" id="addOrganizerModal" tabindex="-1" aria-labelledby="addOrganizerModalLabel"
          aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addOrganizerModalLabel">Ajouter un Organisateur</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form method="post" id="addOrganizerForm">
+                <form method="post" id="addOrganizerForm" action="">
                     {% csrf_token %}
                     <div class="modal-body">
                         <div class="form-group">
@@ -286,122 +284,57 @@
         </div>
     </div>
 
-    <!-- Modal pour Ajouter un Groupe -->
-    <div class="modal fade" id="addGroupModal" tabindex="-1" role="dialog" aria-labelledby="addGroupModalLabel"
-         aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addGroupModalLabel">Ajouter un Groupe</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <form method="post" action="{% url 'creer_groupe' %}">
-                    {% csrf_token %}
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label for="nom-groupe">Nom du groupe</label>
-                            <input type="text" class="form-control" id="nom-groupe" name="nom_groupe" maxlength="100">
-                        </div>
-                        <div class="form-group">
-                            <label for="nombre-utilisateurs">Nombre d'utilisateurs</label>
-                            <input type="number" class="form-control" id="nombre-utilisateurs"
-                                   name="nombre_utilisateurs" min="0" max="1000">
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary">Créer Groupe</button>
-                    </div>
-                </form>
-                {% if messages %}
-                    <ul class="messages">
-                        {% for message in messages %}
-                            <li class="{{ message.tags }}">{{ message }}</li>
-                        {% endfor %}
-                    </ul>
-                {% endif %}
-            </div>
-        </div>
-    </div>
 
 {% endblock %}
 
 {% block scripts %}
     <script>
-        $(document).ready(function () {
-            $('[data-toggle="tooltip"]').tooltip();
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialisation des tooltips pour Bootstrap 5
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
+
+            // Configuration de la confirmation de suppression pour les modals
+            const confirmDeleteModalEl = document.getElementById('confirmDeleteModal');
+            const confirmDeleteForm = document.getElementById('confirmDeleteForm'); // Récupère le formulaire par son ID
+            confirmDeleteModalEl.addEventListener('show.bs.modal', function (event) {
+                let button = event.relatedTarget;
+                confirmDeleteForm.action = button.getAttribute('data-epreuve-url'); // Met à jour l'action du formulaire
+            });
+
+            const confirmDeleteGroupModal = document.getElementById('confirmDeleteGroupModal');
+            confirmDeleteGroupModal.addEventListener('show.bs.modal', function (event) {
+                let button = event.relatedTarget;
+                this.querySelector('form').action = button.getAttribute('data-groupe-url');
+            });
+
+            const addOrganizerModal = document.getElementById('addOrganizerModal');
+            addOrganizerModal.addEventListener('show.bs.modal', function (event) {
+                let button = event.relatedTarget;
+                document.getElementById('addOrganizerForm').action = button.getAttribute('data-ajout-orga-url');
+            });
+
+            // Fonction de toggle pour l'affichage des éléments
+            window.toggleExercices = function (id) {
+                let element = document.getElementById(id);
+                element.style.display = element.style.display === "none" ? "table-row" : "none";
+            };
+
+            window.toggleComite = function (id) {
+                const element = document.getElementById(id);
+                const isVisible = element.style.display !== "none";
+                document.querySelectorAll('[id^="exercices-"], [id^="comite-"], [id^="groupes-"]').forEach(function (el) {
+                    el.style.display = "none";
+                });
+                if (!isVisible) {
+                    element.style.display = "block";
+                }
+            };
         });
     </script>
 
-    <script>
-        $(document).ready(function () {
-            // Vérifier si l'indicateur 'openModal' est présent dans l'URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const openModal = urlParams.get('openModal');
-
-            if (openModal === 'true') {
-                // Ouvrir le modal d'ajout de groupe
-                $('#addGroupModal').modal('show');
-            }
-
-            $('[data-toggle="tooltip"]').tooltip();
-        });
-    </script>
-
-    <script>
-        function toggleExercices(id) {
-            let x = document.getElementById(id);
-            if (x.style.display === "none") {
-                x.style.display = "table-row";
-            } else {
-                x.style.display = "none";
-            }
-        }
-    </script>
-
-    <script>
-        $('#confirmDeleteModal').on('show.bs.modal', function (event) {
-            let button = $(event.relatedTarget); // Bouton qui a déclenché le modal
-            let epreuveUrl = button.data('epreuve-url'); // Extraire l'URL de suppression
-            $(this).find('form').attr('action', epreuveUrl);
-        });
-    </script>
-
-    <script>
-        $('#confirmDeleteGroupModal').on('show.bs.modal', function (event) {
-            let button = $(event.relatedTarget); // Bouton qui a déclenché le modal
-            let groupeUrl = button.data('groupe-url'); // Extraire l'URL de suppression
-            $(this).find('form').attr('action', groupeUrl);
-        });
-
-    </script>
-
-    <script>
-        $('#addOrganizerModal').on('show.bs.modal', function (event) {
-            let button = $(event.relatedTarget); // Bouton qui a déclenché le modal
-            let ajoutOrgaUrl = button.data('ajout-orga-url'); // Extraire l'URL d'ajout d'organisateur
-            $(this).find('form').attr('action', ajoutOrgaUrl);
-        });
-
-    </script>
-
-    <script>
-        function toggleComite(id) {
-            const element = $('#' + id);
-
-            // Vérifiez si l'élément est actuellement visible
-            const isVisible = element.is(":visible");
-
-            // Masquez tous les éléments
-            $('[id^="exercices-"], [id^="comite-"], [id^="groupes-"]').hide();
-
-            // Basculer l'état de l'élément actuel
-            if (!isVisible) {
-                element.show();
-            }
-        }
-
-    </script>
 
 {% endblock %}
