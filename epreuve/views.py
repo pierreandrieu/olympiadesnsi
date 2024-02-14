@@ -163,7 +163,7 @@ def soumettre(request):
 
 
 @login_required
-def ajouter_exercice(request, epreuve_id):
+def creer_exercice(request, epreuve_id):
     if not request.user.groups.filter(name='Organisateur').exists():
         return HttpResponseForbidden()
 
@@ -173,12 +173,13 @@ def ajouter_exercice(request, epreuve_id):
         if form.is_valid():
             exercice = form.save(commit=False)
             exercice.epreuve = epreuve
+            exercice.auteur = request.user
             exercice.save()
 
             # Traiter les jeux de test si nécessaire
             if form.cleaned_data.get('avec_jeu_de_test'):
-                jeux_de_tests = form.cleaned_data.get('jeux_de_tests', '').split("\n")
-                resultats_jeux_de_tests = form.cleaned_data.get('resultats_jeux_de_tests', '').split("\n")
+                jeux_de_tests = form.cleaned_data.get('jeux_de_test', '').split("\n")
+                resultats_jeux_de_tests = form.cleaned_data.get('resultats_jeux_de_test', '').split("\n")
 
                 for jeu, resultat in zip(jeux_de_tests, resultats_jeux_de_tests):
                     if jeu.strip() and resultat.strip():
@@ -195,8 +196,11 @@ def ajouter_exercice(request, epreuve_id):
             return redirect('espace_organisateur')
     else:
         form = ExerciceForm()
+        champs_invisibles = ['jeux_de_test', 'resultats_jeux_de_test', 'retour_en_direct']
+        champs_visibles = [field.name for field in form.visible_fields() if field.name not in champs_invisibles]
 
-    return render(request, 'epreuve/ajouter_exercice.html', {'form': form, 'epreuve': epreuve})
+        return render(request, 'epreuve/creer_exercice.html', {'form': form, 'champs_visibles': champs_visibles,
+                                                                 'champs_invisibles': champs_invisibles, 'epreuve': epreuve})
 
 
 @login_required
@@ -275,14 +279,17 @@ def ajouter_organisateur(request, epreuve_id):
                 if organisateur_a_ajouter.username == request.user.username:
                     messages.error(request, "Vous ne pouvez pas vous ajouter vous-même.")
                 elif MembreComite.objects.filter(membre_id=organisateur_a_ajouter, epreuve_id=epreuve_id).exists():
-                    messages.error(request, f"{organisateur_a_ajouter.username} fait déjà partie du comité d'organisation de l'épreuve {epreuve.nom}")
+                    messages.error(request, f"{organisateur_a_ajouter.username} fait déjà partie du comité "
+                                            f"d'organisation de l'épreuve {epreuve.nom}")
                 else:
                     MembreComite.objects.create(epreuve=epreuve, membre=organisateur_a_ajouter)
-                    messages.success(request, "Membre ajouté avec succès.")
+                    messages.success(request, f"{username} a bien été ajouté au comité d'organisation "
+                                              f"de l'épreuve {epreuve.nom}")
             else:
-                messages.error(request, "L'utilisateur n'a pas les privilèges nécessaires pour devenir membre d'un comité d'organisation.")
+                messages.error(request, "L'utilisateur n'a pas les privilèges nécessaires pour devenir membre "
+                                        "d'un comité d'organisation.")
         except User.DoesNotExist:
-            messages.error(request, "Utilisateur introuvable.")
+            messages.error(request, f"L'utilisateur {username} est introuvable.")
         return HttpResponseRedirect(reverse('espace_organisateur'))
 
     return render(request, 'intranet/espace_organisateur.html', {'form': form})
@@ -454,7 +461,7 @@ def assigner_jeux_de_test(request, id_exercice):
 def supprimer_jeux_de_test(request, id_exercice):
     exercice = Exercice.objects.get(pk=id_exercice)
     if not est_admin_exercice(request, exercice):
-        return HttpResponseForbidden("Vous n'avez pas les droits pour supprimer les jeux de tests pour cet exercice.")
+        return HttpResponseForbidden("Vous n'avez pas les droits pour supprimer les jeux de test pour cet exercice.")
     jdts = JeuDeTest.objects.filter(exercice_id=id_exercice)
     for jdt in jdts:
         jdt.delete()
