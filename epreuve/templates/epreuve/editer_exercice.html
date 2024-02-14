@@ -57,51 +57,7 @@
             <br>
             <p id="annonce">Insérez ci-dessous vos nouveaux jeux de test</p>
 
-            <div id="div_jeux_de_tests" style="display: none;">
-                <table class="table">
-                    <thead>
-                    <tr>
-                        <th>Nombre de jeux de test en BD</th>
-                        <th>Nombre de participants</th>
-                        <th>Participants sans jeu de test</th>
-                        <th>Actions</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr>
-                        <td>{{ nb_jeux_test_bd }}</td>
-                        <td>{{ nb_participants }}</td>
-                        <td>{{ nb_participants_sans_jeu }}</td>
-                        <td>
-                            <!-- Icône pour assigner les jeux de test -->
-                            <a href="{% url 'assigner_jeux_de_test' id_exercice %}">
-                                <i class="fas fa-tasks"></i>
-                            </a>
-                            <!-- Icône pour redistribuer les jeux de test -->
-                            <a href="{% url 'redistribuer_jeux_de_test' id_exercice %}">
-                                <i class="fas fa-random"></i>
-                            </a>
-                            <!-- Icône pour supprimer les jeux de test -->
-                            <a href="{% url 'supprimer_jeux_de_test' id_exercice %}">
-                                <i class="fas fa-trash"></i>
-                            </a>
 
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
-                <div style="float: left; width: 50%;">
-                    <label>Jeu de Test</label>
-                    {{ form.jeux_de_tests }}
-                    <br>Nombre de nouveaux jeux de test : <span id="nombre_jeux_tests">0</span>
-                </div>
-                <div style="float: right; width: 50%;">
-                    <label>Résultat Attendu</label>
-                    {{ form.resultats_jeux_de_tests }}
-                    <br>Nombre de réponses associées : <span id="nombre_resultats">0</span>
-                </div>
-                <div style="clear: both;"></div>
-            </div>
 
             <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
             <a href="{% url 'espace_organisateur' %}" class="btn btn-secondary">Annuler</a>

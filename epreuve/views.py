@@ -168,6 +168,7 @@ def creer_exercice(request, epreuve_id):
         return HttpResponseForbidden()
 
     epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+
     if request.method == "POST":
         form = ExerciceForm(request.POST)
         if form.is_valid():
@@ -184,23 +185,28 @@ def creer_exercice(request, epreuve_id):
                 for jeu, resultat in zip(jeux_de_tests, resultats_jeux_de_tests):
                     if jeu.strip() and resultat.strip():
                         JeuDeTest.objects.create(exercice=exercice, instance=jeu, reponse=resultat)
-            # Récupérer tous les groupes inscrits à cette épreuve
+
+            # Récupérer tous les groupes inscrits à cette épreuve et créer une entrée dans UserExercice pour chaque utilisateur
             groupes_inscrits = epreuve.groupes_participants.all()
             for groupe in groupes_inscrits:
-                # Pour chaque utilisateur dans le groupe
                 for user in groupe.user_set.all():
-                    # Créer une entrée dans UserExercice
                     UserExercice.objects.create(participant=user, exercice=exercice)
 
             messages.success(request, 'L\'exercice a été ajouté avec succès.')
             return redirect('espace_organisateur')
     else:
         form = ExerciceForm()
-        champs_invisibles = ['jeux_de_test', 'resultats_jeux_de_test', 'retour_en_direct']
-        champs_visibles = [field.name for field in form.visible_fields() if field.name not in champs_invisibles]
 
-        return render(request, 'epreuve/creer_exercice.html', {'form': form, 'champs_visibles': champs_visibles,
-                                                                 'champs_invisibles': champs_invisibles, 'epreuve': epreuve})
+    # Le formulaire est soit nouveau (GET), soit invalide avec des erreurs (POST)
+    champs_invisibles = ['jeux_de_test', 'resultats_jeux_de_test', 'retour_en_direct']
+    champs_visibles = [field.name for field in form.visible_fields() if field.name not in champs_invisibles]
+
+    return render(request, 'epreuve/creer_exercice.html', {
+        'form': form,
+        'champs_visibles': champs_visibles,
+        'champs_invisibles': champs_invisibles,
+        'epreuve': epreuve,
+    })
 
 
 @login_required

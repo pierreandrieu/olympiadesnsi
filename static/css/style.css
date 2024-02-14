@@ -374,3 +374,7 @@ div#exercice-container div.exercice-row:last-child .move-down {
     background-color: #fff3cd;
     border-color: #ffeeba;
 }
+
+.hiddenjdt {
+    display: none;
+}

@@ -1,4 +1,5 @@
 {% extends 'olympiadesnsi/base_organisateur.html' %}
+{% load static %}
 
 {% block content %}
     <div class="container mt-4">
@@ -10,10 +11,17 @@
             {% for message in messages %}
                 <div class="alert alert-{{ message.tags }}">{{ message }}</div>
             {% endfor %}
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
 
             {% for field in form %}
-                {% if field.name in champs_visibles  %}
-                    <div class="form-group mb-3">
+                {% if field.name in champs_visibles %}
+                <div class="form-group mb-3">
                         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
                         {% if field.help_text %}
                             <i class="fas fa-question-circle ml-2" data-bs-toggle="tooltip" data-bs-placement="top"
@@ -27,7 +35,7 @@
                 {% endif %}
             {% endfor %}
 
-            <div id="jeux_de_test_container" style="display: none;">
+            <div id="jeux_de_test_container" class="hiddenjdt">
 
                 <div class="mt-3">
                     <label for="{{ form.retour_en_direct.id_for_label }}">{{ form.retour_en_direct.label }}</label>
@@ -53,33 +61,5 @@
 {% endblock %}
 
 {% block scripts %}
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const checkboxAvecJeuDeTest = document.getElementById('id_avec_jeu_de_test');
-            const jeuxDeTestContainer = document.getElementById('jeux_de_test_container');
-            const retourEnDirect = document.getElementById('id_retour_en_direct');
-
-            checkboxAvecJeuDeTest.addEventListener('change', function () {
-                jeuxDeTestContainer.style.display = checkboxAvecJeuDeTest.checked ? 'block' : 'none';
-                retourEnDirect.disabled = !checkboxAvecJeuDeTest.checked;
-            });
-
-            function updateCounts() {
-                const jeuxDeTestValue = document.getElementById('id_jeux_de_test').value.split('\n').filter(line => line.trim() !== '').length;
-                const resultatsValue = document.getElementById('id_resultats_jeux_de_test').value.split('\n').filter(line => line.trim() !== '').length;
-                document.getElementById('nombre_jeux_test').textContent = jeuxDeTestValue;
-                document.getElementById('nombre_resultats').textContent = resultatsValue;
-            }
-
-            document.getElementById('id_jeux_de_test').addEventListener('input', updateCounts);
-            document.getElementById('id_resultats_jeux_de_test').addEventListener('input', updateCounts);
-            updateCounts();
-
-            // Tooltips initialization for Bootstrap 5
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                new bootstrap.Tooltip(tooltipTriggerEl);
-            });
-        });
-    </script>
+    <script src="{% static 'js/creation_exercice.js' %}"></script>
 {% endblock %}

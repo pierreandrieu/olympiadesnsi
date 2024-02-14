@@ -156,10 +156,18 @@ class ExerciceForm(forms.ModelForm):
         enonce = cleaned_data.get('enonce')
         enonce_code = cleaned_data.get('enonce_code')
         avec_jeu_de_test = cleaned_data.get('avec_jeu_de_test')
-
+        nombre_de_soumissions = str(cleaned_data.get('nombre_max_soumissions')).strip()
         # Vérifier la présence de l'énoncé
         if not enonce and not enonce_code:
             raise ValidationError('Vous devez fournir un énoncé, qu\'il soit sous forme de texte ou de code.')
+
+        if not nombre_de_soumissions.isdigit():
+            raise ValidationError('Le nombre de soumissions maximal par participant doit être un entier strictement positif')
+
+        nombre_de_soumissions = int(nombre_de_soumissions)
+        if nombre_de_soumissions < 1:
+            raise ValidationError('Le nombre de soumissions maximal par participant doit être strictement positif')
+
         # Vérifier la présence des jeux de test si nécessaire
         if avec_jeu_de_test:
             # Obtenir et filtrer les jeux de tests et les résultats
