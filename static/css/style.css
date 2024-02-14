@@ -268,29 +268,6 @@ code {
     border-radius: 4px;
 }
 
-.success {
-    background-color: #dff0d8;
-    border-color: #d6e9c6;
-    color: #3c763d;
-}
-
-.error {
-    background-color: #f2dede;
-    border-color: #ebccd1;
-    color: #a94442;
-}
-
-.warning {
-    background-color: #fcf8e3;
-    border-color: #faebcc;
-    color: #8a6d3b;
-}
-
-.info {
-    background-color: #d9edf7;
-    border-color: #bce8f1;
-    color: #31708f;
-}
 
 .jeux-de-tests, .resultats-jeux-de-tests {
     width: 48%;
@@ -361,4 +338,39 @@ div#exercice-container div.exercice-row:last-child .move-down {
     width: 100%; /* Contrôle la largeur du textarea */
     height: 150px; /* Augmente la hauteur */
     resize: vertical; /* Permet à l'utilisateur de redimensionner verticalement le textarea */
+}
+
+.alert {
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+/* Error messages */
+.alert-error, .alert-danger {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+/* Success messages */
+.alert-success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+/* Info messages */
+.alert-info {
+    color: #0c5460;
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+}
+
+/* Warning messages */
+.alert-warning {
+    color: #856404;
+    background-color: #fff3cd;
+    border-color: #ffeeba;
 }
