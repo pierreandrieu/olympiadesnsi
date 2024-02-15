@@ -100,7 +100,7 @@
                                             {% for exercice in epreuve.exercice_set.all %}
                                                 <li>
                                                     {{ exercice.titre }}
-                                                    <a href="{% url 'editer_exercice' exercice.id %}">
+                                                    <a href="{% url 'editer_exercice' epreuve.id exercice.id %}">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
                                                     <a href="{% url 'supprimer_exercice' exercice.id %}"

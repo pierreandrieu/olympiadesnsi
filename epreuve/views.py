@@ -4,7 +4,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponseRedirect
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponseRedirect, HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_protect
 from django.utils import timezone
 from django_ratelimit.decorators import ratelimit
@@ -16,7 +16,7 @@ from inscription.models import GroupeParticipeAEpreuve
 import json
 from datetime import timedelta
 import random
-
+from typing import Union
 
 
 @login_required
@@ -81,7 +81,7 @@ def afficher_epreuve(request, epreuve_id):
             'type_exercice': ex.type_exercice,
             'avec_jeu_de_test': ex.avec_jeu_de_test,
             'code_a_soumettre': ex.code_a_soumettre,
-            'nb_soumissions' : user_exercice.nb_soumissions,
+            'nb_soumissions': user_exercice.nb_soumissions,
             'nb_max_soumissions': ex.nombre_max_soumissions,
             'retour_en_direct': ex.retour_en_direct,
             'instance_de_test': instance_de_test,
@@ -160,53 +160,6 @@ def soumettre(request):
             return JsonResponse({'success': False, 'error': 'Données invalides'}, status=400)
     else:
         return JsonResponse({'success': False, 'error': 'Méthode non autorisée'}, status=405)
-
-
-@login_required
-def creer_exercice(request, epreuve_id):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
-
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-
-    if request.method == "POST":
-        form = ExerciceForm(request.POST)
-        if form.is_valid():
-            exercice = form.save(commit=False)
-            exercice.epreuve = epreuve
-            exercice.auteur = request.user
-            exercice.save()
-
-            # Traiter les jeux de test si nécessaire
-            if form.cleaned_data.get('avec_jeu_de_test'):
-                jeux_de_tests = form.cleaned_data.get('jeux_de_test', '').split("\n")
-                resultats_jeux_de_tests = form.cleaned_data.get('resultats_jeux_de_test', '').split("\n")
-
-                for jeu, resultat in zip(jeux_de_tests, resultats_jeux_de_tests):
-                    if jeu.strip() and resultat.strip():
-                        JeuDeTest.objects.create(exercice=exercice, instance=jeu, reponse=resultat)
-
-            # Récupérer tous les groupes inscrits à cette épreuve et créer une entrée dans UserExercice pour chaque utilisateur
-            groupes_inscrits = epreuve.groupes_participants.all()
-            for groupe in groupes_inscrits:
-                for user in groupe.user_set.all():
-                    UserExercice.objects.create(participant=user, exercice=exercice)
-
-            messages.success(request, 'L\'exercice a été ajouté avec succès.')
-            return redirect('espace_organisateur')
-    else:
-        form = ExerciceForm()
-
-    # Le formulaire est soit nouveau (GET), soit invalide avec des erreurs (POST)
-    champs_invisibles = ['jeux_de_test', 'resultats_jeux_de_test', 'retour_en_direct']
-    champs_visibles = [field.name for field in form.visible_fields() if field.name not in champs_invisibles]
-
-    return render(request, 'epreuve/creer_exercice.html', {
-        'form': form,
-        'champs_visibles': champs_visibles,
-        'champs_invisibles': champs_invisibles,
-        'epreuve': epreuve,
-    })
 
 
 @login_required
@@ -327,59 +280,9 @@ def inscrire_groupes_epreuve(request, epreuve_id):
 
     else:
         groupes_inscrits = GroupeParticipeAEpreuve.objects.filter(epreuve=epreuve).values_list('groupe', flat=True)
-        groups = Group.objects.filter(associations_groupe_createur__createur=request.user).exclude(id__in=groupes_inscrits)
+        groups = Group.objects.filter(
+            associations_groupe_createur__createur=request.user).exclude(id__in=groupes_inscrits)
     return render(request, 'epreuve/inscrire_groupes_epreuve.html', {'epreuve': epreuve, 'groups': groups})
-
-
-@login_required()
-def editer_exercice(request, id_exercice):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
-    exercice = get_object_or_404(Exercice, id=id_exercice)
-    epreuve_exercice = Epreuve.objects.get(id=exercice.epreuve_id)
-    if epreuve_exercice.referent != request.user and exercice.auteur != request.user:
-        return HttpResponseForbidden()
-
-    if request.method == 'POST':
-        form = ExerciceForm(request.POST, instance=exercice)
-        if form.is_valid():
-            saved_exercice = form.save()
-
-            # Ajouter de nouveaux jeux de test sans supprimer les anciens
-            if form.cleaned_data.get('avec_jeu_de_test'):
-                jeux_de_tests = form.cleaned_data.get('jeux_de_tests', '').split("\n")
-                resultats_jeux_de_tests = form.cleaned_data.get('resultats_jeux_de_tests', '').split("\n")
-
-                for jeu, resultat in zip(jeux_de_tests, resultats_jeux_de_tests):
-                    if jeu.strip() and resultat.strip():
-                        # Créer un nouveau jeu de test uniquement s'il n'existe pas déjà
-                        JeuDeTest.objects.create(
-                            exercice=saved_exercice,
-                            instance=jeu,
-                            reponse=resultat
-                        )
-
-            messages.success(request, "L'exercice a été mis à jour avec succès.")
-            return redirect('espace_organisateur')
-        else:
-            messages.error(request, "Problème détecté lors de la mise à jour de l'exercice.")
-    else:
-        form = ExerciceForm(instance=exercice)
-
-    # Récupérer les informations pour l'affichage
-    nb_jeux_test_bd = JeuDeTest.objects.filter(exercice=exercice).count()
-    nb_participants = UserExercice.objects.filter(exercice_id=id_exercice).count()
-    nb_participants_sans_jeu = UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=True).count()
-
-    return render(request, 'epreuve/editer_exercice.html', {
-        'form': form,
-        'id_exercice': id_exercice,
-        'nom_exercice': exercice.titre,
-        'epreuve': epreuve_exercice,
-        'nb_jeux_test_bd': nb_jeux_test_bd,
-        'nb_participants': nb_participants,
-        'nb_participants_sans_jeu': nb_participants_sans_jeu,
-    })
 
 
 @login_required()
@@ -408,7 +311,6 @@ def redistribuer_jeux_de_test(request, id_exercice):
     # Trouver les participants sans jeu de test attribué
     participants = UserExercice.objects.filter(exercice=exercice)
     cpt = 0
-    fusion: bool = True
     for user_exercice in participants:
         if cpt == len(jeux_de_test_list):
             cpt = 0
@@ -424,6 +326,7 @@ def redistribuer_jeux_de_test(request, id_exercice):
     # Rediriger l'utilisateur vers la page précédente
     messages.success(request, "Jeux de test redistribués avec succès.")
     return redirect('editer_exercice', id_exercice=id_exercice)
+
 
 @login_required
 def assigner_jeux_de_test(request, id_exercice):
@@ -481,3 +384,75 @@ def est_admin_exercice(request, exercice: Exercice) -> bool:
     if epreuve_exercice.referent == request.user or exercice.auteur == request.user:
         return True
     return False
+
+
+@login_required
+def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Union[int, None] = None) -> HttpResponse:
+    """
+    Vue pour créer ou éditer un exercice dans une épreuve spécifique.
+
+    Cette vue gère à la fois la création d'un nouvel exercice et l'édition d'un exercice existant
+    pour une épreuve donnée. Elle vérifie les permissions de l'utilisateur, traite le formulaire
+    d'exercice, et gère la logique d'affichage appropriée selon le contexte (création ou édition).
+
+    Args:
+        request (HttpRequest): L'objet requête HTTP.
+        epreuve_id (int): L'identifiant de l'épreuve à laquelle l'exercice appartient.
+        id_exercice (Union[int, None], optional): L'identifiant de l'exercice à éditer, si applicable. Defaults to None.
+
+    Returns:
+        HttpResponse: La réponse HTTP rendue.
+    """
+    # Vérifie si l'utilisateur appartient au groupe 'Organisateur', sinon retourne une réponse 'Forbidden'
+    if not request.user.groups.filter(name='Organisateur').exists():
+        return HttpResponseForbidden()
+
+    # Récupère l'épreuve concernée ou retourne une erreur 404 si non trouvée
+    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+
+    # Initialise le formulaire pour l'édition si un id_exercice est fourni, sinon pour la création
+    if id_exercice:
+        exercice = get_object_or_404(Exercice, id=id_exercice, epreuve=epreuve)
+        form = ExerciceForm(request.POST or None, instance=exercice)
+    else:
+        form = ExerciceForm(request.POST or None)
+
+    # Traite le formulaire lors de la soumission
+    if request.method == "POST" and form.is_valid():
+        exercice = form.save(commit=False)
+        exercice.epreuve = epreuve  # Assigne l'épreuve à l'exercice
+        exercice.auteur = request.user  # Définit l'utilisateur actuel comme auteur de l'exercice
+        exercice.save()  # Sauvegarde l'exercice dans la base de données
+
+        # Gère les jeux de test si le champ 'avec_jeu_de_test' est coché
+        if form.cleaned_data.get('avec_jeu_de_test'):
+            jeux_de_tests = form.cleaned_data.get('jeux_de_test', '').split("\n")
+            resultats_jeux_de_tests = form.cleaned_data.get('resultats_jeux_de_test', '').split("\n")
+
+            # Supprime les anciens jeux de test en cas d'édition
+            if id_exercice:
+                exercice.jeudetest_set.all().delete()
+
+            # Crée de nouveaux jeux de test
+            for jeu, resultat in zip(jeux_de_tests, resultats_jeux_de_tests):
+                if jeu.strip() and resultat.strip():
+                    JeuDeTest.objects.create(exercice=exercice, instance=jeu, reponse=resultat)
+
+        # Affiche un message de succès et redirige vers l'espace organisateur
+        messages.success(request,
+                         'L\'exercice a été ajouté avec succès.'
+                         if not id_exercice else 'L\'exercice a été mis à jour avec succès.')
+        return redirect('espace_organisateur')
+
+    # Prépare les champs du formulaire à afficher, en distinguant les champs visibles des champs initialement cachés
+    champs_invisibles = ['jeux_de_test', 'resultats_jeux_de_test', 'retour_en_direct']
+    champs_visibles = [field.name for field in form.visible_fields() if field.name not in champs_invisibles]
+
+    # Rend le template avec le formulaire et les informations nécessaires
+    return render(request, 'epreuve/creer_exercice.html', {
+        'form': form,
+        'champs_visibles': champs_visibles,
+        'champs_invisibles': champs_invisibles,
+        'epreuve': epreuve,
+        'exercice_id': id_exercice,  # Pour identifier si c'est une édition
+    })
