@@ -2,6 +2,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from epreuve.models import Epreuve, Exercice
+import re
 
 
 class EpreuveForm(forms.ModelForm):
@@ -94,13 +95,23 @@ class EpreuveForm(forms.ModelForm):
         date_debut = cleaned_data.get('date_debut')
         date_fin = cleaned_data.get('date_fin')
         inscriptions_externes = cleaned_data.get('inscription_externe')
+        domaines_autorises = cleaned_data.get('domaines_autorises')
 
         if date_debut and date_fin and date_fin < date_debut:
             self.add_error('date_fin', 'La date de fin doit être postérieure à la date de début.')
 
         if inscriptions_externes:
-            # TODO : verifier qu'il y a bien au moins un domaine valide : @ suivi de texte non vide suivi de . suivi de texte non vide
-            pass
+            if not domaines_autorises:
+                return ValidationError("Il faut au moins un nom de domaine valide puisque les inscriptions externes"
+                                       "on été autorisées.")
+            # Expression régulière pour valider les domaines
+            domain_regex = re.compile(r'^@\w+([-.]\w+)*\.\w{2,}$')
+            domaines_list = [d.strip() for d in domaines_autorises.split('\n') if d.strip()]
+
+            invalid_domains = [d for d in domaines_list if not domain_regex.match(d)]
+            if invalid_domains:
+                invalid_domains_str = ", ".join(invalid_domains)
+                self.add_error('domaines_autorises', 'Domaines invalides détectés : ' + invalid_domains_str)
 
         return cleaned_data
 
@@ -222,7 +233,6 @@ class ExerciceForm(forms.ModelForm):
             if field.required:
                 field.label = f"{field.label} *"
 
+
 class AjoutOrganisateurForm(forms.Form):
     username = forms.CharField(label='Nom d’utilisateur', max_length=100)
-
-
