@@ -102,7 +102,7 @@ class EpreuveForm(forms.ModelForm):
 
         if inscriptions_externes:
             if not domaines_autorises:
-                return ValidationError("Il faut au moins un nom de domaine valide puisque les inscriptions externes"
+                raise ValidationError("Il faut au moins un nom de domaine valide puisque les inscriptions externes"
                                        "on été autorisées.")
             # Expression régulière pour valider les domaines
             domain_regex = re.compile(r'^@\w+([-.]\w+)*\.\w{2,}$')

@@ -176,14 +176,19 @@ def creer_editer_epreuve(request, epreuve_id=None):
     if not request.user.groups.filter(name='Organisateur').exists():
         return HttpResponseForbidden()
 
+    domaines_autorises = ""
     if epreuve_id:
         epreuve = get_object_or_404(Epreuve, id=epreuve_id)
         if epreuve.referent != request.user:
             return HttpResponseForbidden()
+
+        domaines_qs = Inscription_domaine.objects.filter(epreuve=epreuve)
+        domaines_autorises = "\n".join([domaine.domaine for domaine in domaines_qs])
     else:
         epreuve = None
 
     if request.method == 'POST':
+
         form = EpreuveForm(request.POST, instance=epreuve)
         if form.is_valid():
             epreuve = form.save(commit=False)
@@ -208,7 +213,7 @@ def creer_editer_epreuve(request, epreuve_id=None):
             messages.success(request, f"L'épreuve {epreuve.nom} a été {'créée' if not epreuve_id else 'mise à jour'} avec succès.")
             return redirect('espace_organisateur')
     else:
-        form = EpreuveForm(instance=epreuve)
+        form = EpreuveForm(instance=epreuve, initial={'domaines_autorises': domaines_autorises})
 
     return render(request, 'intranet/creer_epreuve.html', {
         'form': form,
