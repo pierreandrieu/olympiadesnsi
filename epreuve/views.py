@@ -11,7 +11,7 @@ from django_ratelimit.decorators import ratelimit
 from django.contrib import messages
 from django.urls import reverse
 from epreuve.models import Epreuve, UserExercice, Exercice, UserEpreuve, JeuDeTest, MembreComite
-from epreuve.forms import EpreuveForm, ExerciceForm, AjoutOrganisateurForm
+from epreuve.forms import ExerciceForm, AjoutOrganisateurForm
 from inscription.models import GroupeParticipeAEpreuve
 import json
 from datetime import timedelta
@@ -160,34 +160,6 @@ def soumettre(request):
             return JsonResponse({'success': False, 'error': 'Données invalides'}, status=400)
     else:
         return JsonResponse({'success': False, 'error': 'Méthode non autorisée'}, status=405)
-
-
-@login_required
-def editer_epreuve(request, epreuve_id):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-    if request.user != epreuve.referent:
-        return HttpResponseForbidden()
-
-    if request.method == 'POST':
-        form = EpreuveForm(request.POST, instance=epreuve)
-        if form.is_valid():
-            form.save()
-            # modification de l'ordre des exercices
-            exercice_ids_order = request.POST.getlist('exercice_order')
-            for index, exercice_id in enumerate(exercice_ids_order, start=1):
-                Exercice.objects.filter(id=exercice_id).update(numero=index)
-            messages.success(request, "L'épreuve a été mise à jour avec succès.")
-            return redirect('espace_organisateur')
-        else:
-            messages.error(request, "Erreur détectée lors de la mise à jour de l'épreuve.")
-            return render(request, 'epreuve/editer_epreuve.html', {'form': form, 'epreuve': epreuve})
-
-    form = EpreuveForm(instance=epreuve)
-    exercices = Exercice.objects.filter(epreuve_id=epreuve_id).order_by("numero")
-
-    return render(request, 'epreuve/editer_epreuve.html', {'form': form, 'epreuve': epreuve, 'exercices': exercices})
 
 
 @login_required

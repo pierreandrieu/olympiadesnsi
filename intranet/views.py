@@ -2,7 +2,6 @@ from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
 from django.http import HttpResponseForbidden
-from django.urls import reverse
 from django.shortcuts import render
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
@@ -28,7 +27,6 @@ def espace_participant(request):
     group_ids = user_groups.values_list('id', flat=True)
 
     epreuves_ids = GroupeParticipeAEpreuve.objects.filter(groupe_id__in=group_ids).values_list('epreuve_id', flat=True)
-
     epreuves_user = Epreuve.objects.filter(id__in=epreuves_ids)
 
     # Epreuves spécifiques à l'utilisateur
@@ -148,7 +146,7 @@ def supprimer_groupe(request, groupe_id):
             groupe.delete()
             messages.success(request, "Groupe supprimé avec succès.")
         except:
-            messages.error(request, "Une erreur s'est produite pendant la suppression.")
+            messages.error(request, "Une erreur s'est produite pendant la suppression du groupe.")
         return redirect('espace_organisateur')
 
 
@@ -174,36 +172,48 @@ def afficher_page_telechargement(request):
 
 
 @login_required
-def creer_epreuve(request):
+def creer_editer_epreuve(request, epreuve_id=None):
     if not request.user.groups.filter(name='Organisateur').exists():
         return HttpResponseForbidden()
+
+    if epreuve_id:
+        epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+        if epreuve.referent != request.user:
+            return HttpResponseForbidden()
+    else:
+        epreuve = None
+
     if request.method == 'POST':
-        form = EpreuveForm(request.POST)
+        form = EpreuveForm(request.POST, instance=epreuve)
         if form.is_valid():
             epreuve = form.save(commit=False)
-            # Utilisateur actuel est référent
             epreuve.referent = request.user
             epreuve.save()
-            form.save_m2m()  # Important pour enregistrer les relations ManyToMany
+            form.save_m2m()
 
-            # Ajouter le référent au comité d'organisation
-            MembreComite.objects.create(epreuve=epreuve, membre=request.user)
+            exercice_ids_order = request.POST.getlist('exercice_order')
+            for index, exercice_id in enumerate(exercice_ids_order, start=1):
+                Exercice.objects.filter(id=exercice_id).update(numero=index)
 
-            # Traitement des domaines autorisés
-            domaines_str = request.POST.get('domaines_autorises', '')
-            domaines_list = [d.strip() for d in domaines_str.split('\n') if d.strip().startswith('@')]
-            Inscription_domaine.objects.filter(epreuve=epreuve).delete()
-            for domaine in domaines_list:
-                Inscription_domaine.objects.create(epreuve=epreuve, domaine=domaine)
+            if epreuve_id is None:
+                MembreComite.objects.create(epreuve=epreuve, membre=request.user)
 
-            messages.success(request, f"L'épreuve {epreuve.nom} a été créée avec succès.")
-            return redirect('espace_organisateur')
-        else:
-            messages.error(request, "Il y a eu une erreur dans la création de l'épreuve.")
+            if epreuve.inscription_externe:
+                Inscription_domaine.objects.filter(epreuve=epreuve).delete()
+                domaines_str = form.cleaned_data['domaines_autorises']
+                domaines_list = [d.strip() for d in domaines_str.split('\n') if d.strip().startswith('@')]
+                for domaine in domaines_list:
+                    Inscription_domaine.objects.create(epreuve=epreuve, domaine=domaine)
+
+            messages.success(request, f"L'épreuve {epreuve.nom} a été {'créée' if not epreuve_id else 'mise à jour'} avec succès.")
             return redirect('espace_organisateur')
     else:
-        form = EpreuveForm()
-    return render(request, 'intranet/creer_epreuve.html', {'form': form})
+        form = EpreuveForm(instance=epreuve)
+
+    return render(request, 'intranet/creer_epreuve.html', {
+        'form': form,
+        'epreuve': epreuve,
+    })
 
 
 @login_required

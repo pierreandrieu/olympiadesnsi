@@ -1,12 +1,12 @@
 {% extends 'olympiadesnsi/base_organisateur.html' %}
+{% load static %}
 
 {% block content %}
     <div class="container mt-4">
-        <h1 style="text-align: center">Création d'épreuve</h1>
+        <h1 style="text-align: center">{{ epreuve.name|default:"Création d'une nouvelle épreuve" }}</h1>
 
         <form method="post">
             {% csrf_token %}
-
             {% if form.non_field_errors %}
                 <div class="alert alert-danger">
                     {% for error in form.non_field_errors %}
@@ -15,67 +15,58 @@
                 </div>
             {% endif %}
 
-            <!-- Dynamiquement générer les champs de formulaire avec icône de question pour le texte d'aide -->
             {% for field in form %}
-                <div class="form-group mb-3">
-                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                    {% if field.help_text %}
-                        <i class="fas fa-question-circle ml-2" data-bs-toggle="tooltip" data-bs-placement="top"
-                           title="{{ field.help_text }}"></i>
-                    {% endif %}
-                    {{ field }}
-                </div>
+                {% if field.name != 'domaines_autorises' %}
+                    <div class="form-group mb-3">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {% if field.help_text %}
+                            <i class="fas fa-question-circle ml-2" data-bs-toggle="tooltip" data-bs-placement="top"
+                               title="{{ field.help_text }}"></i>
+                        {% endif %}
+                        {{ field }}
+                        {% if field.errors %}
+                            <div class="alert alert-danger">
+                                {{ field.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
             {% endfor %}
 
-            <!-- Conteneur pour les domaines autorisés, sera affiché si la case des inscriptions externes est cochée -->
-            <div id="domaines_autorises_container" style="display: none; margin-top: 1rem;">
+            <div class="form-group mb-3 {% if not form.inscription_externe.value %}hidden-inscription-externe{% endif %}"
+                 id="domaines-autorises-container">
                 <p>Listez les noms de domaines autorisés à inscrire des participants à l'épreuve (un email de
                     confirmation sera envoyé aux personnes souhaitant inscrire des participants au moment de
                     l'inscription). Les domaines doivent commencer par @, un domaine par ligne.</p>
-                <label for="id_domaines_autorises"></label><textarea name="domaines_autorises" id="id_domaines_autorises" class="form-control" rows="5"></textarea>
+                {{ form.domaines_autorises }}
                 <p id="domaines_count" class="mt-2"></p>
+
             </div>
 
-            <button type="submit" class="btn btn-primary">Ajouter Épreuve</button>
+
+            {% if epreuve.id %}
+                <h2>Exercices</h2>
+                <ul>
+                    {% for exercice in epreuve.exercice_set.all %}
+                        <div class="exercice-row" data-exercice-id="{{ exercice.id }}">
+                            <input type="hidden" name="exercice_order" value="{{ exercice.id }}">
+                            <button type="button" class="move-up"><i class="fa fa-chevron-up"></i></button>
+                            <button type="button" class="move-down"><i class="fa fa-chevron-down"></i></button>
+                            {{ exercice.titre }}
+                        </div>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary">Envoyer</button>
+            <a href="{% url 'espace_organisateur' %}" class="btn btn-secondary">Annuler</a>
         </form>
     </div>
 {% endblock %}
 
+
 {% block scripts %}
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Initialisation des tooltips Bootstrap 5
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                new bootstrap.Tooltip(tooltipTriggerEl);
-            });
+    <script src="{% static 'js/inscriptions_externes.js' %}"></script>
+    <script src="{% static 'js/ordre_exercices.js' %}"></script>
 
-            // Gestion de l'affichage des domaines autorisés
-            const inscriptionsExternesCheckbox = document.querySelector('#id_inscription_externe');
-            const domainesAutorisesContainer = document.querySelector('#domaines_autorises_container');
-            if (inscriptionsExternesCheckbox) {
-                inscriptionsExternesCheckbox.addEventListener('change', function () {
-                    domainesAutorisesContainer.style.display = inscriptionsExternesCheckbox.checked ? 'block' : 'none';
-                    updateDomainesCount();
-                });
-            }
-
-            // Compteur de domaines valides
-            function updateDomainesCount() {
-                const textarea = document.querySelector('#id_domaines_autorises');
-                const countP = document.querySelector('#domaines_count');
-                if (textarea) {
-                    const lines = textarea.value.split('\n');
-                    const validDomains = lines.filter(line => line.startsWith('@') && line.includes('.'));
-                    const invalidDomains = lines.filter(line => !line.startsWith('@') || !line.includes('.'));
-                    countP.textContent = `${validDomains.length} domaine(s) valide(s) trouvé(s), ${invalidDomains.length} invalide(s).`;
-                }
-            }
-
-            const domainesAutorisesInput = document.querySelector('#id_domaines_autorises');
-            if (domainesAutorisesInput) {
-                domainesAutorisesInput.addEventListener('input', updateDomainesCount);
-            }
-        });
-    </script>
 {% endblock %}

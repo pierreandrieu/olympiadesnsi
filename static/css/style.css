@@ -378,3 +378,7 @@ div#exercice-container div.exercice-row:last-child .move-down {
 .hiddenjdt {
     display: none;
 }
+
+.hidden-inscription-externe {
+    display: none;
+}

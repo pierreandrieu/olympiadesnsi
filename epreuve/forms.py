@@ -5,10 +5,16 @@ from epreuve.models import Epreuve, Exercice
 
 
 class EpreuveForm(forms.ModelForm):
+
+    domaines_autorises = forms.CharField(widget=forms.Textarea(attrs={
+        'class': 'form-control',
+        'rows': 5,
+    }), required=False)
+
     class Meta:
         model = Epreuve
         fields = ['nom', 'date_debut', 'date_fin', 'duree', 'temps_limite',
-                  'exercices_un_par_un', 'inscription_externe']
+                  'exercices_un_par_un', 'inscription_externe', 'domaines_autorises']
 
         labels = {
             'nom': "Nom",
@@ -18,6 +24,7 @@ class EpreuveForm(forms.ModelForm):
             'duree': "Durée de l'épreuve par candidat (minutes)",
             'temps_limite': "Empêcher la soumission après expiration de la durée",
             'inscription_externe': "Autoriser des personnes exernes à l'application à inscrire des participants",
+            'domaines_autorises': "Domaines autorises des adresses e-mail pour les inscriptions externes"
         }
 
         widgets = {
@@ -34,14 +41,14 @@ class EpreuveForm(forms.ModelForm):
                 'data-placement': 'right',
                 'title': 'Date et heure de début de l’épreuve.',
                 'type': 'datetime-local'
-            }),
+            }, format='%Y-%m-%dT%H:%M'),
             'date_fin': forms.DateTimeInput(attrs={
                 'class': 'form-control datetimepicker-input',
                 'data-toggle': 'tooltip',
                 'data-placement': 'right',
                 'title': 'Date et heure de fin de l’épreuve.',
                 'type': 'datetime-local'
-            }),
+            },format = '%Y-%m-%dT%H:%M'),
             'duree': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'data-toggle': 'tooltip',
@@ -66,9 +73,15 @@ class EpreuveForm(forms.ModelForm):
                 'data-placement': 'right',
                 'title': 'Si coché, des personnes extérieures à l\'application peuvent inscrire des participants.'
             }),
+            'domaines_autorises': forms.TextInput(attrs={
+                'class': 'form-control',
+                'data-toggle': 'tooltip',
+                'data-placement': 'right',
+                'title': 'Domaines autorises des adresses e-mail pour les inscriptions externes.'
+            }),
         }
         required_fields = ['nom', 'duree', 'date_debut', 'date_fin']
-        optional_fields = ['exercices_un_par_un', 'temps_limite', 'inscription_externe']
+        optional_fields = ['exercices_un_par_un', 'temps_limite', 'inscription_externe', 'domaines_autorises']
 
     def __init__(self, *args, **kwargs):
         super(EpreuveForm, self).__init__(*args, **kwargs)
@@ -80,9 +93,14 @@ class EpreuveForm(forms.ModelForm):
         cleaned_data = super().clean()
         date_debut = cleaned_data.get('date_debut')
         date_fin = cleaned_data.get('date_fin')
+        inscriptions_externes = cleaned_data.get('inscription_externe')
 
         if date_debut and date_fin and date_fin < date_debut:
             self.add_error('date_fin', 'La date de fin doit être postérieure à la date de début.')
+
+        if inscriptions_externes:
+            # TODO : verifier qu'il y a bien au moins un domaine valide : @ suivi de texte non vide suivi de . suivi de texte non vide
+            pass
 
         return cleaned_data
 
@@ -200,6 +218,9 @@ class ExerciceForm(forms.ModelForm):
         self.fields['nombre_max_soumissions'].required = True
         self.initial['nombre_max_soumissions'] = 50
 
+        for field_name, field in self.fields.items():
+            if field.required:
+                field.label = f"{field.label} *"
 
 class AjoutOrganisateurForm(forms.Form):
     username = forms.CharField(label='Nom d’utilisateur', max_length=100)
