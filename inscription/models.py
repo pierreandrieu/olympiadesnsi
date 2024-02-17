@@ -11,7 +11,7 @@ class Inscripteur(models.Model):
     token = models.CharField(max_length=100, unique=True, blank=True)
     epreuve = models.ForeignKey(Epreuve, on_delete=models.CASCADE)
     date_creation = models.DateTimeField(auto_now_add=True)
-    est_utilise = models.BooleanField(default=False)
+    token_est_utilise = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         if not self.token:
@@ -21,7 +21,7 @@ class Inscripteur(models.Model):
     @property
     def est_valide(self):
         """Vérifie si l'invitation est encore valide (par exemple, non expirée)."""
-        return not self.est_utilise and (timezone.now() - self.date_creation < timedelta(hours=1))
+        return not self.token_est_utilise and (timezone.now() - self.date_creation < timedelta(hours=1))
 
     class Meta:
         db_table = 'Inscripteur'
