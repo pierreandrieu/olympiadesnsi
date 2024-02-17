@@ -25,6 +25,7 @@ class Epreuve(models.Model):
 
     class Meta:
         db_table = 'Epreuve'
+        unique_together = ['nom', 'referent']
         constraints = [
             CheckConstraint(
                 check=Q(
@@ -74,6 +75,8 @@ class Exercice(models.Model):
 
     class Meta:
         db_table = 'Exercice'
+        unique_together = ['epreuve', 'titre']
+
         indexes = [
             models.Index(fields=['epreuve']),
         ]
@@ -101,7 +104,6 @@ class UserEpreuve(models.Model):
 
     class Meta:
         db_table = 'UserEpreuve'
-
         indexes = [
             models.Index(fields=['participant', 'epreuve']),
             models.Index(fields=['epreuve', 'participant']),
@@ -135,3 +137,5 @@ class UserExercice(models.Model):
 
     class Meta:
         db_table = 'UserExercice'
+        unique_together = ['participant', 'exercice']
+
