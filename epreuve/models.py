@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User, Group
 from django.db.models import CheckConstraint, Q, F
+from inscription.models import GroupeParticipant
 
 
 class Epreuve(models.Model):
@@ -12,7 +13,7 @@ class Epreuve(models.Model):
     exercices_un_par_un = models.BooleanField(default=False)
     temps_limite = models.BooleanField(default=False)
     inscription_externe = models.BooleanField(default=False)
-    groupes_participants = models.ManyToManyField(Group, related_name='epreuves',
+    groupes_participants = models.ManyToManyField(GroupeParticipant, related_name='epreuves',
                                                   through='inscription.GroupeParticipeAEpreuve')
     comite = models.ManyToManyField(User, related_name='epreuves_comite', through='MembreComite')
 
@@ -95,24 +96,6 @@ class MembreComite(models.Model):
         ]
 
 
-class UserEpreuve(models.Model):
-    participant = models.ForeignKey(User, related_name='association_UserEpreuve_User',
-                                    on_delete=models.CASCADE)
-    epreuve = models.ForeignKey(Epreuve, related_name='association_UserEpreuve_Epreuve',
-                                 on_delete=models.CASCADE)
-    fin_epreuve = models.DateTimeField(auto_now=False, null=True)
-
-    class Meta:
-        db_table = 'UserEpreuve'
-        indexes = [
-            models.Index(fields=['participant', 'epreuve']),
-            models.Index(fields=['epreuve', 'participant']),
-
-        ]
-
-        unique_together = ['participant', 'epreuve']
-
-
 class JeuDeTest(models.Model):
     exercice = models.ForeignKey(Exercice, on_delete=models.CASCADE)
     instance = models.TextField(null=False)
@@ -126,6 +109,24 @@ class JeuDeTest(models.Model):
         ]
 
 
+class UserEpreuve(models.Model):
+    participant = models.ForeignKey(User, related_name='association_UserEpreuve_User',
+                                    on_delete=models.CASCADE)
+    epreuve = models.ForeignKey(Epreuve, related_name='association_UserEpreuve_Epreuve',
+                                on_delete=models.CASCADE)
+    fin_epreuve = models.DateTimeField(auto_now=False, null=True)
+
+    class Meta:
+        db_table = 'UserEpreuve'
+        indexes = [
+            models.Index(fields=['participant', 'epreuve']),
+            models.Index(fields=['epreuve', 'participant']),
+
+        ]
+
+        unique_together = ['participant', 'epreuve']
+
+
 class UserExercice(models.Model):
     participant = models.ForeignKey(User, related_name='association_UserExercice_User',
                                     on_delete=models.CASCADE)
@@ -136,6 +137,5 @@ class UserExercice(models.Model):
     nb_soumissions = models.IntegerField(default=0)
 
     class Meta:
-        db_table = 'UserExercice'
+        db_table = 'User_Exercice'
         unique_together = ['participant', 'exercice']
-
