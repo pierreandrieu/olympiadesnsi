@@ -1,7 +1,8 @@
 from django import forms
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
-from epreuve.models import Epreuve, Exercice
+from epreuve.models import Epreuve, Exercice, MembreComite
 import re
 
 
@@ -49,7 +50,7 @@ class EpreuveForm(forms.ModelForm):
                 'data-placement': 'right',
                 'title': 'Date et heure de fin de l’épreuve.',
                 'type': 'datetime-local'
-            },format = '%Y-%m-%dT%H:%M'),
+            }, format='%Y-%m-%dT%H:%M'),
             'duree': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'data-toggle': 'tooltip',
@@ -60,13 +61,15 @@ class EpreuveForm(forms.ModelForm):
                 'class': 'form-check-input',
                 'data-toggle': 'tooltip',
                 'data-placement': 'right',
-                'title': 'Si coché, les participants doivent compléter les exercices dans l’ordre et ne peuvent pas revenir en arrière.'
+                'title': 'Si coché, les participants doivent compléter les exercices dans l’ordre et ne peuvent '
+                         'pas revenir en arrière.'
             }),
             'temps_limite': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
                 'data-toggle': 'tooltip',
                 'data-placement': 'right',
-                'title': 'Si coché, l\'heure de début de l’épreuve est enregistrée et les participants ne peuvent pas soumettre de réponses après le temps indiqué dans "Durée de l’épreuve".'
+                'title': 'Si coché, l\'heure de début de l’épreuve est enregistrée et les participants ne peuvent '
+                         'pas soumettre de réponses après le temps indiqué dans "Durée de l’épreuve".'
             }),
             'inscription_externe': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
@@ -153,7 +156,8 @@ class ExerciceForm(forms.ModelForm):
             'enonce': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
-                'title': "L'énoncé de l'exercice, version textuelle, format latex supporté. \nFacultatif si le champ suivant est rempli."
+                'title': "L'énoncé de l'exercice, version textuelle, format latex supporté. "
+                         "\nFacultatif si le champ suivant est rempli."
             }),
             'enonce_code': forms.Textarea(attrs={
                 'class': 'form-control',
@@ -176,7 +180,8 @@ class ExerciceForm(forms.ModelForm):
                 'id': 'id_retour_en_direct',
                 'class': 'form-check-input hiddenjdt',
                 'disabled': True,
-                'title': "Si coché, les participants sauront au moment de soumettre leur réponse si leur réponse pour le jeu de test est correcte."
+                'title': "Si coché, les participants sauront au moment de soumettre leur réponse si "
+                         "leur réponse pour le jeu de test est correcte."
             }),
         }
 
@@ -191,7 +196,8 @@ class ExerciceForm(forms.ModelForm):
             raise ValidationError('Vous devez fournir un énoncé, qu\'il soit sous forme de texte ou de code.')
 
         if not nombre_de_soumissions.isdigit():
-            raise ValidationError('Le nombre de soumissions maximal par participant doit être un entier strictement positif')
+            raise ValidationError('Le nombre de soumissions maximal par participant doit être un entier '
+                                  'strictement positif')
 
         nombre_de_soumissions = int(nombre_de_soumissions)
         if nombre_de_soumissions < 1:
@@ -219,7 +225,8 @@ class ExerciceForm(forms.ModelForm):
                     return cleaned_data
 
                 raise ValidationError(
-                    'Vous avez coché la case jeux de test et devez donc insérer au moins un jeu de test avec sa réponse.')
+                    'Vous avez coché la case jeux de test et devez donc insérer au moins'
+                    ' un jeu de test avec sa réponse.')
 
         return cleaned_data
 
@@ -236,3 +243,27 @@ class ExerciceForm(forms.ModelForm):
 
 class AjoutOrganisateurForm(forms.Form):
     username = forms.CharField(label='Nom d’utilisateur', max_length=100)
+
+    def __init__(self, *args, **kwargs):
+        self.epreuve = kwargs.pop('epreuve', None)  # Ajoute un argument epreuve au formulaire
+        self.request_user = kwargs.pop('request_user', None)  # Utilisateur qui fait la requête
+        super(AjoutOrganisateurForm, self).__init__(*args, **kwargs)
+
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        if self.request_user and username == self.request_user.username:
+            raise forms.ValidationError("Vous ne pouvez pas vous ajouter vous-même.")
+
+        try:
+            organisateur_a_ajouter = User.objects.get(username=username)
+            if not organisateur_a_ajouter.groups.filter(name='Organisateur').exists():
+                raise forms.ValidationError("L'utilisateur n'a pas les privilèges nécessaires pour devenir membre "
+                                            "d'un comité d'organisation.")
+            if self.epreuve and MembreComite.objects.filter(membre=organisateur_a_ajouter,
+                                                            epreuve=self.epreuve).exists():
+                raise forms.ValidationError(f"{username} fait déjà partie du comité d'organisation "
+                                            f"de l'épreuve {self.epreuve.nom}")
+        except User.DoesNotExist:
+            raise forms.ValidationError(f"L'utilisateur {username} est introuvable.")
+
+        return username
