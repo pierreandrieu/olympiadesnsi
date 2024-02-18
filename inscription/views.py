@@ -6,9 +6,6 @@ from .forms import InscriptionEmailForm, EquipeInscriptionForm
 from .models import Inscripteur
 from epreuve.models import Epreuve
 from .forms import ChoixEpreuveForm
-from intranet.models import GroupeCreePar
-from intranet.tasks import save_users_task
-from intranet.views import get_unique_username
 
 
 def choix_epreuve(request):
@@ -74,7 +71,7 @@ def inscription_equipes(request, token):
             if request.method == 'POST' and form.is_valid():
                 # Ici, vous enregistreriez les informations d'inscription des équipes
                 # et mettriez à jour l'objet invitation comme étant utilisé
-                inscripteur.est_utilise = True
+                inscripteur.token_est_utilise = True
                 inscripteur.save()
                 return redirect('confirmation_inscription')
             return render(request, 'inscription/inscription_externe_equipes.html', {

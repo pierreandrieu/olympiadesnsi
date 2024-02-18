@@ -6,13 +6,13 @@ from .forms import LoginForm
 from django_ratelimit.decorators import ratelimit
 
 
-def generic_login(request: HttpRequest, user_group: str, redirect_url: str, form_template: str) -> HttpResponse:
+def generic_login(request_generic: HttpRequest, user_group: str, redirect_url: str, form_template: str) -> HttpResponse:
     """
     Gère la connexion des utilisateurs en fonction de leur groupe. Si les identifiants sont corrects
     et appartiennent au groupe spécifié, l'utilisateur est connecté et redirigé vers l'URL fournie.
 
     Args:
-        request (HttpRequest): Requête HTTP entrante.
+        request_generic (HttpRequest): Requête HTTP entrante.
         user_group (str): Groupe d'utilisateurs autorisés à se connecter.
         redirect_url (str): URL de redirection après une connexion réussie.
         form_template (str): Chemin du template pour le formulaire de connexion.
@@ -50,6 +50,7 @@ def generic_login(request: HttpRequest, user_group: str, redirect_url: str, form
                 # Extraction des données validées du formulaire
                 username = form.cleaned_data['username']
                 password = form.cleaned_data['password']
+                print(username, password)
                 # Tentative d'authentification de l'utilisateur avec les identifiants fournis
                 user = authenticate(request, username=username, password=password)
 
@@ -74,7 +75,7 @@ def generic_login(request: HttpRequest, user_group: str, redirect_url: str, form
         return render(request, form_template, {'form': form})
 
     # Appel de la fonction interne pour traiter la requête
-    return process_request(request)
+    return process_request(request_generic)
 
 
 def login_participant(request: HttpRequest) -> HttpResponse:

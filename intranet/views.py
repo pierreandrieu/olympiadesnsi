@@ -1,219 +1,286 @@
+from typing import List, Tuple, Optional
+
+from django.db import transaction
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import Group
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, HttpRequest
 from django.shortcuts import render
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-from django.utils.crypto import get_random_string
 from django.utils import timezone
 from django.contrib import messages
 from django.http import HttpResponse
-from django.db.models import Q, Count, Prefetch
-from epreuve.models import User, Epreuve, UserEpreuve, MembreComite, Exercice
-from inscription.models import GroupeParticipeAEpreuve, Inscription_domaine
-from intranet.models import GroupeCreePar
+from django.db.models import Q, Count, Prefetch, QuerySet
+from epreuve.models import User, Epreuve, MembreComite, Exercice, UserEpreuve
+from inscription.models import GroupeParticipeAEpreuve, InscriptionDomaine, GroupeParticipant
+from intranet.models import ParticipantEstDansGroupe
 from intranet.tasks import save_users_task
 from epreuve.forms import EpreuveForm
+from login.utils import genere_participants_uniques
+from olympiadesnsi import decorators
 
 
 @login_required
-def espace_participant(request):
-    if not request.user.groups.filter(name='Participant').exists():
-        return HttpResponseForbidden()
-    today = timezone.now()
-    user = request.user
-    user_groups = user.groups.all()
-    group_ids = user_groups.values_list('id', flat=True)
+@decorators.participant_required
+def espace_participant(request: HttpRequest) -> HttpResponse:
+    """
+    Affiche l'espace participant, montrant les épreuves à venir, en cours, et terminées
+    auxquelles l'utilisateur est inscrit.
 
-    epreuves_ids = GroupeParticipeAEpreuve.objects.filter(groupe_id__in=group_ids).values_list('epreuve_id', flat=True)
-    epreuves_user = Epreuve.objects.filter(id__in=epreuves_ids)
+    Args:
+        request (HttpRequest): La requête HTTP envoyée par l'utilisateur.
 
-    # Epreuves spécifiques à l'utilisateur
-    epreuves_participant = UserEpreuve.objects.filter(participant=user)
+    Returns:
+        HttpResponse: La réponse HTTP rendue avec le template 'espace_participant.html',
+                      contenant les informations des épreuves.
+    """
+    today: timezone.datetime = timezone.now()
+    user: User = request.user
 
-    # Classification des épreuvesv
+    epreuves_ids: QuerySet[int] = UserEpreuve.objects.filter(participant=user).values_list('epreuve_id', flat=True)
+    # Récupération des associations UserEpreuve pour l'utilisateur
+    user_epreuves: QuerySet[UserEpreuve] = UserEpreuve.objects.filter(participant=user, epreuve_id__in=epreuves_ids).select_related('epreuve')
 
-    # Epreuves à Venir
-    epreuves_a_venir = epreuves_user.filter(date_debut__gt=today)
+    # Initialise les listes pour classer les épreuves
+    epreuves_a_venir: List[Epreuve] = []
+    epreuves_en_cours: List[Epreuve] = []
+    epreuves_terminees: List[Epreuve] = []
 
-    # Epreuves Terminées
-    epreuves_terminees = epreuves_user.filter(
-        Q(date_fin__lt=today) |
-        Q(association_UserEpreuve_Epreuve__fin_epreuve__lt=today, association_UserEpreuve_Epreuve__participant=user)
-    )
+    # Itère sur chaque association UserEpreuve pour l'utilisateur
+    for user_epreuve in user_epreuves:
+        epreuve: Epreuve = user_epreuve.epreuve  # Récupère l'épreuve associée à partir de l'association
 
-    # Epreuves en Cours (ni à venir, ni terminées)
-    epreuves_en_cours = epreuves_user.exclude(
-        id__in=epreuves_a_venir.values_list('id', flat=True)
-    ).exclude(
-        id__in=epreuves_terminees.values_list('id', flat=True)
-    )
+        # Détermine si une fin d'épreuve spécifique à l'utilisateur est définie et si elle est passée
+        fin_epreuve_specifique = user_epreuve.fin_epreuve and user_epreuve.fin_epreuve < today
+
+        if epreuve.date_debut > today:
+            epreuves_a_venir.append(epreuve)
+        elif epreuve.date_fin < today or fin_epreuve_specifique:
+            epreuves_terminees.append(epreuve)
+        else:
+            epreuves_en_cours.append(epreuve)
 
     return render(request, 'intranet/espace_participant.html', {
         'epreuves_en_cours': epreuves_en_cours,
         'epreuves_a_venir': epreuves_a_venir,
         'epreuves_terminees': epreuves_terminees,
-        'epreuves_participant': epreuves_participant,
     })
 
 
 @login_required
-def gestion_compte_participant(request):
-    if not request.user.groups.filter(name='Participant').exists():
-        return HttpResponseForbidden()
+@decorators.participant_required
+def gestion_compte_participant(request: HttpRequest) -> HttpResponse:
     return render(request, 'intranet/gestion_compte_participant.html')
 
 
 @login_required
-def gestion_compte_organisateur(request):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
+@decorators.organisateur_required
+def gestion_compte_organisateur(request: HttpRequest) -> HttpResponse:
     return render(request, 'intranet/gestion_compte_organisateur.html')
 
 
 @login_required
-def creer_groupe(request):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
+@decorators.organisateur_required
+def creer_groupe(request: HttpRequest) -> HttpResponse:
+    """
+    Vue pour créer un nouveau groupe de participants.
 
+    Args:
+        request (HttpRequest): L'objet requête HTTP.
+
+    Returns:
+        HttpResponse: La réponse HTTP.
+    """
     if request.method == 'POST':
-        nom_groupe = request.POST.get('nom_groupe')
-
-        if len(nom_groupe) == 0:
+        # Récupération et validation du nom du groupe
+        nom_groupe: str = request.POST.get('nom_groupe').strip()
+        print("nom groupe = ", nom_groupe)
+        if not nom_groupe:
             messages.error(request, "Le nom du groupe ne peut pas être vide.")
             return redirect('creer_groupe')
 
-        entree_utilisateur_nb_users = str(request.POST.get('nombre_utilisateurs'))
+        # Validation du nombre de participants
+        entree_utilisateur_nb_users: str = request.POST.get('nombre_utilisateurs').strip()
         if not entree_utilisateur_nb_users.isdigit():
             messages.error(request, "Le champ 'nombre de participants' doit être entier")
             return redirect('creer_groupe')
 
-        nombre_utilisateurs = int(request.POST.get('nombre_utilisateurs'))
-
-        if not 0 < nombre_utilisateurs < 1000:
+        nombre_utilisateurs: int = int(entree_utilisateur_nb_users)
+        if not 0 < nombre_utilisateurs <= 999:  # Limite arbitraire pour la démonstration
             messages.error(request, 'Le nombre de participants doit être entre 1 et 999.')
             return redirect('creer_groupe')
 
-        groupe_existe = Group.objects.filter(name=nom_groupe).exists()
-        if groupe_existe:
+        referent: User = request.user
+
+        # Création ou récupération du groupe
+        nouveau_groupe, created = GroupeParticipant.objects.get_or_create(
+            nom=nom_groupe, referent=referent
+        )
+
+        if not created:
             messages.error(request, f'Vous avez déjà un groupe nommé {nom_groupe}.')
             return redirect('creer_groupe')
 
-        id_createur = request.user.id
-        # nombre_groupes = GroupeCreePar.objects.filter(createur_id=request.user.id).count()
-        user_data = ["Username,Password"]
-        users_info = []
-        for i in range(1, nombre_utilisateurs + 1):
-            username = get_unique_username(id_createur, i)
-            password = get_random_string(length=12,
-                                         allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789')
-            users_info.append((username, password))
-            user_data.append(f"{username},{password}")
-        # Supposons que l'association GroupeCreePar doit être créée une seule fois par groupe
+        # Génération des utilisateurs uniques
+        users_info: List[Tuple[str, str]] = genere_participants_uniques(referent, nombre_utilisateurs)
 
-        # Appeler la tâche Celery pour sauvegarder les utilisateurs
-        save_users_task.delay(nom_groupe, users_info, request.user.id)
-        # Préparation et envoi du fichier CSV
+        # Envoi des utilisateurs à créer en tâche de fond
+        print("avant")
+        save_users_task.delay(nouveau_groupe.id, users_info)
+        print("apres")
+        # Préparation du fichier CSV pour téléchargement
+        user_data = ["Username,Password"] + [f"{username},{password}" for username, password in users_info]
         request.session['csv_data'] = "\n".join(user_data)
         request.session['nom_groupe'] = nom_groupe
+
         return redirect('afficher_page_telechargement')
+
+    # Affichage du formulaire si pas POST ou en cas d'erreur
     return render(request, 'intranet/creer_groupe.html')
 
 
 @login_required
-def supprimer_groupe(request, groupe_id):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
+@decorators.administrateur_groupe_required
+def supprimer_groupe(request: HttpRequest, groupe_id: int) -> HttpResponse:
+    """
+    Supprime un groupe spécifié par son ID et les utilisateurs uniquement liés à ce groupe.
 
-    groupe = get_object_or_404(Group, id=groupe_id)
-    groupe_cree_par = GroupeCreePar.objects.get(groupe_id=groupe_id)
-    if request.user.id != groupe_cree_par.createur_id:
-        return HttpResponseForbidden()
+    Args:
+        request (HttpRequest): La requête HTTP.
+        groupe_id (int): L'ID du groupe à supprimer.
+
+    Returns:
+        HttpResponse: Redirection vers l'espace organisateur après traitement.
+    """
+    # Récupère le groupe spécifié par l'ID.
 
     if request.method == "POST":
-        # Récupérer tous les utilisateurs du groupe
-        users_du_groupe = groupe.user_set.all()
-        try:
+        # L'objet groupe est récupéré par le décorateur administrateur_groupe_required
+        groupe: GroupeParticipant = getattr(request, 'groupe', None)
 
-            for user in users_du_groupe:
-                # Vérifier si l'utilisateur appartient à d'autres groupes.
-                # Par defaut, dans groupe "Participant" et dans le groupe nommé par l'organisateur
-                if user.groups.count() == 2 and user.groups.filter(name="Participant").exists():
-                    # Si l'utilisateur n'appartient à aucun autre groupe, le supprimer
-                    user.delete()
+        with transaction.atomic():
+            # Récupère tous les participants du groupe.
+            membres_du_groupe = [appartenance.utilisateur for appartenance in groupe.membres.all()]
 
+            for participant in membres_du_groupe:
+                # Vérifie si le participant appartient à d'autres groupes.
+                if ParticipantEstDansGroupe.objects.filter(utilisateur=participant).count() == 1:
+                    # Si le participant n'appartient à aucun autre groupe, le supprimer.
+                    participant.delete()
+
+            # Supprime le groupe.
             groupe.delete()
             messages.success(request, "Groupe supprimé avec succès.")
-        except:
-            messages.error(request, "Une erreur s'est produite pendant la suppression du groupe.")
         return redirect('espace_organisateur')
 
+    messages.error(request, "Méthode non supportée pour cette action.")
+    return redirect('espace_organisateur')
 
-def telecharger_csv(request):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
-    csv_data = request.session.get('csv_data')
-    nom_groupe = request.session.get('nom_groupe', 'groupe_inconnu')
 
+@login_required
+@decorators.organisateur_required
+def telecharger_csv(request: HttpRequest) -> HttpResponse:
+    """
+    Permet à un organisateur de télécharger un fichier CSV contenant les noms d'utilisateur
+    et mots de passe des participants récemment créés, à condition que l'organisateur soit
+    bien l'administrateur du groupe concerné.
+
+    Args:
+        request (HttpRequest): La requête HTTP.
+
+    Returns:
+        HttpResponse: Une réponse HTTP qui soit initie le téléchargement du fichier CSV
+        après vérification des droits de l'utilisateur, soit redirige vers l'espace organisateur,
+        soit renvoie une réponse interdite si l'utilisateur n'est pas administrateur du groupe.
+    """
+    # Récupère le nom du groupe de la session.
+    nom_groupe: str = request.session.get('nom_groupe', 'groupe_inconnu')
+
+    # Tente de récupérer le groupe pour vérifier si l'utilisateur est bien l'administrateur.
+    try:
+        GroupeParticipant.objects.get(nom=nom_groupe, referent=request.user)
+    except GroupeParticipant.DoesNotExist:
+        # Si le groupe n'existe pas ou si l'utilisateur n'en est pas l'administrateur, interdit l'accès.
+        return HttpResponseForbidden("Vous n'avez pas les droits nécessaires pour télécharger ce fichier.")
+
+    # Procède au téléchargement si les vérifications sont passées.
+    csv_data: str = request.session.get('csv_data')
     if csv_data is None:
         return redirect('espace_organisateur')
 
-    nom_fichier = f"utilisateurs_{nom_groupe}.csv"
-    response = HttpResponse(csv_data, content_type='text/csv')
+    nom_fichier: str = f"utilisateurs_{nom_groupe}.csv"
+    response: HttpResponse = HttpResponse(csv_data, content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="{nom_fichier}"'
+
+    # Nettoie les données CSV de la session après leur utilisation.
+    del request.session['csv_data']
+    del request.session['nom_groupe']
+
     return response
 
 
-def afficher_page_telechargement(request):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
+@login_required
+@decorators.organisateur_required
+def afficher_page_telechargement(request: HttpRequest) -> HttpResponse:
     return render(request, 'intranet/telecharge_csv_users.html')
 
 
 @login_required
-def creer_editer_epreuve(request, epreuve_id=None):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
+@decorators.organisateur_required
+def creer_editer_epreuve(request: HttpRequest, epreuve_id: Optional[int] = None) -> HttpResponse:
+    """
+    Crée ou édite une épreuve. Si un `epreuve_id` est fourni, l'épreuve correspondante est éditée.
+    Sinon, une nouvelle épreuve est créée.
 
-    domaines_autorises = ""
+    Args:
+        request (HttpRequest): La requête HTTP.
+        epreuve_id (Optional[int]): L'identifiant de l'épreuve à éditer, si aucun, crée une nouvelle épreuve.
+
+    Returns:
+        HttpResponse: La réponse HTTP avec le formulaire de création/édition d'une épreuve.
+    """
+    domaines_autorises: str = ""
+    epreuve: Optional[Epreuve] = None
+
     if epreuve_id:
         epreuve = get_object_or_404(Epreuve, id=epreuve_id)
         if epreuve.referent != request.user:
             return HttpResponseForbidden()
 
-        domaines_qs = Inscription_domaine.objects.filter(epreuve=epreuve)
-        domaines_autorises = "\n".join([domaine.domaine for domaine in domaines_qs])
-    else:
-        epreuve = None
+        # Récupère les domaines autorisés associés à l'épreuve pour pré-remplir le formulaire.
+        domaines_qs: QuerySet[InscriptionDomaine] = InscriptionDomaine.objects.filter(epreuve=epreuve)
+        domaines_autorises: str = "\n".join([domaine.domaine for domaine in domaines_qs])
 
     if request.method == 'POST':
-
-        form = EpreuveForm(request.POST, instance=epreuve)
+        form: EpreuveForm = EpreuveForm(request.POST, instance=epreuve)
         if form.is_valid():
-            epreuve = form.save(commit=False)
+            epreuve: Epreuve = form.save(commit=False)
             epreuve.referent = request.user
             epreuve.save()
-            form.save_m2m()
+            form.save_m2m()  # Sauvegarde les relations many-to-many spécifiées dans le formulaire.
 
+            # Met à jour l'ordre des exercices si fourni.
             exercice_ids_order = request.POST.getlist('exercice_order')
             for index, exercice_id in enumerate(exercice_ids_order, start=1):
                 Exercice.objects.filter(id=exercice_id).update(numero=index)
 
+            # Ajoute l'utilisateur actuel comme membre du comité de l'épreuve si c'est une création.
             if epreuve_id is None:
                 MembreComite.objects.create(epreuve=epreuve, membre=request.user)
 
+            # Gère l'ajout/suppression des domaines autorisés pour les inscriptions externes.
             if epreuve.inscription_externe:
-                Inscription_domaine.objects.filter(epreuve=epreuve).delete()
-                domaines_str = form.cleaned_data['domaines_autorises']
-                domaines_list = [d.strip() for d in domaines_str.split('\n') if d.strip().startswith('@')]
+                InscriptionDomaine.objects.filter(epreuve=epreuve).delete()
+                domaines_str: str = form.cleaned_data['domaines_autorises']
+                domaines_list: List[str] = [d.strip() for d in domaines_str.split('\n') if d.strip().startswith('@')]
                 for domaine in domaines_list:
-                    Inscription_domaine.objects.create(epreuve=epreuve, domaine=domaine)
+                    InscriptionDomaine.objects.create(epreuve=epreuve, domaine=domaine)
 
-            messages.success(request, f"L'épreuve {epreuve.nom} a été {'créée' if not epreuve_id else 'mise à jour'} avec succès.")
+            action: str = 'créée' if not epreuve_id else 'mise à jour'
+            messages.success(request, f"L'épreuve {epreuve.nom} a été {action} avec succès.")
             return redirect('espace_organisateur')
     else:
-        form = EpreuveForm(instance=epreuve, initial={'domaines_autorises': domaines_autorises})
+        form: EpreuveForm = EpreuveForm(instance=epreuve, initial={'domaines_autorises': domaines_autorises})
 
     return render(request, 'intranet/creer_epreuve.html', {
         'form': form,
@@ -222,78 +289,85 @@ def creer_editer_epreuve(request, epreuve_id=None):
 
 
 @login_required
-def espace_organisateur(request):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
+@decorators.organisateur_required
+def espace_organisateur(request: HttpRequest) -> HttpResponse:
+    """
+    Affiche l'espace de l'organisateur avec la liste des groupes créés par l'utilisateur
+    et les épreuves qu'il organise.
 
-    user = request.user
-    groupes_crees = GroupeCreePar.objects.filter(createur=user) \
-        .annotate(nombre_membres=Count('groupe__user'))
+    Args:
+        request (HttpRequest): La requête HTTP.
 
-    exercice_prefetch = Prefetch('exercice_set', queryset=Exercice.objects.order_by('numero'))
-    epreuves_organisees = Epreuve.objects.filter(
-        comite=user  # Filtrer sur la base de l'appartenance au comité d'organisation uniquement
+    Returns:
+        HttpResponse: La réponse HTTP rendue avec le template de l'espace organisateur.
+    """
+    user: User = request.user
+
+    # Récupération des groupes créés par l'utilisateur avec le nombre de membres associés à chaque groupe.
+    groupes_crees: QuerySet[GroupeParticipant] = GroupeParticipant.objects.filter(referent=user) \
+        .annotate(nombre_membres=Count('membres'))
+
+    # Préparation des requêtes pré-fetch pour optimiser les accès aux données des épreuves.
+    exercice_prefetch: Prefetch = Prefetch('exercice_set', queryset=Exercice.objects.order_by('numero'))
+    epreuves_organisees: QuerySet[Epreuve] = Epreuve.objects.filter(
+        membrecomite__membre=user
     ).prefetch_related(
         exercice_prefetch,
         'groupes_participants',
         Prefetch('membrecomite_set', queryset=MembreComite.objects.select_related('membre'))
     )
 
-    epreuves_info = []
+    # Compilation des informations à afficher pour chaque épreuve organisée.
+    epreuves_info: List[Tuple[Epreuve, int, QuerySet, int, int, int, List[User]]] = []
     for epreuve in epreuves_organisees:
-        exercices = epreuve.exercice_set.all().order_by('numero')
+        nombre_groupes: int = epreuve.groupes_participants.count()
+        epreuves_organisees: QuerySet[Epreuve] = Epreuve.objects.filter(referent=user)
 
-        groupes_participants = epreuve.groupes_participants.all()
-        participants_uniques = User.objects.filter(groups__in=groupes_participants).count()
+        groupes_participants_ids = epreuve.groupes_participants.values_list('id', flat=True)
 
-        # Ajout du nombre de groupes, d'exercices et de membres du comité
-        nombre_groupes = groupes_participants.count()
-        nombre_exercices = exercices.count()
-        membres_comite = [membre.membre for membre in epreuve.membrecomite_set.all()]
-        nombre_organisateurs = len(membres_comite)
-        epreuves_info.append((epreuve, nombre_organisateurs, groupes_participants, nombre_groupes,
-                              participants_uniques, nombre_exercices, membres_comite))
+        # Utilisez ParticipantEstDansGroupe pour trouver tous les utilisateurs (participants)
+        # qui sont dans ces groupes.
+        participants_uniques_count = ParticipantEstDansGroupe.objects.filter(
+            groupe_id__in=groupes_participants_ids
+        ).distinct('utilisateur').count()
 
-    epreuve_form = EpreuveForm()
+        nombre_exercices: int = epreuve.exercice_set.count()
+        membres_comite: List[User] = list(User.objects.filter(membrecomite__epreuve=epreuve))
+        nombre_organisateurs: int = len(membres_comite)
+        epreuves_info.append((epreuve, nombre_organisateurs, epreuve.groupes_participants.all(), nombre_groupes,
+                              participants_uniques_count, nombre_exercices, membres_comite))
+
+    epreuve_form: EpreuveForm = EpreuveForm()
 
     return render(request, 'intranet/espace_organisateur.html', {
+        'nom': user.username,
         'groupes_crees': groupes_crees,
         'epreuves_info': epreuves_info,
         'form': epreuve_form
     })
 
 
-def get_unique_username(id_user: int, num: int):
-    partie_alea = get_random_string(length=3, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ')
-    faux_id: str = str(2 * id_user + 100)
-    return f"{partie_alea}{faux_id[:len(faux_id) // 2]}_{num:03d}{faux_id[len(faux_id) // 2:]}"
-
-
 @login_required
-def change_password_generic(request, template: str):
-    if request.method == 'POST':
-        form = PasswordChangeForm(request.user, request.POST)
-        if form.is_valid():
-            user = form.save()
-            update_session_auth_hash(request, user)  # Important pour maintenir la session de l'utilisateur
-            messages.success(request, 'Votre mot de passe a été mis à jour avec succès!')
-            return render(request, template, {'form': form})
-        else:
-            for field in form:
-                for error in field.errors:
-                    messages.error(request, f"{field.label}: {error}")
-            for error in form.non_field_errors():
-                messages.error(request, f"Erreur: {error}")
-    else:
-        form = PasswordChangeForm(request.user)
+def change_password_generic(request, template, vue):
+    form = PasswordChangeForm(request.user, request.POST or None)
+
+    if request.method == 'POST' and form.is_valid():
+        user = form.save()
+        update_session_auth_hash(request, user)  # Important pour maintenir la session de l'utilisateur
+        messages.success(request, 'Votre mot de passe a été mis à jour avec succès!')
+        return redirect(
+            vue)  # Rediriger vers une URL spécifique après la mise à jour réussie
+
     return render(request, template, {'form': form})
 
 
 @login_required
+@decorators.participant_required
 def change_password_participant(request):
-    return change_password_generic(request, "intranet/gestion_compte_participant.html")
+    return change_password_generic(request, "intranet/gestion_compte_participant.html", "espace_participant")
 
 
 @login_required
+@decorators.organisateur_required
 def change_password_organisateur(request):
-    return change_password_generic(request, "intranet/gestion_compte_organisateur.html")
+    return change_password_generic(request, "intranet/gestion_compte_organisateur.html", "espace_organisateur")

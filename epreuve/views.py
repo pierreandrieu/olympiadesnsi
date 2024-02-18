@@ -1,78 +1,88 @@
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import User
 from django.core.serializers import serialize
 from django.db import transaction
+from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponseRedirect, HttpRequest, HttpResponse
+from django.http import JsonResponse, HttpResponseRedirect, HttpRequest, HttpResponse
 from django.views.decorators.csrf import csrf_protect
 from django.utils import timezone
 from django_ratelimit.decorators import ratelimit
 from django.contrib import messages
 from django.urls import reverse
-from epreuve.models import Epreuve, UserExercice, Exercice, UserEpreuve, JeuDeTest, MembreComite
+from epreuve.models import Epreuve, Exercice, JeuDeTest, MembreComite, UserEpreuve, UserExercice
 from epreuve.forms import ExerciceForm, AjoutOrganisateurForm
-from inscription.models import GroupeParticipeAEpreuve
+from epreuve.utils import assigner_participants_jeux_de_test, redistribuer_jeux_de_test_exercice
+from inscription.utils import inscrire_groupe_a_epreuve
+from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant
+import olympiadesnsi.decorators as decorators
 import json
 from datetime import timedelta
-import random
-from typing import Union
+from typing import Union, List, Optional, Dict
 
 
 @login_required
-def detail_epreuve(request, epreuve_id):
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-    user = request.user
+@decorators.participant_inscrit_a_epreuve_required
+def detail_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
+    """
+    Affiche le détail d'une épreuve pour les participants inscrits.
 
-    # Vérifier si l'utilisateur appartient à un groupe qui participe à l'épreuve
-    user_groups = user.groups.all()
-    groupe_participation = GroupeParticipeAEpreuve.objects.filter(epreuve=epreuve, groupe__in=user_groups).exists()
+    Utilise `epreuve_id` pour identifier l'épreuve et s'appuie sur le décorateur
+    `participant_inscrit_a_epreuve_required` pour attacher l'objet épreuve correspondant
+    à `request`. Assure que l'utilisateur est authentifié et inscrit à l'épreuve.
 
-    if not groupe_participation:
-        return HttpResponseForbidden("Vous n'avez pas l'autorisation de voir cette épreuve.")
+    Args:
+        request (HttpRequest): La requête HTTP.
+        epreuve_id (int): L'ID de l'épreuve à afficher.
+
+    Returns:
+        HttpResponse: La réponse HTTP avec le template d'affichage de l'épreuve.
+    """
+    print("enter")
+    epreuve: Epreuve = getattr(request, 'epreuve', None)
     return render(request, 'epreuve/detail_epreuve.html', {'epreuve': epreuve})
 
 
 @login_required
-def afficher_epreuve(request, epreuve_id):
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-    user = request.user
+@decorators.participant_inscrit_a_epreuve_required
+def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
+    """
+    Affiche les détails d'une épreuve pour un participant inscrit, incluant les exercices associés
+    et le temps restant si l'épreuve est limitée dans le temps.
 
-    # Vérifier si l'utilisateur appartient à un groupe qui participe à l'épreuve
-    user_groups = user.groups.all()
-    groupe_participation = GroupeParticipeAEpreuve.objects.filter(epreuve=epreuve, groupe__in=user_groups).exists()
+    La fonction filtre les exercices en fonction du mode de l'épreuve (tous les exercices ou un par un)
+    et prépare les données pour affichage dans un format JSON utilisé par le frontend.
 
-    if not groupe_participation:
-        return HttpResponseForbidden("Vous n'avez pas l'autorisation de voir cette épreuve.")
-    # Récupérer tous les exercices liés à cette épreuve
-    exercices = Exercice.objects.filter(epreuve=epreuve).order_by('numero')
-    # Préparer les données des exercices pour le JavaScript
+    Args:
+        request (HttpRequest): La requête HTTP reçue.
+        epreuve_id (int): L'identifiant de l'épreuve concernée.
 
-    if epreuve.exercices_un_par_un:
-        # Trouver le premier exercice non soumis ou invalide
-        exercices_list = []
+    Returns:
+        HttpResponse: La réponse HTTP avec le rendu du template `afficher_epreuve.html`.
+    """
+    # Récupération de l'utilisateur connecté et de l'épreuve depuis le décorateur.
+    user: User = request.user
+    epreuve: Optional[Epreuve] = getattr(request, 'epreuve', None)
+
+    # Sélection de tous les exercices associés à l'épreuve, ordonnés par leur numéro.
+    exercices: List[Exercice] = list(Exercice.objects.filter(epreuve=epreuve).order_by('numero'))
+
+    # Si l'épreuve impose de passer les exercices un par un, filtrer pour ne garder que le premier non complété.
+    if epreuve and epreuve.exercices_un_par_un:
         for ex in exercices:
-            user_exercice, _ = UserExercice.objects.get_or_create(exercice_id=ex.id, participant_id=user.id)
+            user_exercice, _ = UserExercice.objects.get_or_create(exercice=ex, participant=user)
             if not user_exercice.solution_instance_participant and not user_exercice.code_participant:
-                exercices_list = [ex]
+                exercices = [ex]
                 break
-        exercices = exercices_list
 
-    exercices_json_list = []
+    # Préparation des données des exercices pour le frontend.
+    exercices_json_list: List[Dict[str, object]] = []
     for ex in exercices:
-        # Récupérer l'objet UserExercice correspondant
-        user_exercice, created = UserExercice.objects.get_or_create(exercice_id=ex.id, participant_id=user.id)
-        jeu_de_test = None
-        if ex.avec_jeu_de_test and user_exercice.jeu_de_test is not None:
-            jeu_de_test = JeuDeTest.objects.get(id=user_exercice.jeu_de_test.id)
-        bonne_reponse: str = ""
-        instance_de_test: str = ""
+        user_exercice, _ = UserExercice.objects.get_or_create(exercice=ex, participant=user)
+        jeu_de_test: Optional[JeuDeTest] = user_exercice.jeu_de_test
 
-        if jeu_de_test is not None:
-            bonne_reponse = jeu_de_test.reponse
-            instance_de_test = jeu_de_test.instance
-        # Construire le dictionnaire pour cet exercice
-        exercice_dict = {
+        exercice_dict: Dict[str, object] = {
             'id': ex.id,
             'titre': ex.titre,
             'bareme': ex.bareme,
@@ -84,35 +94,23 @@ def afficher_epreuve(request, epreuve_id):
             'nb_soumissions': user_exercice.nb_soumissions,
             'nb_max_soumissions': ex.nombre_max_soumissions,
             'retour_en_direct': ex.retour_en_direct,
-            'instance_de_test': instance_de_test,
-            'reponse_valide': user_exercice.solution_instance_participant == bonne_reponse
+            'instance_de_test': jeu_de_test.instance if jeu_de_test else "",
+            'reponse_valide': user_exercice.solution_instance_participant == (
+                jeu_de_test.reponse if jeu_de_test else "")
         }
 
-        # Ajouter le dictionnaire à la liste
         exercices_json_list.append(exercice_dict)
 
-    # Convertir la liste en JSON
-    exercices_json = json.dumps(exercices_json_list)
-    temps_restant = None
-    if epreuve.duree and epreuve.temps_limite:
-        # Préparer les informations de temps pour le frontend
-        # Récupérer ou créer l'objet UserEpreuve
-        user_epreuve, created = UserEpreuve.objects.get_or_create(
-            participant=user,
-            epreuve=epreuve
-        )
+    # Conversion des données des exercices en JSON pour utilisation côté client.
+    exercices_json: str = json.dumps(exercices_json_list)
 
-        # Vérifier si l'épreuve a une durée limitée et si l'heure de fin est NULL
-        if epreuve.duree and not user_epreuve.fin_epreuve:
-            # Calculer l'heure de fin basée sur la durée de l'épreuve
-            user_epreuve.fin_epreuve = timezone.now() + timedelta(minutes=epreuve.duree)
-            user_epreuve.save()
+    # Calcul du temps restant pour compléter l'épreuve, si applicable.
+    temps_restant: Optional[timedelta] = None
+    if epreuve and epreuve.duree and epreuve.temps_limite:
+        user_epreuve, _ = UserEpreuve.objects.get_or_create(participant=user, epreuve=epreuve)
+        if user_epreuve.fin_epreuve:
+            temps_restant = max(user_epreuve.fin_epreuve - timezone.now(), timedelta(seconds=0))
 
-        # Préparer les informations de temps pour le frontend
-        if epreuve.duree and epreuve.temps_limite:
-            temps_restant = user_epreuve.fin_epreuve - timezone.now()
-            if temps_restant.total_seconds() < 0:
-                temps_restant = timedelta(seconds=0)
     return render(request, 'epreuve/afficher_epreuve.html', {
         'epreuve': epreuve,
         'exercices_json': exercices_json,
@@ -123,6 +121,7 @@ def afficher_epreuve(request, epreuve_id):
 @login_required
 @csrf_protect
 @ratelimit(key='user', rate='10/m', block=True)
+@ratelimit(key='user', rate='2/s', block=True)
 def soumettre(request):
     if request.method == 'POST':
         try:
@@ -139,7 +138,7 @@ def soumettre(request):
                 return JsonResponse({'success': False, 'error': 'Exercice ou jeu de test introuvable'}, status=404)
 
             # Association UserExercice
-            user_exercice, created = UserExercice.objects.get_or_create(
+            user_exercice = UserExercice.objects.get(
                 participant=request.user,
                 exercice=exercice
             )
@@ -163,29 +162,20 @@ def soumettre(request):
 
 
 @login_required
-def supprimer_epreuve(request, epreuve_id):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
-
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-
-    if request.user != epreuve.referent:
-        return HttpResponseForbidden()
-
+@decorators.administrateur_epreuve_required
+def supprimer_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
+    epreuve: Epreuve = getattr(request, 'epreuve', None)
     if request.method == "POST":
         epreuve.delete()
         return redirect('espace_organisateur')
-
     return redirect('espace_organisateur')
 
 
 @login_required
+@decorators.membre_comite_required
 def visualiser_epreuve_organisateur(request, epreuve_id):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-
-    exercices = Exercice.objects.filter(epreuve=epreuve).order_by('numero').prefetch_related('jeudetest_set')
+    epreuve: Epreuve = getattr(request, 'epreuve', None)
+    exercices: QuerySet[Exercice] = Exercice.objects.filter(epreuve=epreuve).order_by('numero')
     exercices_json = json.loads(serialize('json', exercices))
 
     return render(request, 'epreuve/visualiser_epreuve.html', {
@@ -195,171 +185,191 @@ def visualiser_epreuve_organisateur(request, epreuve_id):
 
 
 @login_required
-def ajouter_organisateur(request, epreuve_id):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-    if request.user != epreuve.referent:
-        return HttpResponseForbidden()
-    form = AjoutOrganisateurForm(request.POST or None)
+@decorators.administrateur_epreuve_required
+def ajouter_organisateur(request: HttpRequest, epreuve_id: int):
+    """
+    Vue pour ajouter un organisateur au comité d'organisation d'une épreuve.
+
+    Cette vue permet à un administrateur d'épreuve de rajouter un nouvel organisateur
+    au comité d'organisation de l'épreuve spécifiée. Elle effectue des vérifications pour
+    s'assurer que l'utilisateur à ajouter existe, est éligible pour devenir organisateur,
+    et n'est pas déjà membre du comité d'organisation.
+
+    Args:
+        request (HttpRequest): L'objet HttpRequest.
+        epreuve_id (int): L'identifiant de l'épreuve pour laquelle un organisateur est ajouté.
+
+    Returns:
+        HttpResponseRedirect: Redirige vers l'espace organisateur si l'ajout est réussi.
+        HttpResponse: Rend le template de l'espace organisateur avec le formulaire d'ajout en cas d'erreurs.
+    """
+    # L'objet épreuve est récupéré par le décorateur 'administrateur_epreuve_required'
+    epreuve: Epreuve = getattr(request, 'epreuve', None)
+
+    # Initialisation du formulaire avec les données POST et des informations supplémentaires
+    form: AjoutOrganisateurForm = AjoutOrganisateurForm(request.POST or None,
+                                                        epreuve=epreuve,
+                                                        request_user=request.user)
+
     if request.method == "POST" and form.is_valid():
-        username = form.cleaned_data['username']
-        try:
-            organisateur_a_ajouter = User.objects.get(username=username)
-            if organisateur_a_ajouter.groups.filter(name='Organisateur').exists():
-                if organisateur_a_ajouter.username == request.user.username:
-                    messages.error(request, "Vous ne pouvez pas vous ajouter vous-même.")
-                elif MembreComite.objects.filter(membre_id=organisateur_a_ajouter, epreuve_id=epreuve_id).exists():
-                    messages.error(request, f"{organisateur_a_ajouter.username} fait déjà partie du comité "
-                                            f"d'organisation de l'épreuve {epreuve.nom}")
-                else:
-                    MembreComite.objects.create(epreuve=epreuve, membre=organisateur_a_ajouter)
-                    messages.success(request, f"{username} a bien été ajouté au comité d'organisation "
-                                              f"de l'épreuve {epreuve.nom}")
-            else:
-                messages.error(request, "L'utilisateur n'a pas les privilèges nécessaires pour devenir membre "
-                                        "d'un comité d'organisation.")
-        except User.DoesNotExist:
-            messages.error(request, f"L'utilisateur {username} est introuvable.")
+        # Si le formulaire est valide, procéder à l'ajout de l'organisateur
+        username: str = form.cleaned_data['username']
+        organisateur_a_ajouter: User = User.objects.get(username=username)
+
+        # Création de l'entrée MembreComite pour associer l'organisateur à l'épreuve
+        MembreComite.objects.create(epreuve=epreuve, membre=organisateur_a_ajouter)
+
+        # Envoi d'un message de succès à l'utilisateur
+        messages.success(request, f"{username} a bien été ajouté au comité d'organisation de l'épreuve {epreuve.nom}")
+
+        # Redirection vers l'espace organisateur après l'ajout
         return HttpResponseRedirect(reverse('espace_organisateur'))
 
+    # Si la méthode n'est pas POST ou que le formulaire n'est pas valide, rendre le template avec le formulaire
     return render(request, 'intranet/espace_organisateur.html', {'form': form})
 
 
 @login_required
-def inscrire_groupes_epreuve(request, epreuve_id):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
+@decorators.administrateur_epreuve_required
+def inscrire_groupes_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
+    """
+    Inscrit des groupes de participants à une épreuve donnée, en vérifiant que l'utilisateur est un administrateur
+    de l'épreuve. Cette vue permet de sélectionner plusieurs groupes pour les inscrire à une épreuve spécifique.
 
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-    if epreuve.referent != request.user:
-        return HttpResponseForbidden()
+    Args:
+        request (HttpRequest): L'objet requête HTTP.
+        epreuve_id (int): L'ID de l'épreuve à laquelle les groupes seront inscrits.
+
+    Returns:
+        HttpResponse: L'objet réponse HTTP pour rediriger ou afficher la page.
+    """
+    epreuve: Epreuve = getattr(request, 'epreuve', None)  # Épreuve récupérée par le décorateur.
 
     if request.method == 'POST':
-        group_ids = request.POST.getlist('groups')
-        exercices = Exercice.objects.filter(epreuve=epreuve_id)
+        groupe_ids: List[int] = request.POST.getlist('groups')  # IDs des groupes sélectionnés pour l'inscription.
         with transaction.atomic():
-            groupes = Group.objects.filter(id__in=group_ids).prefetch_related('user_set')
-            for groupe in groupes:
-                GroupeParticipeAEpreuve.objects.create(groupe=groupe, epreuve=epreuve)
+            for groupe_id in groupe_ids:
+                print("gestion groupe ", groupe_id)
+                groupe: GroupeParticipant = get_object_or_404(GroupeParticipant, id=groupe_id)
+                print("\t", groupe)
+                inscrire_groupe_a_epreuve(groupe, epreuve)
 
-                for user in groupe.user_set.all():
-                    _, _ = UserEpreuve.objects.get_or_create(participant=user, epreuve=epreuve)
-                    for exercice in exercices:
-                        _, _ = UserExercice.objects.get_or_create(exercice_id=exercice.id, participant_id=user.id)
-        messages.success(request, "Les groupes et leurs membres ont été inscrits avec succès à l'épreuve.")
-        return redirect('espace_organisateur')
-
+            messages.success(request, "Les groupes et leurs membres ont été inscrits avec succès à l'épreuve.")
+            return redirect('espace_organisateur')
     else:
-        groupes_inscrits = GroupeParticipeAEpreuve.objects.filter(epreuve=epreuve).values_list('groupe', flat=True)
-        groups = Group.objects.filter(
-            associations_groupe_createur__createur=request.user).exclude(id__in=groupes_inscrits)
-    return render(request, 'epreuve/inscrire_groupes_epreuve.html', {'epreuve': epreuve, 'groups': groups})
+        # Récupère les groupes non encore inscrits à cette épreuve pour les afficher dans le formulaire.
+        groupes_inscrits_ids: List[int] = list(GroupeParticipeAEpreuve.objects.filter(
+            epreuve=epreuve).values_list('groupe__id', flat=True))
+        groupes_non_inscrits: QuerySet[GroupeParticipant] = (
+            GroupeParticipant.objects.filter(referent=request.user, statut="VALIDE").exclude(id__in=groupes_inscrits_ids))
+
+    return render(request, 'epreuve/inscrire_groupes_epreuve.html',
+                  {'epreuve': epreuve, 'groupes': groupes_non_inscrits})
 
 
-@login_required()
-def supprimer_exercice(request, id_exercice):
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
-    exercice = get_object_or_404(Exercice, id=id_exercice)
-    epreuve_exercice = Epreuve.objects.get(id=exercice.epreuve_id)
-    if epreuve_exercice.referent != request.user and exercice.auteur != request.user:
-        return HttpResponseForbidden()
+@login_required
+@decorators.administrateur_exercice_required
+def supprimer_exercice(request: HttpRequest, id_exercice: int) -> HttpResponse:
+    """
+    Supprime un exercice spécifique et affiche un message de succès.
+
+    Cette vue est accessible uniquement aux utilisateurs qui ont les droits nécessaires sur
+    l'exercice, vérifiés par le décorateur 'administrateur_exercice_required'. L'exercice à supprimer
+    est identifié par son ID et est récupéré automatiquement par le décorateur.
+
+    Args:
+        request (HttpRequest): L'objet HttpRequest.
+        id_exercice (int): L'identifiant de l'exercice à supprimer.
+
+    Returns:
+        HttpResponse: Redirige vers l'espace organisateur après la suppression de l'exercice.
+    """
+    # L'objet exercice est récupéré par le décorateur 'administrateur_exercice_required'
+    exercice: Exercice = getattr(request, 'exercice', None)
+
+    # Sauvegarde le titre et le nom de l'épreuve avant la suppression pour l'utiliser dans le message
+    titre_exercice: str = exercice.titre
+    nom_epreuve: str = exercice.epreuve.nom
+
+    # Procède à la suppression de l'exercice
     exercice.delete()
-    messages.success(request, "L'exercice a été supprimé")
+
+    # Affiche un message de succès incluant le titre de l'exercice et le nom de l'épreuve
+    messages.success(request, f"L'exercice '{titre_exercice}' de l'épreuve '{nom_epreuve}' a été supprimé.")
+
+    # Redirige vers l'espace organisateur après la suppression
     return redirect('espace_organisateur')
 
 
 @login_required
-def redistribuer_jeux_de_test(request, id_exercice):
-    exercice = get_object_or_404(Exercice, pk=id_exercice)
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
-
-    # Récupérer tous les ID des Jeux de Test pour cet exercice
-    jeux_de_test_ids = JeuDeTest.objects.filter(exercice=exercice).values_list('id', flat=True)
-    jeux_de_test_list = list(jeux_de_test_ids)
-    random.shuffle(jeux_de_test_list)
-    # Trouver les participants sans jeu de test attribué
-    participants = UserExercice.objects.filter(exercice=exercice)
-    cpt = 0
-    for user_exercice in participants:
-        if cpt == len(jeux_de_test_list):
-            cpt = 0
-            random.shuffle(jeux_de_test_list)
-
-        jeu_de_test_id = jeux_de_test_list[cpt]
-        cpt += 1
-
-        user_exercice.jeu_de_test_id = jeu_de_test_id
-        user_exercice.save()
-        # Supprimer l'ID attribué du set des jeux non attribués
-
-    # Rediriger l'utilisateur vers la page précédente
-    messages.success(request, "Jeux de test redistribués avec succès.")
+@decorators.administrateur_exercice_required
+def redistribuer_jeux_de_test(request: HttpRequest, id_exercice: int) -> HttpResponse:
+    # L'objet exercice est récupéré par le décorateur 'administrateur_exercice_required'
+    exercice: Exercice = getattr(request, 'exercice', None)
+    # L'objet épreuve est récupéré par le décorateur 'administrateur_exercice_required'
+    epreuve: Epreuve = getattr(request, 'epreuve', None)
+    if exercice.avec_jeu_de_test:
+        redistribuer_jeux_de_test_exercice(exercice)
+        # Rediriger l'utilisateur vers la page précédente
+        messages.success(request, "Jeux de test redistribués avec succès.")
+    else:
+        messages.error(request, f"L'exercice {exercice.titre} de l'épreuve {epreuve.nom} "
+                                f"n'est pas un exercice avec jeux de test.")
     return redirect('editer_exercice', id_exercice=id_exercice)
 
 
 @login_required
-def assigner_jeux_de_test(request, id_exercice):
-    exercice = get_object_or_404(Exercice, pk=id_exercice)
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
+@decorators.administrateur_exercice_required
+def assigner_jeux_de_test(request: HttpRequest, id_exercice: int) -> HttpResponse:
+    # L'objet exercice est récupéré par le décorateur 'administrateur_exercice_required'
+    exercice: Exercice = getattr(request, 'exercice', None)
 
-    # Récupérer tous les ID des Jeux de Test pour cet exercice
-    jeux_de_test_ids = set(JeuDeTest.objects.filter(exercice=exercice).values_list('id', flat=True))
-    # Récupérer les ID des Jeux de Test déjà attribués
-    jeux_attribues_ids = set(UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=False)
-                             .values_list('jeu_de_test_id', flat=True))
-    # Calculer les jeux de tests non attribués
-    jeux_non_attribues = jeux_de_test_ids - jeux_attribues_ids
-    jeux_non_attribues_copie = list(jeux_non_attribues)
-    random.shuffle(jeux_non_attribues_copie)
+    # L'objet épreuve est récupéré par le décorateur 'administrateur_exercice_required'
+    epreuve: Epreuve = getattr(request, 'epreuve', None)
+
     # Trouver les participants sans jeu de test attribué
-    participants_sans_jeu = UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=True)
-    cpt = 0
-    fusion: bool = True
-    for user_exercice in participants_sans_jeu:
-        if cpt == len(jeux_non_attribues_copie):
-            cpt = 0
-            if fusion:
-                for id_jeu_attribue in jeux_attribues_ids:
-                    jeux_non_attribues_copie.append(id_jeu_attribue)
-                    fusion = False
-            random.shuffle(jeux_non_attribues_copie)
-
-        jeu_de_test_id = jeux_non_attribues_copie[cpt]
-        cpt += 1
-
-        user_exercice.jeu_de_test_id = jeu_de_test_id
-        user_exercice.save()
-        # Supprimer l'ID attribué du set des jeux non attribués
-
+    if exercice.avec_jeu_de_test:
+        participants_sans_jeu = UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=True)
+        assigner_participants_jeux_de_test(participants_sans_jeu, exercice)
+        messages.success(request, "Les jeux de test ont été assignés aux participants qui n'en n'avaient pas.")
+    else:
+        messages.error(request, f"L'exercice {exercice.titre} de l'épreuve {epreuve.nom} "
+                                f"n'est pas un exercice avec jeux de test.")
     return redirect('editer_exercice', id_exercice=id_exercice)
 
 
 @login_required
-def supprimer_jeux_de_test(request, id_exercice):
-    exercice = Exercice.objects.get(pk=id_exercice)
-    if not est_admin_exercice(request, exercice):
-        return HttpResponseForbidden("Vous n'avez pas les droits pour supprimer les jeux de test pour cet exercice.")
+@decorators.administrateur_exercice_required
+def supprimer_jeux_de_test(request: HttpRequest, id_exercice: int) -> HttpResponse:
+    """
+    Supprime tous les jeux de test associés à un exercice spécifique.
+
+    Cette vue est protégée par deux décorateurs qui garantissent que l'utilisateur est connecté
+    et qu'il a les droits d'administrateur sur l'exercice concerné (soit en étant le référent
+    de l'épreuve associée, soit l'auteur de l'exercice).
+
+    Args:
+        request (HttpRequest): L'objet HttpRequest.
+        id_exercice (int): L'identifiant de l'exercice dont les jeux de test doivent être supprimés.
+
+    Returns:
+        HttpResponse: Redirige vers la vue d'édition de l'exercice après la suppression des jeux de test.
+    """
+
+    # Récupère tous les jeux de test associés à l'exercice spécifié par son ID
     jdts = JeuDeTest.objects.filter(exercice_id=id_exercice)
+
+    # Parcourt chaque jeu de test et le supprime
     for jdt in jdts:
         jdt.delete()
+
+    # Après la suppression, redirige vers la vue d'édition de l'exercice pour refléter les changements
     return redirect('editer_exercice', id_exercice=id_exercice)
 
 
-def est_admin_exercice(request, exercice: Exercice) -> bool:
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return False
-    epreuve_exercice = Epreuve.objects.get(id=exercice.epreuve_id)
-    if epreuve_exercice.referent == request.user or exercice.auteur == request.user:
-        return True
-    return False
-
-
 @login_required
-def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Union[int, None] = None) -> HttpResponse:
+@decorators.administrateur_exercice_required
+def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Optional[int] = None) -> HttpResponse:
     """
     Vue pour créer ou éditer un exercice dans une épreuve spécifique.
 
@@ -369,22 +379,18 @@ def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Un
 
     Args:
         request (HttpRequest): L'objet requête HTTP.
-        epreuve_id (int): L'identifiant de l'épreuve à laquelle l'exercice appartient.
         id_exercice (Union[int, None], optional): L'identifiant de l'exercice à éditer, si applicable. Defaults to None.
 
     Returns:
         HttpResponse: La réponse HTTP rendue.
     """
-    # Vérifie si l'utilisateur appartient au groupe 'Organisateur', sinon retourne une réponse 'Forbidden'
-    if not request.user.groups.filter(name='Organisateur').exists():
-        return HttpResponseForbidden()
 
-    # Récupère l'épreuve concernée ou retourne une erreur 404 si non trouvée
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-
+    # L'objet épreuve est récupéré par le décorateur 'administrateur_exercice_required'
+    epreuve: Epreuve = getattr(request, 'epreuve', None)
     # Initialise le formulaire pour l'édition si un id_exercice est fourni, sinon pour la création
     if id_exercice:
-        exercice = get_object_or_404(Exercice, id=id_exercice, epreuve=epreuve)
+        # L'objet exercice est récupéré par le décorateur 'administrateur_exercice_required'
+        exercice: Exercice = getattr(request, 'exercice', None)
         form = ExerciceForm(request.POST or None, instance=exercice)
     else:
         form = ExerciceForm(request.POST or None)
