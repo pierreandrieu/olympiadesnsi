@@ -13,7 +13,8 @@ urlpatterns = [
 
     path('organisateur/supprimer-groupe/<int:groupe_id>/', views.supprimer_groupe, name='supprimer_groupe'),
     path('organisateur/telecharger-csv', views.telecharger_csv, name='telecharger_csv'),
-    path('organisateur/afficher-telechargement', views.afficher_page_telechargement, name='afficher_page_telechargement'),
+    path('organisateur/afficher-telechargement', views.afficher_page_telechargement,
+         name='afficher_page_telechargement'),
     path('participant/compte/update', views.change_password_participant, name='change_password_participant'),
     path('organisateur/compte/update', views.change_password_organisateur, name='change_password_organisateur'),
 ]
