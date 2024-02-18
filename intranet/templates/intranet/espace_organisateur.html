@@ -2,6 +2,7 @@
 {% load static %}
 
 {% block content %}
+    <h1>Espace personnel de {{ nom }}</h1>
     <div class="container mt-4">
         {% if messages %}
             {% for message in messages %}
@@ -130,7 +131,7 @@
                                     <td colspan="7">
                                         <ul>
                                             {% for groupe in groupes_participants %}
-                                                <li>{{ groupe.name }}</li>
+                                                <li>{{ groupe.nom }}</li>
                                             {% endfor %}
                                         </ul>
                                     </td>
@@ -165,25 +166,36 @@
                                 <tr>
                                     <th>Groupes</th>
                                     <th>Membres</th>
+                                    <th>Statut</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                             {% for groupe in groupes_crees %}
                                 <tr>
-                                    <td>{{ groupe.groupe.name }}</td>
+                                    <td>{{ groupe.nom }}</td>
 
                                     <td>
-                                        {{ groupe.nombre_membres }}
+                                        {{ groupe.nb_membres }}
                                         <i class="fas fa-users" style="color:#3465a4"></i>
                                         <i class="fas fa-plus-circle" style="color:#3465a4"></i>
+                                    </td>
+
+                                    <td>
+                                        {% if groupe.statut == 'VALIDE' %}
+                                            <i class="fas fa-check-circle" style="color: green;"></i>
+                                        {% elif groupe.statut == 'CREATION' %}
+                                            <i class="fas fa-sync-alt" style="color: orange;"></i>
+                                        {% elif groupe.statut == 'ECHEC' %}
+                                            <i class="fas fa-times-circle" style="color: red;"></i>
+                                        {% endif %}
                                     </td>
 
                                     <td>
                                         <i class="fas fa-edit" style="color:#3465a4"></i>
 
                                         <a href="#" data-bs-toggle="modal" data-bs-target="#confirmDeleteGroupModal"
-                                           data-groupe-url="{% url 'supprimer_groupe' groupe.groupe.id %}"
+                                           data-groupe-url="{% url 'supprimer_groupe' groupe.id %}"
                                            class="text-danger">
                                             <i class="fas fa-trash-alt"></i>
                                         </a>
