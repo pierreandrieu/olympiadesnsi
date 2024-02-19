@@ -10,14 +10,15 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.utils import timezone
 from django.contrib import messages
 from django.http import HttpResponse
-from django.db.models import Q, Count, Prefetch, QuerySet
+from django.db.models import Count, Prefetch, QuerySet
 from epreuve.models import User, Epreuve, MembreComite, Exercice, UserEpreuve
-from inscription.models import GroupeParticipeAEpreuve, InscriptionDomaine, GroupeParticipant
+from inscription.models import InscriptionDomaine, GroupeParticipant
 from intranet.models import ParticipantEstDansGroupe
 from intranet.tasks import save_users_task
 from epreuve.forms import EpreuveForm
 from login.utils import genere_participants_uniques
 from olympiadesnsi import decorators
+import olympiadesnsi.constants as constantes
 
 
 @login_required
@@ -106,8 +107,9 @@ def creer_groupe(request: HttpRequest) -> HttpResponse:
             return redirect('creer_groupe')
 
         nombre_utilisateurs: int = int(entree_utilisateur_nb_users)
-        if not 0 < nombre_utilisateurs <= 999:  # Limite arbitraire pour la démonstration
-            messages.error(request, 'Le nombre de participants doit être entre 1 et 999.')
+        if not 0 < nombre_utilisateurs <= constantes.MAX_USERS_PAR_GROUPE:
+            messages.error(request, f'Le nombre de participants doit être entre 1 et '
+                                    f'{constantes.MAX_USERS_PAR_GROUPE}.')
             return redirect('creer_groupe')
 
         referent: User = request.user
