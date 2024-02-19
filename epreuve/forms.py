@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 from epreuve.models import Epreuve, Exercice, MembreComite
 import re
 
+from olympiadesnsi.constants import DEFAULT_MAX_SOUMISSIONS_PAR_EXERCICE, MAX_USERNAME_TAILLE
+
 
 class EpreuveForm(forms.ModelForm):
 
@@ -170,7 +172,7 @@ class ExerciceForm(forms.ModelForm):
             }),
             'nombre_max_soumissions': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'value': 50  # Valeur par défaut
+                'value': DEFAULT_MAX_SOUMISSIONS_PAR_EXERCICE  # Valeur par défaut
             }),
             'avec_jeu_de_test': forms.CheckboxInput(attrs={
                 'class': 'form-check-input',
@@ -234,7 +236,7 @@ class ExerciceForm(forms.ModelForm):
         super(ExerciceForm, self).__init__(*args, **kwargs)
         self.fields['titre'].required = True
         self.fields['nombre_max_soumissions'].required = True
-        self.initial['nombre_max_soumissions'] = 50
+        self.initial['nombre_max_soumissions'] = DEFAULT_MAX_SOUMISSIONS_PAR_EXERCICE
 
         for field_name, field in self.fields.items():
             if field.required:
@@ -242,7 +244,7 @@ class ExerciceForm(forms.ModelForm):
 
 
 class AjoutOrganisateurForm(forms.Form):
-    username = forms.CharField(label='Nom d’utilisateur', max_length=100)
+    username = forms.CharField(label='Nom d’utilisateur', max_length=MAX_USERNAME_TAILLE)
 
     def __init__(self, *args, **kwargs):
         self.epreuve = kwargs.pop('epreuve', None)  # Ajoute un argument epreuve au formulaire
