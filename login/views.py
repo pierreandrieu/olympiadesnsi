@@ -64,7 +64,8 @@ def generic_login(request_generic: HttpRequest, user_group: str, redirect_url: s
                     return redirect(redirect_url)
                 else:
                     # En cas d'échec, incrémentation du compteur de tentatives échouées dans la session
-                    request.session['failed_login_attempts'] = request.session.get('failed_login_attempts', 0) + 1
+                    request.session['failed_login_attempts'] = request.session.get(
+                        'failed_login_attempts', 0) + 1
                     # Affichage d'un message d'erreur
                     messages.error(request, 'Identifiant ou mot de passe incorrect.')
         else:
