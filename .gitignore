@@ -5,3 +5,12 @@ staticfiles/*
 *.iml
 *.xml
 /.idea
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Fichiers temporaires qui peuvent être créés par des éditeurs
+*~
+*.swp
