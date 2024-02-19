@@ -249,9 +249,7 @@ def inscrire_groupes_epreuve(request: HttpRequest, epreuve_id: int) -> HttpRespo
         groupe_ids: List[int] = request.POST.getlist('groups')  # IDs des groupes sélectionnés pour l'inscription.
         with transaction.atomic():
             for groupe_id in groupe_ids:
-                print("gestion groupe ", groupe_id)
                 groupe: GroupeParticipant = get_object_or_404(GroupeParticipant, id=groupe_id)
-                print("\t", groupe)
                 inscrire_groupe_a_epreuve(groupe, epreuve)
 
             messages.success(request, "Les groupes et leurs membres ont été inscrits avec succès à l'épreuve.")
