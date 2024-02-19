@@ -1,6 +1,7 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from captcha.fields import CaptchaField
+from olympiadesnsi.constants import NB_TENTATIVES_CONNEXIONS_AVANT_CAPTCHA
 
 
 class LoginForm(forms.Form):
@@ -24,7 +25,7 @@ class LoginForm(forms.Form):
 
         # Ajustement conditionnel des champs
         if self.request and hasattr(self.request, 'session'):
-            if self.request.session.get('failed_login_attempts', 0) > 3:
+            if self.request.session.get('failed_login_attempts', 0) > NB_TENTATIVES_CONNEXIONS_AVANT_CAPTCHA:
                 self.fields['captcha'].required = True
                 self.fields['captcha'].widget.attrs.update({'class': 'form-control'})
                 self.fields['captcha'].error_messages = {'required': _('Veuillez résoudre le captcha.')}
