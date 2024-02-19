@@ -6,6 +6,7 @@ from datetime import timedelta
 from intranet.models import GroupeParticipant
 import olympiadesnsi.constants as constantes
 
+
 class InscripteurExterne(models.Model):
     email = models.EmailField(primary_key=True, max_length=constantes.MAX_TAILLE_NOM)
     date_creation = models.DateTimeField(auto_now_add=True)

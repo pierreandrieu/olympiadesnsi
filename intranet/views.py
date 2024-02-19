@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Set
 
 from django.db import transaction
 from django.shortcuts import redirect, get_object_or_404
@@ -274,8 +274,8 @@ def creer_editer_epreuve(request: HttpRequest, epreuve_id: Optional[int] = None)
             if epreuve.inscription_externe:
                 InscriptionDomaine.objects.filter(epreuve=epreuve).delete()
                 domaines_str: str = form.cleaned_data['domaines_autorises']
-                domaines_list: List[str] = [d.strip() for d in domaines_str.split('\n') if d.strip().startswith('@')]
-                for domaine in domaines_list:
+                domaines_set: Set[str] = {d.strip() for d in domaines_str.split('\n') if d.strip().startswith('@')}
+                for domaine in domaines_set:
                     InscriptionDomaine.objects.create(epreuve=epreuve, domaine=domaine)
 
             action: str = 'créée' if not epreuve_id else 'mise à jour'
