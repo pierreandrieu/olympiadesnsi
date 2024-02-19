@@ -1,31 +1,34 @@
 from django.contrib.auth.models import Group, User
-from django.utils.crypto import get_random_string
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 #from epreuve.models import Epreuve
 from intranet.models import GroupeParticipant
+import olympiadesnsi.constants as constantes
+
+class InscripteurExterne(models.Model):
+    email = models.EmailField(primary_key=True, max_length=constantes.MAX_TAILLE_NOM)
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'InscripteurExterne'
 
 
-class Inscripteur(models.Model):
-    email = models.EmailField()
-    token = models.CharField(max_length=100, unique=True, blank=True)
+class InscriptionExterne(models.Model):
+    inscripteur = models.ForeignKey(InscripteurExterne, on_delete=models.CASCADE)
+    token = models.CharField(max_length=constantes.TOKEN_LENGTH, unique=True, blank=True)
     epreuve = models.ForeignKey("epreuve.Epreuve", on_delete=models.CASCADE)
     date_creation = models.DateTimeField(auto_now_add=True)
     token_est_utilise = models.BooleanField(default=False)
 
-    def save(self, *args, **kwargs):
-        if not self.token:
-            self.token = get_random_string(50)  # Génère un token aléatoire
-        super().save(*args, **kwargs)
-
     @property
     def est_valide(self):
-        """Vérifie si l'invitation est encore valide (par exemple, non expirée)."""
-        return not self.token_est_utilise and (timezone.now() - self.date_creation < timedelta(hours=1))
+        # Vérifie si l'invitation est encore valide (pas encore utilisé et non expirée).
+        return not self.token_est_utilise and (timezone.now() - self.date_creation <
+                                               timedelta(hours=constantes.HEURES_VALIDITE_TOKEN))
 
     class Meta:
-        db_table = 'Inscripteur'
+        db_table = 'InscriptionExterne'
 
 
 class GroupeParticipeAEpreuve(models.Model):
@@ -35,7 +38,7 @@ class GroupeParticipeAEpreuve(models.Model):
     class Meta:
         db_table = 'GroupeParticipeAEpreuve'
         indexes = [
-            models.Index(fields=['groupe', 'epreuve']),
+            models.Index(fields=['groupe']),
             models.Index(fields=['epreuve']),
 
         ]
@@ -44,7 +47,7 @@ class GroupeParticipeAEpreuve(models.Model):
 
 class InscriptionDomaine(models.Model):
     epreuve = models.ForeignKey("epreuve.Epreuve", on_delete=models.CASCADE)
-    domaine = models.CharField(max_length=100)
+    domaine = models.CharField(max_length=constantes.MAX_TAILLE_NOM)
 
     class Meta:
         db_table = 'Inscription_domaine'
