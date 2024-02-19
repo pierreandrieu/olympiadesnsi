@@ -1,11 +1,14 @@
 from django.db import models
+from django.utils.text import slugify
 from django.contrib.auth.models import User, Group
 from django.db.models import CheckConstraint, Q, F
 from inscription.models import GroupeParticipant
+from olympiadesnsi.constants import MAX_TAILLE_NOM
 
 
 class Epreuve(models.Model):
-    nom = models.CharField(max_length=100)
+    nom = models.CharField(max_length=MAX_TAILLE_NOM)
+    code = models.CharField(max_length=255, unique=True, blank=False, null=False)
     date_debut = models.DateTimeField(null=False, blank=False)
     date_fin = models.DateTimeField(null=False, blank=False)
     duree = models.IntegerField(null=True)  # Durée en minutes
@@ -21,8 +24,14 @@ class Epreuve(models.Model):
         return self.nom
 
     def save(self, *args, **kwargs):
-        self.clean()
-        super().save(*args, **kwargs)
+        if not self.id:  # L'objet n'a pas encore été enregistré dans la base de données
+            self.clean()
+            super().save(*args, **kwargs)  # Sauvegarde préalable pour obtenir un ID
+        # Générer le code unique
+        nom_formatte = slugify(self.nom)[:50]  # Limite à 50 caractères et remplace les espaces par des tirets
+        self.code = f"{self.id:03d}_{nom_formatte}"
+        super().save(*args, **kwargs)  # Sauvegarde finale avec le code unique
+
 
     class Meta:
         db_table = 'Epreuve'
@@ -52,7 +61,7 @@ class Exercice(models.Model):
 
     epreuve = models.ForeignKey(Epreuve, on_delete=models.CASCADE)
     auteur = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    titre = models.CharField(max_length=100)
+    titre = models.CharField(max_length=MAX_TAILLE_NOM)
     bareme = models.IntegerField(null=True)
     type_exercice = models.CharField(max_length=14, choices=TYPE_EXERCICE_CHOIX, default="programmation")
     enonce = models.TextField(null=True, blank=True)
