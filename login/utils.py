@@ -4,9 +4,10 @@ from django.contrib.auth.models import User
 from django.utils.crypto import get_random_string
 
 from inscription.models import CompteurParticipantsAssocies
+import olympiadesnsi.constants as constantes
 
 
-def genere_mot_de_passe(taille: int) -> str:
+def genere_mot_de_passe(taille: int = constantes.TAILLE_MDP) -> str:
     """
     Génère un mot de passe aléatoire.
 
@@ -19,7 +20,8 @@ def genere_mot_de_passe(taille: int) -> str:
     return get_random_string(length=taille, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789')
 
 
-def genere_participants_uniques(referent: User, nb: int, taille_mdp: int = 12) -> List[Tuple[str, str]]:
+def genere_participants_uniques(referent: User, nb: int, taille_mdp: int = constantes.TAILLE_MDP) \
+        -> List[Tuple[str, str]]:
     """
     Génère une liste de tuples contenant des noms d'utilisateurs uniques et des mots de passe pour un référent donné.
 
@@ -32,7 +34,6 @@ def genere_participants_uniques(referent: User, nb: int, taille_mdp: int = 12) -
         List[Tuple[str, str]]: Liste de tuples, chaque tuple contenant un nom d'utilisateur unique et un mot de passe.
     """
     # Génération d'une partie aléatoire et du faux ID basé sur l'ID du référent
-    partie_alea = get_random_string(length=3, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ')
     faux_id = str(2 * referent.id + 100)
 
     # Récupération du nombre de participants déjà administrés par le référent
@@ -42,8 +43,9 @@ def genere_participants_uniques(referent: User, nb: int, taille_mdp: int = 12) -
     # Génération des noms d'utilisateurs et mots de passe
     utilisateurs_mdp = [
         (
-            f"{partie_alea}{faux_id[:len(faux_id) // 2]}_{(nb_participants_administres + i + 1):03d}"
-            f"{faux_id[len(faux_id) // 2:]}",
+            f"{get_random_string(length=4, allowed_chars='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ')}"
+            f"{faux_id}"
+            f"{(nb_participants_administres + i + 1):03d}",
             genere_mot_de_passe(taille_mdp)) for i in range(nb)
     ]
 
