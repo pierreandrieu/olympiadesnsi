@@ -11,7 +11,7 @@ class DemandeLienInscriptionForm(forms.Form):
         to_field_name="code"  # Utilisez `code` comme valeur à soumettre
     )
     identifiant = forms.CharField(
-        label='Identifiant',
+        label='Email',
         max_length=constantes.MAX_USERNAME_TAILLE,
         help_text='Entrez votre email'
     )

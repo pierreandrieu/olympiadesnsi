@@ -382,3 +382,9 @@ div#exercice-container div.exercice-row:last-child .move-down {
 .hidden-inscription-externe {
     display: none;
 }
+
+.select-with-scroll {
+    height: auto;
+    max-height: 200px; /* Hauteur maximale avant que le défilement ne s'active */
+    overflow-y: auto; /* Active le défilement vertical si nécessaire */
+}
