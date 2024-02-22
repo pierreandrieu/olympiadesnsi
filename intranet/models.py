@@ -5,6 +5,14 @@ import olympiadesnsi.constants as constantes
 
 
 class GroupeParticipant(models.Model):
+    def get_nombre_participants(self) -> int:
+        """
+        Renvoie le nombre de participants dans le groupe.
+
+        :return: Le nombre de participants dans le groupe.
+        """
+        return self.membres.count()  # Utilise la relation inverse `membres` définie dans ParticipantEstDansGroupe
+
     STATUT_CHOICES = (
         ('VALIDE', 'Valide'),
         ('CREATION', 'En cours de création'),
