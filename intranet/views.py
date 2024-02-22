@@ -95,7 +95,6 @@ def creer_groupe(request: HttpRequest) -> HttpResponse:
     if request.method == 'POST':
         # Récupération et validation du nom du groupe
         nom_groupe: str = request.POST.get('nom_groupe').strip()
-        print("nom groupe = ", nom_groupe)
         if not nom_groupe:
             messages.error(request, "Le nom du groupe ne peut pas être vide.")
             return redirect('creer_groupe')
@@ -127,9 +126,7 @@ def creer_groupe(request: HttpRequest) -> HttpResponse:
         users_info: List[Tuple[str, str]] = genere_participants_uniques(referent, nombre_utilisateurs)
 
         # Envoi des utilisateurs à créer en tâche de fond
-        print("avant")
         save_users_task.delay(nouveau_groupe.id, users_info)
-        print("apres")
         # Préparation du fichier CSV pour téléchargement
         user_data = ["Username,Password"] + [f"{username},{password}" for username, password in users_info]
         request.session['csv_data'] = "\n".join(user_data)
@@ -355,7 +352,9 @@ def change_password_generic(request, template, vue):
 
     if request.method == 'POST' and form.is_valid():
         user = form.save()
-        update_session_auth_hash(request, user)  # Important pour maintenir la session de l'utilisateur
+
+        #  Maintenir la session de l'utilisateur
+        update_session_auth_hash(request, user)
         messages.success(request, 'Votre mot de passe a été mis à jour avec succès!')
         return redirect(
             vue)  # Rediriger vers une URL spécifique après la mise à jour réussie

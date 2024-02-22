@@ -50,7 +50,6 @@ def generic_login(request_generic: HttpRequest, user_group: str, redirect_url: s
                 # Extraction des données validées du formulaire
                 username = form.cleaned_data['username']
                 password = form.cleaned_data['password']
-                print(username, password)
                 # Tentative d'authentification de l'utilisateur avec les identifiants fournis
                 user = authenticate(request, username=username, password=password)
 
