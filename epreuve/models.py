@@ -32,7 +32,6 @@ class Epreuve(models.Model):
         self.code = f"{self.id:03d}_{nom_formatte}"
         super().save(*args, **kwargs)  # Sauvegarde finale avec le code unique
 
-
     class Meta:
         db_table = 'Epreuve'
         unique_together = ['nom', 'referent']
