@@ -1,6 +1,5 @@
 import os
 from celery import Celery
-from kombu import Exchange, Queue
 from django.conf import settings  # Importer les paramètres Django
 
 # Définir la variable d'environnement DJANGO_SETTINGS_MODULE pour le projet
@@ -32,4 +31,3 @@ app.conf.task_default_queue = 'default'
 
 # Paramètre supplémentaire pour gérer les tentatives de reconnexion au démarrage
 app.conf.broker_connection_retry_on_startup = True
-

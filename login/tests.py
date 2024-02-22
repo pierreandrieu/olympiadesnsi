@@ -40,6 +40,7 @@ class RateLimitTestCase(TestCase):
         self.group = Group.objects.create(name='Participant')
         self.user.groups.add(self.group)
         self.user.save()
+
     def test_rate_limit(self):
         """
         Vérification du fonctionnement du rate limit.

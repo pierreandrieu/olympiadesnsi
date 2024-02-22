@@ -2,7 +2,6 @@ from django.contrib.auth.models import Group, User
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
-#from epreuve.models import Epreuve
 from intranet.models import GroupeParticipant
 import olympiadesnsi.constants as constantes
 

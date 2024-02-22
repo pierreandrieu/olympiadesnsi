@@ -40,7 +40,8 @@ def espace_participant(request: HttpRequest) -> HttpResponse:
 
     epreuves_ids: QuerySet[int] = UserEpreuve.objects.filter(participant=user).values_list('epreuve_id', flat=True)
     # Récupération des associations UserEpreuve pour l'utilisateur
-    user_epreuves: QuerySet[UserEpreuve] = UserEpreuve.objects.filter(participant=user, epreuve_id__in=epreuves_ids).select_related('epreuve')
+    user_epreuves: QuerySet[UserEpreuve] = (UserEpreuve.objects.filter
+                                            (participant=user, epreuve_id__in=epreuves_ids).select_related('epreuve'))
 
     # Initialise les listes pour classer les épreuves
     epreuves_a_venir: List[Epreuve] = []
@@ -320,7 +321,6 @@ def espace_organisateur(request: HttpRequest) -> HttpResponse:
     epreuves_info: List[Tuple[Epreuve, int, QuerySet, int, int, int, List[User]]] = []
     for epreuve in epreuves_organisees:
         nombre_groupes: int = epreuve.groupes_participants.count()
-        epreuves_organisees: QuerySet[Epreuve] = Epreuve.objects.filter(referent=user)
 
         groupes_participants_ids = epreuve.groupes_participants.values_list('id', flat=True)
 
@@ -365,10 +365,12 @@ def change_password_generic(request, template, vue):
 @login_required
 @decorators.participant_required
 def change_password_participant(request):
-    return change_password_generic(request, "intranet/gestion_compte_participant.html", "espace_participant")
+    return change_password_generic(request, "intranet/gestion_compte_participant.html",
+                                   "espace_participant")
 
 
 @login_required
 @decorators.organisateur_required
 def change_password_organisateur(request):
-    return change_password_generic(request, "intranet/gestion_compte_organisateur.html", "espace_organisateur")
+    return change_password_generic(request, "intranet/gestion_compte_organisateur.html",
+                                   "espace_organisateur")

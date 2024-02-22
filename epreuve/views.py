@@ -19,7 +19,7 @@ from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant
 import olympiadesnsi.decorators as decorators
 import json
 from datetime import timedelta
-from typing import Union, List, Optional, Dict
+from typing import List, Optional, Dict
 
 
 @login_required
@@ -39,7 +39,6 @@ def detail_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     Returns:
         HttpResponse: La réponse HTTP avec le template d'affichage de l'épreuve.
     """
-    print("enter")
     epreuve: Epreuve = getattr(request, 'epreuve', None)
     return render(request, 'epreuve/detail_epreuve.html', {'epreuve': epreuve})
 
