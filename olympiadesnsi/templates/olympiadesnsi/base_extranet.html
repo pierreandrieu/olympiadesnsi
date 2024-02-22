@@ -6,6 +6,8 @@
             {% include 'olympiadesnsi/nav_organisateur.html' %}
         {% elif utilisateur_est_participant %}
             {% include 'olympiadesnsi/nav_participant.html' %}
+        {% else %}
+            {% include 'olympiadesnsi/nav_extranet.html' %}
         {% endif %}
     {% else %}
         {% include 'olympiadesnsi/nav_extranet.html' %}
