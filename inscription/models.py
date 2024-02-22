@@ -30,6 +30,10 @@ class InscriptionExterne(models.Model):
 
     class Meta:
         db_table = 'InscriptionExterne'
+        indexes = [
+            models.Index(fields=['inscripteur']),
+
+        ]
 
 
 class GroupeParticipeAEpreuve(models.Model):
@@ -59,14 +63,12 @@ class InscriptionDomaine(models.Model):
 
 
 class CompteurParticipantsAssocies(models.Model):
-    organisateur = models.ForeignKey(User, on_delete=models.CASCADE, related_name='User_CompteurParticipantsAssocies')
+    organisateur = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True,
+                                        related_name='compteur_participants_associes')
     nb_participants_associes = models.IntegerField(default=0, null=False, blank=False)
 
     class Meta:
         db_table = 'Organisateur_CompteurParticipant'
-        indexes = [
-            models.Index(fields=['organisateur']),
-        ]
         verbose_name = 'compteur de participants associes à organisateur'
         verbose_name_plural = 'compteurs de participants associes à organisateur'
 

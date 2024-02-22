@@ -1,20 +1,14 @@
-{% extends 'olympiadesnsi/base.html' %}
+{% extends 'olympiadesnsi/base_extranet.html' %}
+{% load crispy_forms_filters %}
+{% load crispy_forms_tags %}
 
 {% block content %}
-    <div class="container">
-        <h2>Inscription des Équipes</h2>
-        <p>Email inscripteur: {{ email }}</p>
-        <p>Équipes déjà inscrites: {{ equipes_inscrites }}</p>
-        <p>Participants déjà inscrits: {{ participants_inscrits }}</p>
-        <p>Vous pouvez encore inscrire jusqu'à {{ nombre_max_equipes }} équipes.</p>
-
-        <form method="post">
+    <div class="container my-4">
+        <h1 class="mb-4">{{ epreuve }} </h1>
+        <h2 class="mb-4">Inscription des participants (ou équipes) </h2>
+        <form method="post" id="inscriptionEquipeForm">
             {% csrf_token %}
-            <!-- Formulaire pour inscrire une nouvelle équipe -->
-            <label for="nombre_equipes">Nombre d'équipes à inscrire (1 - {{ nombre_max_equipes }}):</label>
-            <input type="number" id="nombre_equipes" name="nombre_equipes" min="1" max="{{ nombre_max_equipes }}"
-                   required>
-            <button type="submit">Inscrire les équipes</button>
+            {{ form|crispy }}
         </form>
     </div>
 {% endblock %}

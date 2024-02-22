@@ -10,12 +10,13 @@ from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant, Inscr
 from olympiadesnsi.constants import TOKEN_LENGTH
 
 
-def inscrire_groupe_a_epreuve(groupe: GroupeParticipant, epreuve: Epreuve) -> None:
+def inscrire_groupe_a_epreuve(groupe: GroupeParticipant, nouveaux_inscrits: QuerySet[User], epreuve: Epreuve) -> None:
     """
     Inscription d'un groupe de participants à une épreuve, incluant l'inscription à tous les exercices de l'épreuve.
 
     Args:
         groupe (GroupeParticipant): Le groupe de participants à inscrire.
+        nouveaux_inscrits (QuerySet[User]): Les nouveaux utilisateurs du groupe
         epreuve (Epreuve): L'épreuve à laquelle le groupe est inscrit.
 
     Cette fonction crée une instance de GroupeParticipeAEpreuve pour lier le groupe à l'épreuve,
@@ -23,7 +24,6 @@ def inscrire_groupe_a_epreuve(groupe: GroupeParticipant, epreuve: Epreuve) -> No
     pour optimiser les performances de la base de données.
     """
     # Récupération des membres du groupe
-    membres: QuerySet[User] = User.objects.filter(appartenances__groupe=groupe)
 
     # Récupération des exercices de l'épreuve
     exercices: List[Exercice] = list(Exercice.objects.filter(epreuve=epreuve))
@@ -32,9 +32,9 @@ def inscrire_groupe_a_epreuve(groupe: GroupeParticipant, epreuve: Epreuve) -> No
 
     with transaction.atomic():
         # Création de l'inscription du groupe à l'épreuve
-        GroupeParticipeAEpreuve.objects.create(groupe=groupe, epreuve=epreuve)
+        GroupeParticipeAEpreuve.objects.get_or_create(groupe=groupe, epreuve=epreuve)
         # Préparation des objets UserEpreuve et UserExercice pour chaque membre
-        for participant in membres:
+        for participant in nouveaux_inscrits:
             user_epreuves_to_create.append(UserEpreuve(participant=participant, epreuve=epreuve))
             for exercice in exercices:
                 user_exercices_to_create.append(UserExercice(exercice=exercice, participant=participant))

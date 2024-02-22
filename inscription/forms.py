@@ -1,7 +1,10 @@
+from crispy_forms.helper import FormHelper
+from crispy_forms.layout import Layout, Div, HTML, Submit
 from django import forms
 
 from epreuve.models import Epreuve
 import olympiadesnsi.constants as constantes
+
 
 class DemandeLienInscriptionForm(forms.Form):
     epreuve = forms.ModelChoiceField(
@@ -32,5 +35,18 @@ class DemandeLienInscriptionForm(forms.Form):
 
 
 class EquipeInscriptionForm(forms.Form):
-    nombre_equipes = forms.IntegerField(label='Nombre d\'équipes à inscrire', min_value=1,
-                                        max_value=constantes.MAX_USERS_PAR_GROUPE)
+    nombre_participants = forms.IntegerField(label="Nombre de participants (ou équipes) à inscrire", min_value=1)
+
+    def __init__(self, *args, **kwargs):
+        self.max_equipes = kwargs.pop('max_equipes', constantes.MAX_USERS_PAR_GROUPE)
+        super().__init__(*args, **kwargs)
+        self.fields['nombre_participants'].max_value = self.max_equipes
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Div(
+                'nombre_participants',
+                HTML(f"<p class='text-info'>Nombre d'inscriptions encore possibles : {self.max_equipes}</p>"),
+                css_class='form-group'
+            ),
+            Submit('submit', 'Inscrire des participants', css_class='btn btn-primary')
+        )
