@@ -13,8 +13,8 @@ from django.contrib import messages
 from django.urls import reverse
 from epreuve.models import Epreuve, Exercice, JeuDeTest, MembreComite, UserEpreuve, UserExercice
 from epreuve.forms import ExerciceForm, AjoutOrganisateurForm
-from epreuve.utils import assigner_participants_jeux_de_test, redistribuer_jeux_de_test_exercice
-from inscription.utils import inscrire_groupe_a_epreuve
+from epreuve.utils import redistribuer_jeux_de_test_exercice
+from inscription.utils import assigner_participants_jeux_de_test, inscrire_groupe_a_epreuve
 from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant
 import olympiadesnsi.decorators as decorators
 import json

@@ -45,7 +45,6 @@ def inscription_demande(request: HttpRequest) -> HttpResponse:
 
             # Récupération de l'objet Epreuve via son ID
             epreuve: Epreuve = Epreuve.objects.get(id=epreuve_id)
-            print("nom = ", epreuve.nom)
 
             # Création de l'objet InscriptionExterne
             inscription: InscriptionExterne = InscriptionExterne.objects.create(
@@ -94,7 +93,6 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
             # Étape 1 : Trouver l'InscripteurExterne et l'Epreuve
             inscripteur: InscripteurExterne = inscription_externe.inscripteur
             epreuve: Epreuve = inscription_externe.epreuve
-            print("nom toto ", epreuve.nom)
             referent: User = epreuve.referent
 
             groupe_inscripteur: Optional[GroupeParticipant] = (
@@ -118,7 +116,6 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
                     referent=referent,
                     inscripteur=inscripteur)
 
-                print("nom groupe = ", groupe_inscripteur.nom)
                 users_info = genere_participants_uniques(referent, nombre_participants)
                 save_users_task.delay(groupe_inscripteur.id, users_info, inscription_externe.id)
                 inscription_externe.save()

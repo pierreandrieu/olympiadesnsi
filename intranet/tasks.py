@@ -68,7 +68,7 @@ def save_users_task(groupe_id: int, users_info: List[Tuple[str, str]],
             if inscription_externe_id:
                 inscription_externe: InscriptionExterne = InscriptionExterne.objects.get(id=inscription_externe_id)
                 # Logique pour inscrire le groupe à l'épreuve et aux exercices associés
-                inscrire_groupe_a_epreuve(groupe, users, inscription_externe.epreuve)
+                inscrire_groupe_a_epreuve(groupe=groupe, epreuve=inscription_externe.epreuve, participants=users)
                 email = inscription_externe.inscripteur.email
                 epreuve_nom = inscription_externe.epreuve.nom
                 mail = EmailMessage(

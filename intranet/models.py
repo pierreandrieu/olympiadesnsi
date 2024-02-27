@@ -13,6 +13,14 @@ class GroupeParticipant(models.Model):
         """
         return self.membres.count()  # Utilise la relation inverse `membres` définie dans ParticipantEstDansGroupe
 
+    def participants(self):
+        """
+        Renvoie tous les utilisateurs membres du groupe.
+
+        :return: QuerySet des utilisateurs membres du groupe.
+        """
+        return User.objects.filter(appartenances__groupe=self)
+
     STATUT_CHOICES = (
         ('VALIDE', 'Valide'),
         ('CREATION', 'En cours de création'),
