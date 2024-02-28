@@ -192,6 +192,7 @@ class ExerciceForm(forms.ModelForm):
         enonce = cleaned_data.get('enonce')
         enonce_code = cleaned_data.get('enonce_code')
         avec_jeu_de_test = cleaned_data.get('avec_jeu_de_test')
+        code_a_soumettre = cleaned_data.get('code_a_soumettre')
         nombre_de_soumissions = str(cleaned_data.get('nombre_max_soumissions')).strip()
         # Vérifier la présence de l'énoncé
         if not enonce and not enonce_code:
@@ -229,6 +230,12 @@ class ExerciceForm(forms.ModelForm):
                 raise ValidationError(
                     'Vous avez coché la case jeux de test et devez donc insérer au moins'
                     ' un jeu de test avec sa réponse.')
+
+        else:
+            if not code_a_soumettre:
+                raise ValidationError('Pour un exercice de programmation, il est obligatoire de demander à ce que'
+                                      'le code sout soumis ou alors à résoudre un jeu de test. '
+                                      'Il faut donc cocher "code à soumettre" ou "avec jeu de test" (ou les deux).')
 
         return cleaned_data
 
