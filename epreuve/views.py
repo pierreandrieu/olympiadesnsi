@@ -105,10 +105,15 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
 
     # Calcul du temps restant pour compléter l'épreuve, si applicable.
     temps_restant: Optional[timedelta] = None
-    if epreuve and epreuve.duree and epreuve.temps_limite:
+    if epreuve and epreuve.temps_limite:
         user_epreuve, _ = UserEpreuve.objects.get_or_create(participant=user, epreuve=epreuve)
-        if user_epreuve.fin_epreuve:
-            temps_restant = max(user_epreuve.fin_epreuve - timezone.now(), timedelta(seconds=0))
+        if not user_epreuve.fin_epreuve:
+            # Convertit la durée de l'épreuve en minutes en un objet timedelta
+            user_epreuve.fin_epreuve = timezone.now() + timedelta(minutes=epreuve.duree)
+            user_epreuve.save()
+
+        # Calcul du temps restant
+        temps_restant = max(user_epreuve.fin_epreuve - timezone.now(), timedelta(seconds=0))
 
     return render(request, 'epreuve/afficher_epreuve.html', {
         'epreuve': epreuve,
