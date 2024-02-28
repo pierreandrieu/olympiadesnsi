@@ -1,4 +1,5 @@
 {% extends 'olympiadesnsi/base_participant.html' %}
+{% load static %}
 
 {% block prescripts %}
     <script>
@@ -27,29 +28,8 @@
 
         </div>
 
-        {% if temps_restant %}
-            <div id="chronometre">Temps restant : <span id="temps-restant"></span></div>
-
-            {{ temps_restant.seconds|json_script:"temps-restant-data" }}
-
-            <script>
-                var tempsRestant = JSON.parse(document.getElementById('temps-restant-data').textContent);
-                var intervalId = setInterval(function () {
-                    if (tempsRestant <= 0) {
-                        clearInterval(intervalId);
-                        // Logique à exécuter lorsque le temps est écoulé
-                    } else {
-                        tempsRestant--;
-                        var heures = Math.floor(tempsRestant / 3600);
-                        var minutes = Math.floor((tempsRestant % 3600) / 60);
-                        var secondes = tempsRestant % 60;
-                        document.getElementById('temps-restant').textContent =
-                            heures.toString().padStart(2, '0') + ':' +
-                            minutes.toString().padStart(2, '0') + ':' +
-                            secondes.toString().padStart(2, '0');
-                    }
-                }, 1000);
-            </script>
+        {% if epreuve.temps_limite %}
+                {% include 'epreuve/affichage_epreuve/chronometre.html' %}
         {% endif %}
 
         <div class="exercise-navigation">
@@ -57,14 +37,15 @@
 
             <button id="prev-exercise" class="btn nav-btn" disabled><i class="fa-solid fa-arrow-left" style="color:white;"></i></button>
             <div id="exercice-container" class="exercise-box">
-                <!-- Les exercices sont chargés ici -->
+
             </div>
             <button id="next-exercise" class="btn nav-btn"><i class="fa-solid fa-arrow-right" style="color:white;"></i></button>
         </div>
 
+        <script src="{% static 'js/affichage_exercices/chronometre.js' %}"></script>
 
-        <!-- Script pour charger et naviguer entre les exercices -->
         <script>
+
 
             document.addEventListener('DOMContentLoaded', function () {
                 const btnPrev = document.getElementById('prev-exercise');
@@ -76,13 +57,13 @@
 
                 function updateNavigationButtons() {
                     if (unParUn) {
-                        // Cacher le bouton précédent si l'option "forcer l'ordre des exercices" est activée
+                        // Cache le bouton précédent si l'option "forcer l'ordre des exercices" est activée
                         btnPrev.style.visibility = 'hidden';
-                        // Désactiver le bouton suivant jusqu'à ce qu'il y ait au moins une soumission pour l'exercice actuel
+                        // Désactive le bouton suivant jusqu'à ce qu'il y ait au moins une soumission pour l'exercice actuel
                         btnNext.disabled = exercises[currentExerciseIndex].nb_soumissions === 0;
                         btnNext.addEventListener('click', function () {
                             if (exercises[currentExerciseIndex].nb_soumissions > 0) {
-                                // Rafraîchir la page
+                                // Rafraîchit la page
                                 location.reload();
                             }
                         });
@@ -304,7 +285,7 @@
                     btnPrev.style.visibility="hidden";
                     btnNext.style.visibility = "hidden";
                 }
-                document.getElementById('submit-button').addEventListener('click', function () {
+                document.getElementById('btn-submit-participant').addEventListener('click', function () {
                     const currentExercise = exercises[currentExerciseIndex];
                     soumettreReponse(currentExercise.id);
                 });
