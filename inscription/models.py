@@ -20,6 +20,7 @@ class InscriptionExterne(models.Model):
     epreuve = models.ForeignKey("epreuve.Epreuve", on_delete=models.CASCADE)
     date_creation = models.DateTimeField(auto_now_add=True)
     token_est_utilise = models.BooleanField(default=False)
+    nombre_participants_demandes = models.IntegerField(default=0)
 
     @property
     def est_valide(self):

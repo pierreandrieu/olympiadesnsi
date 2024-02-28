@@ -86,47 +86,78 @@ def confirmation_envoi_lien_email(request: HttpRequest) -> HttpResponse:
 
 
 def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
+    """
+    Traite l'inscription externe d'équipes ou de participants individuels à une épreuve
+    à l'aide d'un token unique. Crée ou récupère le groupe d'inscription correspondant
+    et enregistre les participants.
+
+    Args:
+    request (HttpRequest): La requête HTTP envoyée à la vue.
+    token (str): Le token unique associé à une inscription externe.
+
+    Returns:
+    HttpResponse: La réponse HTTP redirigeant vers une page de confirmation ou d'erreur.
+    """
     try:
-        inscription_externe = InscriptionExterne.objects.get(token=token, token_est_utilise=False)
-        if inscription_externe.est_valide:
+        inscription_externe: InscriptionExterne = InscriptionExterne.objects.get(token=token, token_est_utilise=False)
+        if not inscription_externe.est_valide:
+            # Si l'inscription n'est pas valide, redirige vers une page d'erreur.
+            return render(request, 'inscription/erreur_lien_expire.html')
 
-            # Étape 1 : Trouver l'InscripteurExterne et l'Epreuve
-            inscripteur: InscripteurExterne = inscription_externe.inscripteur
-            epreuve: Epreuve = inscription_externe.epreuve
-            referent: User = epreuve.referent
+        # Étape 1 : Trouver l'InscripteurExterne et l'Epreuve.
+        inscripteur: InscripteurExterne = inscription_externe.inscripteur
+        epreuve: Epreuve = inscription_externe.epreuve
+        referent: User = epreuve.referent
 
-            groupe_inscripteur: Optional[GroupeParticipant] = (
-                GroupeParticipant.objects.filter(nom=f"auto_{epreuve.nom[:10]}_{inscripteur.email.split('@')[0]}",
-                                                 referent=referent,
-                                                 inscripteur=inscripteur).first())
-            nombre_deja_inscrits: int = 0
-            if groupe_inscripteur:
-                nombre_deja_inscrits = groupe_inscripteur.get_nombre_participants()
+        # Tente de trouver un groupe d'inscription existant ou crée un nouveau groupe.
+        groupe_inscripteur: Optional[GroupeParticipant] = GroupeParticipant.objects.filter(
+            nom=f"auto_{epreuve.nom[:10]}_{inscripteur.email.split('@')[0]}",
+            referent=referent,
+            inscripteur=inscripteur
+        ).first()
 
-            max_participants_encore_possibles = constantes.MAX_USERS_PAR_GROUPE - nombre_deja_inscrits
-            form = EquipeInscriptionForm(request.POST or None,
-                                         max_equipes=max_participants_encore_possibles)
-            if request.method == 'POST' and form.is_valid():
-                nombre_participants = form.cleaned_data['nombre_participants']
-                # Ici, vous enregistreriez les informations d'inscription des équipes
-                # et mettriez à jour l'objet invitation comme étant utilisé
-                inscription_externe.token_est_utilise = True
-                groupe_inscripteur, _ = GroupeParticipant.objects.get_or_create(
-                    nom=f"auto_{epreuve.nom[:10]}_{inscripteur.email.split('@')[0]}",
-                    referent=referent,
-                    inscripteur=inscripteur)
+        nombre_deja_inscrits: int = groupe_inscripteur.get_nombre_participants() if groupe_inscripteur else 0
+        max_participants_encore_possibles: int = constantes.MAX_USERS_PAR_GROUPE - nombre_deja_inscrits
 
-                users_info = genere_participants_uniques(referent, nombre_participants)
-                save_users_task.delay(groupe_inscripteur.id, users_info, inscription_externe.id)
-                inscription_externe.save()
-                return redirect('confirmation_inscription_externe')
-            return render(request, 'inscription/inscription_externe_equipes.html', {
-                'form': form,
-                'epreuve': epreuve.nom,
-                'deja_inscrits': nombre_deja_inscrits
-            })
+        # Prépare le formulaire d'inscription avec le nombre maximum de participants possibles.
+        form: EquipeInscriptionForm = EquipeInscriptionForm(request.POST or None,
+                                                            max_equipes=max_participants_encore_possibles)
+
+        if request.method == 'POST' and form.is_valid():
+            nombre_participants: int = form.cleaned_data['nombre_participants']
+            inscription_externe.nombre_participants_demandes = nombre_participants
+            inscription_externe.save()
+            num: int = 1 + InscriptionExterne.objects.filter(
+                epreuve=epreuve, inscripteur__email=inscripteur.email, token_est_utilise=False
+            ).count()
+
+            # Crée un nouveau groupe d'inscription si nécessaire et enregistre les participants.
+            groupe_inscripteur, _ = GroupeParticipant.objects.get_or_create(
+                nom=f"auto_{epreuve.nom[:10]}_{inscripteur.email}_{num:03}",
+                referent=referent,
+                inscripteur=inscripteur
+            )
+
+            # Génère et enregistre les informations des participants.
+            users_info = genere_participants_uniques(referent, nombre_participants)
+            save_users_task.delay(groupe_inscripteur.id, users_info, inscription_externe.id)
+
+            # Marque le token comme utilisé et sauvegarde l'inscription.
+            inscription_externe.token_est_utilise = True
+            inscription_externe.save()
+
+            # Redirige vers une page de confirmation.
+            return redirect('confirmation_inscription_externe')
+
+        # Affiche le formulaire d'inscription si GET ou POST non valide.
+        return render(request, 'inscription/inscription_externe_equipes.html', {
+            'form': form,
+            'epreuve': epreuve.nom,
+            'deja_inscrits': nombre_deja_inscrits
+        })
 
     except InscriptionExterne.DoesNotExist:
+        # Gère le cas où le token ne correspond à aucune inscription existante.
         return render(request, 'inscription/erreur_lien_expire.html')
 
     except InscripteurExterne.DoesNotExist:
