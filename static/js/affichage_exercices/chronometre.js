@@ -4,7 +4,7 @@ function initialiserChronometre(tempsRestantDataId) {
         if (tempsRestant <= 0) {
             clearInterval(intervalId);
             document.getElementById('temps-restant').textContent = '00:00:00';
-            // Logique à exécuter lorsque le temps est écoulé
+
         } else {
             tempsRestant--;
             const heures = Math.floor(tempsRestant / 3600);

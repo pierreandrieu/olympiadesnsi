@@ -2,296 +2,39 @@
 {% load static %}
 
 {% block prescripts %}
-    <script>
-        window.MathJax = {
-            tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']]
-            },
-            svg: {
-                fontCache: 'global'
-            }
-        };
-    </script>
-
+    <script src="{% static 'js/charger_mathjax.js' %}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js"
             crossorigin="anonymous"></script>
-
 {% endblock %}
 
 {% block content %}
-
     <div class="container mt-4">
-        <h1>{{ epreuve.nom }}</h1>
-        <br/>
-        <br/>
-        <div id="etat-exercices">
+        <h1>{{ epreuve.nom }}</h1> <br/> <br/>
 
-        </div>
-
+        <div id="etat-exercices"></div>
         {% if epreuve.temps_limite %}
-                {% include 'epreuve/affichage_epreuve/chronometre.html' %}
+            {% include 'epreuve/affichage_epreuve/chronometre.html' %}
         {% endif %}
 
         <div class="exercise-navigation">
+            <button id="prev-exercise" class="btn nav-btn"
+                    data-un-par-un="{{ epreuve.exercices_un_par_un }}">
+                <i class="fa-solid fa-arrow-left" style="color:white;"></i>
+            </button>
 
 
-            <button id="prev-exercise" class="btn nav-btn" disabled><i class="fa-solid fa-arrow-left" style="color:white;"></i></button>
-            <div id="exercice-container" class="exercise-box">
-
-            </div>
-            <button id="next-exercise" class="btn nav-btn"><i class="fa-solid fa-arrow-right" style="color:white;"></i></button>
+            <div id="exercice-container" class="exercise-box"></div>
+            <button id="next-exercise" class="btn nav-btn"><i class="fa-solid fa-arrow-right" style="color:white;"></i>
+            </button>
         </div>
-
-        <script src="{% static 'js/affichage_exercices/chronometre.js' %}"></script>
-
-        <script>
-
-
-            document.addEventListener('DOMContentLoaded', function () {
-                const btnPrev = document.getElementById('prev-exercise');
-                const btnNext = document.getElementById('next-exercise');
-                let currentExerciseIndex = 0;
-                const exercises = JSON.parse('{{ exercices_json|escapejs }}');
-                const unParUn = {{ epreuve.exercices_un_par_un|yesno:"true,false" }};
-
-
-                function updateNavigationButtons() {
-                    if (unParUn) {
-                        // Cache le bouton précédent si l'option "forcer l'ordre des exercices" est activée
-                        btnPrev.style.visibility = 'hidden';
-                        // Désactive le bouton suivant jusqu'à ce qu'il y ait au moins une soumission pour l'exercice actuel
-                        btnNext.disabled = exercises[currentExerciseIndex].nb_soumissions === 0;
-                        btnNext.addEventListener('click', function () {
-                            if (exercises[currentExerciseIndex].nb_soumissions > 0) {
-                                // Rafraîchit la page
-                                location.reload();
-                            }
-                        });
-
-                    } else {
-                        btnPrev.style.visibility = 'visible';
-                        btnPrev.disabled = currentExerciseIndex === 0;
-                        btnNext.disabled = currentExerciseIndex === exercises.length - 1;
-                    }
-                }
-
-                function renderLatex(latex) {
-                    const latexContainer = document.createElement('div');
-                    latexContainer.className = 'latex-content';
-                    latexContainer.innerHTML = latex;
-                    document.getElementById('exercice-container').appendChild(latexContainer);
-
-                    MathJax.typesetPromise([latexContainer]).then(() => {
-                        console.log('LaTeX rendu avec succès.');
-                    }).catch((err) => console.error('Erreur de rendu LaTeX:', err));
-                }
-
-                function initIndicateursEtat() {
-                    const etatExercicesContainer = document.getElementById('etat-exercices');
-                    exercises.forEach(exercise => {
-                        const indicateur = document.createElement('span');
-                        if(exercise.reponse_valide) {
-                            indicateur.className = 'indic-exo-valide fa-regular fa-circle-check fa-lg';
-                        } else {
-                            if (exercise.nb_soumissions > 0) {
-                                indicateur.className = 'indic-exo-invalide fa-regular fa-circle-xmark fa-lg';
-                            } else {
-                                indicateur.className = 'indic-exo-non-soumis fa-regular fa-circle-question fa-lg';
-                            }
-                        }
-                        indicateur.id = `indic-exo-${exercise.id}`;
-                        etatExercicesContainer.appendChild(indicateur);
-                    });
-                }
-
-                function indicateurExoCourant(exoCourantId) {
-                    exercises.forEach(exercise => {
-                        exo = document.getElementById(`indic-exo-${exercise.id}`);
-                        exo.classList.remove('fa-solid');
-                        exo.classList.remove('fa-2xl');
-                        exo.classList.add('fa-regular');
-                        exo.classList.add('fa-lg');
-                    });
-                    exoCourant = document.getElementById(`indic-exo-${exoCourantId}`);
-                    exoCourant.classList.remove('fa-regular');
-                    exoCourant.classList.remove('fa-lg');
-                    exoCourant.classList.add('fa-solid');
-                    exoCourant.classList.add('fa-2xl');
-                }
-
-                function mettreAJourIndicateur(exerciseId, isSuccess) {
-                    const indicateur = document.getElementById(`indic-exo-${exerciseId}`);
-                    if (isSuccess) {
-                        indicateur.classList.remove('indic-exo-non-soumis');
-                        indicateur.classList.remove('fa-circle-question');
-                        indicateur.classList.remove('indic-exo-invalide');
-                        indicateur.classList.remove('fa-circle-xmark');
-                        indicateur.classList.add('indic-exo-valide');
-                        indicateur.classList.add('fa-circle-check');
-                    } else {
-                        indicateur.classList.remove('indic-exo-non-soumis');
-                        indicateur.classList.remove('fa-circle-question');
-                        indicateur.classList.add('indic-exo-invalide');
-                        indicateur.classList.add('fa-circle-xmark');
-                        indicateur.classList.remove('indic-exo-valide');
-                        indicateur.classList.remove('fa-circle-check');
-                    }
-                }
-
-                function loadExercise(index) {
-                    const exercise = exercises[index];
-                    const container = document.getElementById('exercice-container');
-                    container.innerHTML = '';
-
-                    // Ajout du titre
-                    const titleElement = document.createElement('h2');
-                    titleElement.innerText = exercise.titre;
-                    container.appendChild(titleElement);
-
-                    /* ANCIEN CODE
-                    switch (exercise.type_enonce) {
-                        case 'latex':
-                            renderLatex(exercise.enonce);
-                            break;
-                        case 'code':
-                            container.innerHTML += `<pre><code>${escapeHtml(exercise.enonce)}</code></pre>`;
-                            break;
-                        default:
-                            container.innerHTML += `<p>${escapeHtml(exercise.enonce)}</p>`;
-                    }
-                    */
-                    renderLatex(exercise.enonce);
-
-                    if (exercise.enonce_code && exercise.enonce_code.trim().length > 0) {
-                        // Créer un élément pour afficher 'enonce_code'
-                        const codeElement = document.createElement('pre');
-                        const codeContent = document.createElement('code');
-                        codeContent.textContent = exercise.enonce_code;
-                        codeElement.appendChild(codeContent);
-                        container.appendChild(codeElement);
-                    }
-
-
-                    // Création du titre de la section de l'instance
-                    if (exercise.avec_jeu_de_test) {
-                        const instanceTitle = document.createElement('p');
-                        instanceTitle.className = 'instance-title';
-                        instanceTitle.innerText = "Résolvez le problème sur le jeu de test suivant :";
-                        container.appendChild(instanceTitle);
-
-                        // Création du conteneur de l'instance
-                        const instanceContainer = document.createElement('div');
-                        instanceContainer.className = 'instance-problem-container';
-                        instanceContainer.textContent = exercise.instance_de_test;/* exercise.instance_probleme_prog_a_resoudre;*/
-                        container.appendChild(instanceContainer);
-
-                        // Création du champ de réponse et du bouton de soumission
-                        const responseContainer = document.createElement('div');
-                        responseContainer.className = 'instance-response-container';
-                        responseContainer.innerHTML = `
-            <input type="text" id="instance-response-${exercise.id}" placeholder="Votre réponse"> `;
-                        container.appendChild(responseContainer);
-                    }
-
-                    // Création du champ et du bouton pour la soumission du code
-                    if (exercise.code_a_soumettre) {
-                        const codeContainer = document.createElement('div');
-                        codeContainer.className = 'code-submission-container';
-                        codeContainer.innerHTML = `
-            <p>Entrez votre code ici :</p>
-            <textarea id="code-submission-${exercise.id}" placeholder="Votre code"></textarea>
-        `;
-                        container.appendChild(codeContainer);
-                    }
-                    // Création du bouton de soumission
-                    const submissionButton = document.createElement('button');
-                    submissionButton.id = 'btn-submit-participant'
-                    submissionButton.className = 'btn nav-btn';
-                    submissionButton.innerText = 'Envoyez votre réponse';
-                    submissionButton.addEventListener('click', function () {
-                        soumettreReponse(exercise.id);
-                    });
-                    container.appendChild(submissionButton);
-                    container.appendChild(submissionButton);
-                    updateNavigationButtons();
-                    indicateurExoCourant(exercise.id);
-                }
-
-                function soumettreReponse(exerciseId) {
-                    // Récupérer les données de réponse
-                    const codeSubmission = document.getElementById(`code-submission-${exerciseId}`) ? document.getElementById(`code-submission-${exerciseId}`).value : '';
-                    const instanceResponse = document.getElementById(`instance-response-${exerciseId}`) ? document.getElementById(`instance-response-${exerciseId}`).value : '';
-
-                    // Créer l'objet de données à envoyer
-                    const data = {
-                        exercice_id: exerciseId,
-                        code_soumis: codeSubmission,
-                        solution_instance: instanceResponse
-                    };
-
-                    fetch('/epreuve/soumettre_reponse/', {
-                        method: 'POST',
-                        body: JSON.stringify(data),
-                        headers: {
-                            'X-CSRFToken': getCookie('csrftoken'),
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            mettreAJourIndicateur(exerciseId, data.reponse_valide);
-                            exercises[currentExerciseIndex].nb_soumissions += 1; // Mise à jour du nombre de soumissions
-                            updateNavigationButtons(); // Mise à jour de l'état des boutons
-                        })
-                        .catch(error => console.error('Erreur:', error));
-                }
-
-
-                function getCookie(name) {
-                    let cookieValue = null;
-                    if (document.cookie && document.cookie !== '') {
-                        const cookies = document.cookie.split(';');
-                        for (let i = 0; i < cookies.length; i++) {
-                            const cookie = cookies[i].trim();
-                            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                                break;
-                            }
-                        }
-                    }
-                    return cookieValue;
-                }
-
-                initIndicateursEtat();
-
-                btnPrev.addEventListener('click', function () {
-                    if (currentExerciseIndex > 0) {
-                        currentExerciseIndex--;
-                        loadExercise(currentExerciseIndex);
-                    }
-                });
-
-                btnNext.addEventListener('click', function () {
-                    if (currentExerciseIndex < exercises.length - 1) {
-                        currentExerciseIndex++;
-                        loadExercise(currentExerciseIndex);
-                    }
-                });
-
-                if (exercises.length > 0) {
-                    loadExercise(currentExerciseIndex);
-                } else {
-                    document.getElementById('exercice-container').innerHTML = '<p>Aucun exercice disponible pour cette épreuve.</p>';
-                    btnPrev.style.visibility="hidden";
-                    btnNext.style.visibility = "hidden";
-                }
-                document.getElementById('btn-submit-participant').addEventListener('click', function () {
-                    const currentExercise = exercises[currentExerciseIndex];
-                    soumettreReponse(currentExercise.id);
-                });
-            });
-        </script>
-
-
     </div>
+{% endblock %}
+
+{% block scripts %}
+    <script type="application/json" id="exercises-data">
+    {{ exercices_json|safe }}
+    </script>
+
+    <script src="{% static 'js/affichage_exercices/chronometre.js' %}"></script>
+    <script type="module" src="{% static 'js/affichage_exercices/main.js' %}"></script>
 {% endblock %}
