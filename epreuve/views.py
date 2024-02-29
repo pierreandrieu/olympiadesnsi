@@ -158,7 +158,6 @@ def soumettre(request):
             user_exercice.nb_soumissions += 1
             user_exercice.save()
 
-            print(exercice.nombre_max_soumissions - user_exercice.nb_soumissions)
             if not exercice.avec_jeu_de_test:
                 return JsonResponse({
                     'success': True,
@@ -421,6 +420,16 @@ def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Op
         exercice.epreuve = epreuve  # Assigne l'épreuve à l'exercice
         exercice.auteur = request.user  # Définit l'utilisateur actuel comme auteur de l'exercice
         exercice.save()  # Sauvegarde l'exercice dans la base de données
+
+        if not id_exercice:
+            users_inscrits = User.objects.filter(association_UserEpreuve_User__epreuve=epreuve)
+
+            # Pour chaque utilisateur inscrit, crée ou met à jour une entrée UserExercice
+            for user in users_inscrits:
+                UserExercice.objects.create(
+                    participant=user,
+                    exercice=exercice,
+                )
 
         # Gère les jeux de test si le champ 'avec_jeu_de_test' est coché
         if form.cleaned_data.get('avec_jeu_de_test'):
