@@ -233,8 +233,8 @@ class ExerciceForm(forms.ModelForm):
 
         else:
             if not code_a_soumettre:
-                raise ValidationError('Pour un exercice de programmation, il est obligatoire de demander à ce que'
-                                      'le code sout soumis ou alors à résoudre un jeu de test. '
+                raise ValidationError('Pour un exercice de programmation, il faut demander à ce que'
+                                      'le code soit soumis ou alors demander à résoudre un jeu de test. '
                                       'Il faut donc cocher "code à soumettre" ou "avec jeu de test" (ou les deux).')
 
         return cleaned_data
