@@ -82,7 +82,7 @@ def save_users_task(groupe_id: int, users_info: List[Tuple[str, str]],
 
                 # Ajout de la pièce jointe
                 mail.attach(filename=f"identifiants_participants_{epreuve_nom}_{datetime.now().strftime('%d-%m_%H-%M')}",
-                            content="Nom d'utilisateur, mot de passe\n" +
+                            content="Nom d'utilisateur,mot de passe\n" +
                                     "\n".join([f"{user},{pwd}" for user, pwd in users_info]),
                             mimetype='text/csv')
 
