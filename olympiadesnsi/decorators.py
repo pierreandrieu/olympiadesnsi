@@ -122,14 +122,19 @@ def administrateur_exercice_required(view_func):
     @wraps(view_func)
     @organisateur_required
     def _wrapped_view(request, *args, **kwargs):
-        id_exercice = kwargs.get('id_exercice', None)
-
+        epreuve_id = kwargs.get('epreuve_id')
+        print("epreuve_id = ", epreuve_id)
+        id_exercice = kwargs.get('id_exercice', None)  # Utilisez 'id_exercice' pour correspondre à la vue
+        print("id_exercice = ", id_exercice)
+        epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+        print("epreuve = ",epreuve)
         if id_exercice:
             exercice = get_object_or_404(Exercice, id=id_exercice)
-            epreuve = exercice.epreuve
             if not (request.user == epreuve.referent or request.user == exercice.auteur):
                 return HttpResponseForbidden("Vous n'avez pas les droits nécessaires pour cette action.")
             request.exercice = exercice
+
+        request.epreuve = epreuve  # Toujours attacher l'épreuve à la requête
 
         return view_func(request, *args, **kwargs)
 

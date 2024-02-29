@@ -310,6 +310,7 @@ def supprimer_exercice(request: HttpRequest, id_exercice: int) -> HttpResponse:
     titre_exercice: str = exercice.titre
     nom_epreuve: str = exercice.epreuve.nom
 
+
     # Procède à la suppression de l'exercice
     exercice.delete()
 

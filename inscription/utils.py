@@ -30,12 +30,16 @@ def inscrire_participants_a_epreuve(participants: Iterable[User], epreuve: Epreu
     user_exercices_to_create: List[UserExercice] = []
 
     with transaction.atomic():
+        print("debut transaction atomique")
         # Préparation des objets UserEpreuve et UserExercice pour chaque membre
         for participant in participants:
+            print("participant = ", participant)
             user_epreuves_to_create.append(UserEpreuve(participant=participant, epreuve=epreuve))
             for exercice in exercices:
+                print("exerciuce : ", exercice)
                 user_exercices_to_create.append(UserExercice(exercice=exercice, participant=participant))
                 if exercice.avec_jeu_de_test:
+                    print("oui ! ")
                     assigner_participants_jeux_de_test(participants, exercice)
 
         # Insertion en masse des objets UserEpreuve et UserExercice
