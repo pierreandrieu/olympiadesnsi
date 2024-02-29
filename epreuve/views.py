@@ -89,8 +89,10 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
             'enonce_code': ex.enonce_code,
             'type_exercice': ex.type_exercice,
             'avec_jeu_de_test': ex.avec_jeu_de_test,
+            'reponse_jeu_de_test_enregistree': user_exercice.solution_instance_participant,
+            'code_enregistre': user_exercice.code_participant,
             'code_a_soumettre': ex.code_a_soumettre,
-            'nb_soumissions': user_exercice.nb_soumissions,
+            'nb_soumissions_restantes': ex.nombre_max_soumissions - user_exercice.nb_soumissions,
             'nb_max_soumissions': ex.nombre_max_soumissions,
             'retour_en_direct': ex.retour_en_direct,
             'instance_de_test': jeu_de_test.instance if jeu_de_test else "",
@@ -114,7 +116,6 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
 
         # Calcul du temps restant
         temps_restant = max(user_epreuve.fin_epreuve - timezone.now(), timedelta(seconds=0))
-
     return render(request, 'epreuve/afficher_epreuve.html', {
         'epreuve': epreuve,
         'exercices_json': exercices_json,
@@ -137,15 +138,17 @@ def soumettre(request):
             #  Exercice et le jeu de test associé
             try:
                 exercice = Exercice.objects.get(id=exercice_id)
-                jeu_de_test = JeuDeTest.objects.filter(exercice=exercice).first()
-            except (Exercice.DoesNotExist, JeuDeTest.DoesNotExist):
-                return JsonResponse({'success': False, 'error': 'Exercice ou jeu de test introuvable'}, status=404)
+            except Exercice.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Exercice introuvable'}, status=404)
 
             # Association UserExercice
             user_exercice = UserExercice.objects.get(
                 participant=request.user,
                 exercice=exercice
             )
+
+            jeu_de_test = user_exercice.jeu_de_test
+
             if user_exercice.nb_soumissions >= exercice.nombre_max_soumissions:
                 return JsonResponse({'success': False, 'error': 'Nombre maximum de soumissions atteint'}, status=403)
 
@@ -155,10 +158,25 @@ def soumettre(request):
             user_exercice.nb_soumissions += 1
             user_exercice.save()
 
+            print(exercice.nombre_max_soumissions - user_exercice.nb_soumissions)
+            if not exercice.avec_jeu_de_test:
+                return JsonResponse({
+                    'success': True,
+                    'nb_soumissions_restantes': exercice.nombre_max_soumissions - user_exercice.nb_soumissions,
+                    'code_enregistre': user_exercice.code_participant,
+                    'reponse_jeu_de_test_enregistree': user_exercice.solution_instance_participant
+                })
+
             # Vérification de la solution
             reponse_valide = solution_instance == jeu_de_test.reponse if jeu_de_test else False
+            return JsonResponse({
+                'success': True,
+                'reponse_valide': reponse_valide,
+                'nb_soumissions_restantes': exercice.nombre_max_soumissions - user_exercice.nb_soumissions,
+                'code_enregistre': user_exercice.code_participant,
+                'reponse_jeu_de_test_enregistree': user_exercice.solution_instance_participant
+            })
 
-            return JsonResponse({'success': True, 'reponse_valide': reponse_valide})
         except json.JSONDecodeError:
             return JsonResponse({'success': False, 'error': 'Données invalides'}, status=400)
     else:
@@ -417,7 +435,7 @@ def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Op
             for jeu, resultat in zip(jeux_de_tests, resultats_jeux_de_tests):
                 if jeu.strip() and resultat.strip():
                     JeuDeTest.objects.create(exercice=exercice, instance=jeu, reponse=resultat)
-
+            redistribuer_jeux_de_test_exercice(exercice)
         # Affiche un message de succès et redirige vers l'espace organisateur
         messages.success(request,
                          'L\'exercice a été ajouté avec succès.'
