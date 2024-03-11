@@ -14,3 +14,4 @@ __pycache__/
 # Fichiers temporaires qui peuvent être créés par des éditeurs
 *~
 *.swp
+logs
