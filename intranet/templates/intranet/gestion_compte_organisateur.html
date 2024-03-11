@@ -2,23 +2,19 @@
 
 {% block content %}
 
-    <div class="container mt-4">
-        <h1>Profil de {{ user.username }}</h1>
-        <br/>
+<div class="container mt-4">
+    <h1>Profil de {{ user.username }}</h1>
+    <br/>
 
-        <form method="post" action="{% url 'change_password_organisateur' %}">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn btn-primary">Modifier le mot de passe</button>
-        </form>
+        <a href="{% url 'change_password_organisateur' %}" class="btn btn-primary">Modifier le mot de passe</a>
 
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-    </div>
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
 
 {% endblock %}

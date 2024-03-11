@@ -365,12 +365,12 @@ def change_password_generic(request, template, vue):
 @login_required
 @decorators.participant_required
 def change_password_participant(request):
-    return change_password_generic(request, "intranet/gestion_compte_participant.html",
+    return change_password_generic(request, "intranet/change_password_participant.html",
                                    "espace_participant")
 
 
 @login_required
 @decorators.organisateur_required
 def change_password_organisateur(request):
-    return change_password_generic(request, "intranet/gestion_compte_organisateur.html",
+    return change_password_generic(request, "intranet/change_password_organisateur.html",
                                    "espace_organisateur")
