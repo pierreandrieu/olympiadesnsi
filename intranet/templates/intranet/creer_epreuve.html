@@ -3,8 +3,12 @@
 
 {% block content %}
     <div class="container mt-4">
-        <h1 style="text-align: center">{{ epreuve.name|default:"Création d'une nouvelle épreuve" }}</h1>
+    {% if epreuve %}
+        <h1 style="text-align: center">{{ epreuve.nom}}</h1>
 
+    {% else %}
+    <h1 style="text-align: center">{{ "Création d'une nouvelle épreuve" }}</h1>
+    {% endif %}
         <form method="post">
             {% csrf_token %}
             {% if form.non_field_errors %}
@@ -44,7 +48,8 @@
             </div>
 
 
-            {% if epreuve.id %}
+            {% if epreuve %}
+                {% if epreuve.id %}
                 <h2>Exercices</h2>
                 <ul>
                     {% for exercice in epreuve.exercice_set.all %}
@@ -56,7 +61,8 @@
                         </div>
                     {% endfor %}
                 </ul>
-            {% endif %}
+            {% endif %}  {% endif %}
+
 
             <button type="submit" class="btn btn-primary">Envoyer</button>
             <a href="{% url 'espace_organisateur' %}" class="btn btn-secondary">Annuler</a>
