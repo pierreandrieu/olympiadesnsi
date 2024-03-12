@@ -5,27 +5,65 @@ body {
     font-family: 'Arial', sans-serif; /* Ou une autre police de votre choix */
     background: #f7f7f7; /* Couleur de fond légère */
     color: #333; /* Couleur de texte */
+    height: 100%;
+    margin: 0;
 }
 
+html {
+    height: 100%;
+    margin: 0;
+}
 
-header, footer {
+header {
     padding: 20px;
     background: #333; /* Couleur de fond pour l'en-tête et le pied de page */
     color: white; /* Couleur de texte pour l'en-tête et le pied de page */
 }
 
 footer {
-    margin-top: auto; /* Pousse le footer en bas */
+    background: #f7f7f7;
+    color: #333;
+}
+
+.logo-container img {
+    max-height: 75px; /* Taille ajustée pour les logos */
+    margin: 0 10px; /* Espacement autour des logos */
+}
+
+.footer-text {
+    color: #555; /* Couleur de texte plus foncée pour un meilleur contraste */
+    text-shadow: 1px 1px 2px #ddd; /* Ombre de texte pour améliorer la lisibilité */
+}
+
+/* Classes Bootstrap personnalisées */
+.py-4 {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+}
+.bg-light {
+    background-color: #f7f7f7 !important;
+}
+.mt-auto {
+    margin-top: auto !important;
+}
+.my-3 {
+    margin-top: 1rem !important;
+    margin-bottom: 1rem !important;
+}
+.me-2 {
+    margin-right: 0.5rem !important;
+}
+.ms-2 {
+    margin-left: 0.5rem !important;
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 960px; /* Ajustez à la taille souhaitée */
+  }
 }
 
 
-.container {
-    max-width: 800px; /* Largeur maximale du conteneur central */
-    margin: auto;
-    padding: 20px;
-    background: white; /* Fond blanc pour le contenu */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Ombre légère pour le conteneur */
-}
 
 h1 {
     text-align: center; /* Centre le titre */
