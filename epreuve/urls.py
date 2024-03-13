@@ -17,4 +17,7 @@ urlpatterns = [
          name='supprimer_jeux_de_test'),
     path('exercice/redistribuer-jeux-de-test/<int:id_exercice>/', views.redistribuer_jeux_de_test,
          name='redistribuer_jeux_de_test'),
+    path('<int:epreuve_id>/desinscription/<int:groupe_id>/',
+         views.desinscrire_groupe_epreuve, name='desinscrire_groupe_epreuve'),
+
 ]
