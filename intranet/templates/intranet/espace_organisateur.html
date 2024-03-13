@@ -59,12 +59,11 @@
                                             <i class="fas fa-users"></i>
                                         </a>
 
-                                        {% if request.user == epreuve.referent %}
 
-                                            <a href="{% url 'inscrire_groupe_epreuves' epreuve.id %}">
-                                                <i class="fas fa-plus-circle"></i>
-                                            </a>
-                                        {% endif %}
+                                        <a href="{% url 'inscrire_groupe_epreuves' epreuve.id %}">
+                                            <i class="fas fa-plus-circle"></i>
+                                        </a>
+
                                     </td>
                                     <td>{{ participants_uniques }}</td>
                                     <td>
@@ -129,11 +128,19 @@
                                 <tr id="groupes-{{ epreuve.id }}" class="table-secondary toggle-element"
                                     style="display:none;">
                                     <td colspan="7">
-                                        <ul>
+                                        <ul class="liste_espace_orga">
                                             {% for groupe in groupes_participants %}
-                                                <li>{{ groupe.nom }}</li>
+                                                <li>
+                                                    {{ groupe.nom }}
+                                                    {% if request.user == epreuve.referent %}
+                                                       <a href="{% url 'desinscrire_groupe_epreuve' epreuve.id groupe.id %}" title="Désinscrire le groupe">
+                                                           <i class="fas fa-minus-circle"></i>
+                                                       </a>
+                                                    {% endif %}
+                                                </li>
                                             {% endfor %}
                                         </ul>
+
                                     </td>
                                 </tr>
 
