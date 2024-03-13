@@ -63,6 +63,29 @@ footer {
   }
 }
 
+/* Styles pour la liste dans l'espace organisateur */
+.liste_espace_orga {
+    list-style: none;
+    padding-left: 0;
+    max-height: 150px; /* Ajustez en fonction de vos besoins */
+    overflow-y: auto; /* Permet le défilement vertical si nécessaire */
+}
+
+.liste_espace_orga li {
+    padding: 10px 40px 10px 10px;
+    background-color: #f8f9fa;
+    margin-bottom: 5px;
+    border-radius: 5px;
+    position: relative;
+}
+
+.liste_espace_orga li i {
+    position: absolute;
+    right: 10px; /* Ajustez si nécessaire pour aligner avec le padding droit */
+    top: 50%;
+    transform: translateY(-50%);
+    color: #dc3545;
+}
 
 
 h1 {
