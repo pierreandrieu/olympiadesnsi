@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils.text import slugify
 from django.contrib.auth.models import User, Group
-from django.db.models import CheckConstraint, Q, F
+from django.db.models import CheckConstraint, Q, F, QuerySet
 from inscription.models import GroupeParticipant
 from olympiadesnsi.constants import MAX_TAILLE_NOM
 
@@ -19,6 +19,15 @@ class Epreuve(models.Model):
     groupes_participants = models.ManyToManyField(GroupeParticipant, related_name='epreuves',
                                                   through='inscription.GroupeParticipeAEpreuve')
     comite = models.ManyToManyField(User, related_name='epreuves_comite', through='MembreComite')
+
+    def get_exercices(self) -> QuerySet['Exercice']:
+        """
+        Renvoie tous les exercices associés à cette épreuve.
+
+        Returns:
+            QuerySet[Exercice]: Un QuerySet contenant les exercices associés à l'épreuve.
+        """
+        return self.exercice_set.all()
 
     def __str__(self):
         return self.nom
