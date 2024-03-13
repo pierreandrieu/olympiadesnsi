@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 import os
 from decouple import Config, Csv
 
+NIVEAU_DEBUG = "DEBUG"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -193,12 +194,12 @@ LOGGING = {
     },
     'handlers': {
         'console': {
-            'level': 'DEBUG',
+            'level': NIVEAU_DEBUG,
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
         'file': {
-            'level': 'DEBUG',
+            'level': NIVEAU_DEBUG,
             'class': 'logging.FileHandler',
             'filename': 'logs/celery.log',
             'formatter': 'verbose',
@@ -207,17 +208,17 @@ LOGGING = {
     'loggers': {
         '': {  # Root logger
             'handlers': ['console', 'file'],
-            'level': 'DEBUG',
+            'level': NIVEAU_DEBUG,
             'propagate': True,
         },
         'django': {
             'handlers': ['console', 'file'],
-            'level': 'DEBUG',
+            'level': NIVEAU_DEBUG,
             'propagate': False,
         },
         'celery': {
             'handlers': ['console', 'file'],
-            'level': 'DEBUG',
+            'level': NIVEAU_DEBUG,
             'propagate': True,
         },
     },
