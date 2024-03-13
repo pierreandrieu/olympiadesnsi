@@ -166,4 +166,3 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
 
 def confirmation_inscription_externe(request: HttpRequest) -> HttpResponse:
     return render(request, 'inscription/confirmation_inscription_externe.html')
-
