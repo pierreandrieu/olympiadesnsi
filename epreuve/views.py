@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth.models import User
 from django.core.serializers import serialize
 from django.db import transaction
@@ -19,7 +21,10 @@ from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant
 import olympiadesnsi.decorators as decorators
 import json
 from datetime import timedelta
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Set, Tuple
+
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -265,9 +270,11 @@ def inscrire_groupes_epreuve(request: HttpRequest, epreuve_id: int) -> HttpRespo
         HttpResponse: L'objet réponse HTTP pour rediriger ou afficher la page.
     """
     epreuve: Epreuve = getattr(request, 'epreuve', None)  # Épreuve récupérée par le décorateur.
+    logger.debug("epreuve pour inscription : ", epreuve)
 
     if request.method == 'POST':
-        groupe_ids: List[int] = request.POST.getlist('groups')  # IDs des groupes sélectionnés pour l'inscription.
+        groupe_ids: List[str] = request.POST.getlist(key='groups', default=[])  # IDs des groupes sélectionnés pour l'inscription.
+        logger.debug("id des groupes a inscrire : ", groupe_ids)
         with transaction.atomic():
             for groupe_id in groupe_ids:
                 groupe: GroupeParticipant = get_object_or_404(GroupeParticipant, id=groupe_id)
@@ -284,6 +291,57 @@ def inscrire_groupes_epreuve(request: HttpRequest, epreuve_id: int) -> HttpRespo
 
     return render(request, 'epreuve/inscrire_groupes_epreuve.html',
                   {'epreuve': epreuve, 'groupes': groupes_non_inscrits})
+
+
+@login_required
+@decorators.administrateur_epreuve_required
+def desinscrire_groupe_epreuve(request: HttpRequest, epreuve_id: int, groupe_id: int) -> HttpResponse:
+    """
+    Désinscrit tous les participants d'un groupe spécifique d'une épreuve donnée.
+
+    Cette fonction supprime toutes les entrées liées dans `UserExercice` pour chaque participant
+    et chaque exercice associé à l'épreuve, puis supprime les entrées `UserEpreuve` qui lient
+    les participants à l'épreuve.
+
+    Args:
+        request (HttpRequest): L'objet requête HTTP.
+        groupe_id (int): L'ID du groupe à désinscrire.
+        epreuve_id (int): L'ID de l'épreuve de laquelle les participants seront désinscrits.
+
+    Returns:
+        HttpResponse: Redirige vers l'espace organisateur avec un message de succès.
+    """
+
+    # Récupération de l'épreuve à partir de son ID
+    epreuve: Epreuve = get_object_or_404(Epreuve, pk=epreuve_id)
+    # Récupération du groupe à désinscrire à partir de son ID
+    groupe: GroupeParticipant = get_object_or_404(GroupeParticipant, pk=groupe_id)
+    # Récupération de l'association entre groupe et épreuve
+    groupe_participe_a_epreuve: GroupeParticipeAEpreuve = get_object_or_404(GroupeParticipeAEpreuve,
+                                                                            groupe=groupe,
+                                                                            epreuve=epreuve)
+    with transaction.atomic():
+        participants: QuerySet[User] = groupe.participants()
+
+        # Récupérer tous les UserEpreuve pour l'épreuve et le groupe spécifiés
+        user_epreuves = UserEpreuve.objects.filter(epreuve=epreuve, participant__in=participants)
+
+        # Récupérer les IDs de tous les exercices associés à l'épreuve
+        exercices_ids: List[int] = list(epreuve.exercice_set.values_list('id', flat=True))
+
+        # Supprimer tous les UserExercice associés aux participants de l'épreuve et du groupe
+        UserExercice.objects.filter(exercice_id__in=exercices_ids,
+                                    participant__in=user_epreuves.values_list('participant', flat=True)).delete()
+
+        # Suppression des entrées UserEpreuve pour finaliser la désinscription
+        user_epreuves.delete()
+
+        groupe_participe_a_epreuve.delete()
+
+        # Affichage d'un message de succès et redirection
+        messages.success(request,
+                         f"Les membres du groupe {groupe.nom} ont été désinscrits de l'épreuve {epreuve.nom}.")
+        return redirect('espace_organisateur')
 
 
 @login_required
@@ -309,7 +367,6 @@ def supprimer_exercice(request: HttpRequest, id_exercice: int) -> HttpResponse:
     # Sauvegarde le titre et le nom de l'épreuve avant la suppression pour l'utiliser dans le message
     titre_exercice: str = exercice.titre
     nom_epreuve: str = exercice.epreuve.nom
-
 
     # Procède à la suppression de l'exercice
     exercice.delete()
@@ -407,13 +464,34 @@ def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Op
 
     # L'objet épreuve est récupéré par le décorateur 'administrateur_exercice_required'
     epreuve: Epreuve = getattr(request, 'epreuve', None)
+
+    jdt_anciens: Set[Tuple[str, str]] = set()
+    jeux_de_test: Optional[QuerySet[JeuDeTest]] = None
+    modifications_jdt: bool = False
+
     # Initialise le formulaire pour l'édition si un id_exercice est fourni, sinon pour la création
     if id_exercice:
+
         # L'objet exercice est récupéré par le décorateur 'administrateur_exercice_required'
+
         exercice: Exercice = getattr(request, 'exercice', None)
-        form = ExerciceForm(request.POST or None, instance=exercice)
+        jeux_de_test_str: str = ''
+        resultats_jeux_de_test_str: str = ''
+        if exercice.avec_jeu_de_test:
+            jeux_de_test = JeuDeTest.objects.filter(exercice=exercice)
+            jeux_de_test_str += "\n".join(jeu.instance for jeu in jeux_de_test)
+            resultats_jeux_de_test_str += "\n".join(jeu.reponse for jeu in jeux_de_test)
+            for jeu in jeux_de_test:
+                jdt_anciens.add((jeu.instance, jeu.reponse))
+
+        form: ExerciceForm = ExerciceForm(request.POST or None,
+                                          instance=exercice,
+                                          initial={'jeux_de_test': jeux_de_test_str,
+                                                   'resultats_jeux_de_test': resultats_jeux_de_test_str,
+                                                   })
+
     else:
-        form = ExerciceForm(request.POST or None)
+        form: ExerciceForm = ExerciceForm(request.POST or None)
 
     # Traite le formulaire lors de la soumission
     if request.method == "POST" and form.is_valid():
@@ -434,18 +512,27 @@ def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Op
 
         # Gère les jeux de test si le champ 'avec_jeu_de_test' est coché
         if form.cleaned_data.get('avec_jeu_de_test'):
+            nouveaux_jdt: Set[Tuple[str, str]] = set()
             jeux_de_tests = form.cleaned_data.get('jeux_de_test', '').split("\n")
             resultats_jeux_de_tests = form.cleaned_data.get('resultats_jeux_de_test', '').split("\n")
 
-            # Supprime les anciens jeux de test en cas d'édition
-            if id_exercice:
-                exercice.jeudetest_set.all().delete()
-
             # Crée de nouveaux jeux de test
             for jeu, resultat in zip(jeux_de_tests, resultats_jeux_de_tests):
-                if jeu.strip() and resultat.strip():
+                nouveaux_jdt.add((jeu, resultat))
+                if jeu.strip() and resultat.strip() and (jeu, resultat) not in jdt_anciens:
                     JeuDeTest.objects.create(exercice=exercice, instance=jeu, reponse=resultat)
-            redistribuer_jeux_de_test_exercice(exercice)
+                    modifications_jdt = True
+
+            # Supprime les jeux de test qui n'apparaissent plus
+            if jeux_de_test:
+                for jeu in jeux_de_test:
+                    if (jeu.instance, jeu.reponse) not in nouveaux_jdt:
+                        jeu.delete()
+                        modifications_jdt = True
+
+            # Redistribue les jeux de test s'il y a une modification
+            if modifications_jdt:
+                redistribuer_jeux_de_test_exercice(exercice)
         # Affiche un message de succès et redirige vers l'espace organisateur
         messages.success(request,
                          'L\'exercice a été ajouté avec succès.'
