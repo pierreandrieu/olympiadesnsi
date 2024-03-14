@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User, Group
-# from inscription.models import Inscripteur
+# from inscription.models import InscriptionExterne
 import olympiadesnsi.constants as constantes
 
 
@@ -31,9 +31,10 @@ class GroupeParticipant(models.Model):
     referent = models.ForeignKey(User, related_name='groupes_administres', on_delete=models.CASCADE,
                                  verbose_name="Référent")
     date_creation = models.DateField(auto_now_add=True, verbose_name="Date de création")
-    inscripteur = models.ForeignKey("inscription.InscripteurExterne", related_name="inscripteur_groupe",
-                                    on_delete=models.SET_NULL,
-                                    null=True, blank=True, verbose_name="Inscripteur")
+    inscription_externe = models.ForeignKey("inscription.InscriptionExterne",
+                                            related_name="inscription_externe_groupe",
+                                            on_delete=models.CASCADE, null=True, blank=True,
+                                            verbose_name="Inscription externe du groupe")
     statut = models.CharField(max_length=10, choices=STATUT_CHOICES, default='CREATION', verbose_name="Statut")
 
     def __str__(self):

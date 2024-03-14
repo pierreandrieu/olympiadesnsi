@@ -1,3 +1,4 @@
+import logging
 from typing import List, Iterable, Optional
 
 from django.contrib.auth.models import User
@@ -6,9 +7,13 @@ from django.db.models import QuerySet
 from django.utils.crypto import get_random_string
 
 from epreuve.models import Exercice, Epreuve, UserEpreuve, UserExercice
-from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant, InscriptionExterne
-from olympiadesnsi.constants import TOKEN_LENGTH
 from epreuve.utils import assigner_participants_jeux_de_test
+
+from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant, InscriptionExterne, InscripteurExterne
+from olympiadesnsi.constants import TOKEN_LENGTH
+
+
+logger = logging.getLogger(__name__)
 
 
 def inscrire_participants_a_epreuve(participants: Iterable[User], epreuve: Epreuve) -> None:
@@ -30,21 +35,19 @@ def inscrire_participants_a_epreuve(participants: Iterable[User], epreuve: Epreu
     user_exercices_to_create: List[UserExercice] = []
 
     with transaction.atomic():
-        print("debut transaction atomique")
         # Préparation des objets UserEpreuve et UserExercice pour chaque membre
         for participant in participants:
-            print("participant = ", participant)
             user_epreuves_to_create.append(UserEpreuve(participant=participant, epreuve=epreuve))
             for exercice in exercices:
-                print("exerciuce : ", exercice)
                 user_exercices_to_create.append(UserExercice(exercice=exercice, participant=participant))
-                if exercice.avec_jeu_de_test:
-                    print("oui ! ")
-                    assigner_participants_jeux_de_test(participants, exercice)
 
         # Insertion en masse des objets UserEpreuve et UserExercice
         UserEpreuve.objects.bulk_create(user_epreuves_to_create)
         UserExercice.objects.bulk_create(user_exercices_to_create)
+
+        for exercice in exercices:
+            if exercice.avec_jeu_de_test:
+                assigner_participants_jeux_de_test(participants, exercice)
 
 
 def inscrire_groupe_a_epreuve(groupe: GroupeParticipant, epreuve: Epreuve,
@@ -84,3 +87,32 @@ def generate_unique_token(taille: int = TOKEN_LENGTH) -> str:
         # Génère un nouveau token tant qu'un token identique est trouvé
         token = get_random_string(length=taille)
     return token
+
+
+def calculer_nombre_inscrits(epreuve: Epreuve, inscripteur_externe: InscripteurExterne) -> int:
+    """
+    Calcule le nombre total d'utilisateurs inscrits dans des groupes participants
+    qui sont inscrits à une épreuve donnée et liés à un inscripteur externe spécifique.
+
+    Args:
+        epreuve (Epreuve): L'instance de l'épreuve concernée.
+        inscripteur_externe (InscripteurExterne): L'instance de l'inscripteur externe concerné.
+
+    Returns:
+        int: Le nombre total d'utilisateurs inscrits dans les groupes correspondants.
+    """
+
+    # Récupérer tous les groupes liés à l'épreuve et à l'inscripteur externe spécifique
+    groupes: QuerySet[GroupeParticipant] = GroupeParticipant.objects.filter(
+        inscription_externe__epreuve=epreuve,
+        inscription_externe__inscripteur=inscripteur_externe
+    )
+
+    # Initialiser le compteur du nombre total de participants
+    total_participants: int = 0
+
+    # Pour chaque groupe, ajouter le nombre de ses participants au total
+    for groupe in groupes:
+        total_participants += groupe.get_nombre_participants()
+
+    return total_participants

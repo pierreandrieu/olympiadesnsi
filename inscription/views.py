@@ -1,5 +1,6 @@
 from typing import Optional, List
 
+from django.contrib import messages
 from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
@@ -7,18 +8,22 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 from django.urls import reverse
+from django_ratelimit.decorators import ratelimit
 
 from epreuve.models import Epreuve
 from login.utils import genere_participants_uniques
 from olympiadesnsi import settings
 from .forms import EquipeInscriptionForm, DemandeLienInscriptionForm
 from .models import InscripteurExterne, InscriptionExterne
-from inscription.utils import generate_unique_token
+from inscription.utils import generate_unique_token, calculer_nombre_inscrits
 from inscription.models import InscriptionDomaine, GroupeParticipant
 import olympiadesnsi.constants as constantes
 from intranet.tasks import save_users_task
 
 
+@ratelimit(key='ip', rate='1/s', method='GET', block=True)
+@ratelimit(key='ip', rate='10/m', method='GET', block=True)
+@ratelimit(key='ip', rate='50/h', method='GET', block=True)
 def inscription_demande(request: HttpRequest) -> HttpResponse:
     """
     Traite la demande d'inscription en générant un token unique pour chaque inscription,
@@ -35,6 +40,10 @@ def inscription_demande(request: HttpRequest) -> HttpResponse:
         if form.is_valid():
             # Récupération du domaine académique et construction de l'email
             domaine: str = request.POST.get('domaine_academique')
+            if "@" not in domaine:
+                messages.error(request, "Il faut sélectionner le domaine de l'adresse mail")
+                return redirect('inscription_demande')
+
             email: str = form.cleaned_data['identifiant'] + domaine
             epreuve_id: str = request.POST.get('epreuve_id')
             # Récupération ou création de l'InscripteurExterne basé sur l'email
@@ -81,10 +90,16 @@ def get_domaines_for_epreuve(request: HttpRequest, epreuve_id: int) -> HttpRespo
     return JsonResponse(list(domaines), safe=False)
 
 
+@ratelimit(key='ip', rate='1/s', method='GET', block=True)
+@ratelimit(key='ip', rate='10/m', method='GET', block=True)
+@ratelimit(key='ip', rate='50/h', method='GET', block=True)
 def confirmation_envoi_lien_email(request: HttpRequest) -> HttpResponse:
     return render(request, 'inscription/confirmation_envoi_lien_inscription.html')
 
 
+@ratelimit(key='ip', rate='1/s', method='GET', block=True)
+@ratelimit(key='ip', rate='10/m', method='GET', block=True)
+@ratelimit(key='ip', rate='50/h', method='GET', block=True)
 def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
     """
     Traite l'inscription externe d'équipes ou de participants individuels à une épreuve
@@ -105,18 +120,10 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
             return render(request, 'inscription/erreur_lien_expire.html')
 
         # Étape 1 : Trouver l'InscripteurExterne et l'Epreuve.
-        inscripteur: InscripteurExterne = inscription_externe.inscripteur
         epreuve: Epreuve = inscription_externe.epreuve
         referent: User = epreuve.referent
 
-        # Tente de trouver un groupe d'inscription existant ou crée un nouveau groupe.
-        groupe_inscripteur: Optional[GroupeParticipant] = GroupeParticipant.objects.filter(
-            nom=f"auto_{epreuve.nom[:10]}_{inscripteur.email.split('@')[0]}",
-            referent=referent,
-            inscripteur=inscripteur
-        ).first()
-
-        nombre_deja_inscrits: int = groupe_inscripteur.get_nombre_participants() if groupe_inscripteur else 0
+        nombre_deja_inscrits: int = calculer_nombre_inscrits(epreuve, inscription_externe.inscripteur)
         max_participants_encore_possibles: int = constantes.MAX_USERS_PAR_GROUPE - nombre_deja_inscrits
 
         # Prépare le formulaire d'inscription avec le nombre maximum de participants possibles.
@@ -125,22 +132,37 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
 
         if request.method == 'POST' and form.is_valid():
             nombre_participants: int = form.cleaned_data['nombre_participants']
+            if nombre_participants > max_participants_encore_possibles:
+                messages.error(request,f"Pour l'épreuve {epreuve.nom}, il vous reste au maximum "
+                               f"{max_participants_encore_possibles} inscriptions possibles."
+                               f"Contactez le référent de l'épreuve en cas de problème.")
+                return redirect(reverse('inscription_par_token', args=[token]))
             inscription_externe.nombre_participants_demandes = nombre_participants
             inscription_externe.save()
-            num: int = 1 + InscriptionExterne.objects.filter(
-                epreuve=epreuve, inscripteur__email=inscripteur.email, token_est_utilise=False
-            ).count()
 
-            # Crée un nouveau groupe d'inscription si nécessaire et enregistre les participants.
-            groupe_inscripteur, _ = GroupeParticipant.objects.get_or_create(
-                nom=f"auto_{epreuve.nom[:10]}_{inscripteur.email}_{num:03}",
+            # Construction de la chaîne de début
+            prefix = f"auto-{epreuve.id}_{epreuve.nom[:10]}_{inscription_externe.inscripteur.email}_"
+
+            # Compter les GroupeParticipant dont le nom commence par `prefix`
+            num: int = 1 + GroupeParticipant.objects.filter(nom__startswith=prefix).count()
+
+            groupe_participant, created = GroupeParticipant.objects.get_or_create(
+                nom=f"{prefix}{num:03}",
                 referent=referent,
-                inscripteur=inscripteur
             )
+            while not created:
+                num += 1
+                # Crée un nouveau groupe d'inscription si nécessaire et enregistre les participants.
+                groupe_participant, created = GroupeParticipant.objects.get_or_create(
+                    nom=f"{prefix}{num:03}",
+                    referent=referent,
+                )
 
+            groupe_participant.inscription_externe = inscription_externe
+            groupe_participant.save()
             # Génère et enregistre les informations des participants.
             users_info = genere_participants_uniques(referent, nombre_participants)
-            save_users_task.delay(groupe_inscripteur.id, users_info, inscription_externe.id)
+            save_users_task.delay(groupe_participant.id, users_info, inscription_externe.id)
 
             # Marque le token comme utilisé et sauvegarde l'inscription.
             inscription_externe.token_est_utilise = True
@@ -164,5 +186,8 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
         return render(request, 'inscription/erreur_lien_expire.html')
 
 
+@ratelimit(key='ip', rate='1/s', method='GET', block=True)
+@ratelimit(key='ip', rate='10/m', method='GET', block=True)
+@ratelimit(key='ip', rate='50/h', method='GET', block=True)
 def confirmation_inscription_externe(request: HttpRequest) -> HttpResponse:
     return render(request, 'inscription/confirmation_inscription_externe.html')

@@ -33,26 +33,21 @@ def save_users_task(groupe_id: int, users_info: List[Tuple[str, str]],
         dict: Un dictionnaire indiquant le statut de l'opération.
     """
     try:
+        groupe: GroupeParticipant = GroupeParticipant.objects.get(id=groupe_id)
+    except GroupeParticipant.DoesNotExist:
+        return {'status': 'error', 'message': f"Groupe {groupe_id} introuvable"}
+    try:
         # Début d'une transaction pour garantir l'intégrité des données
         with transaction.atomic():
-            logger.debug("debut")
-
             # Récupération du groupe de participants par son identifiant
-            groupe: GroupeParticipant = GroupeParticipant.objects.get(id=groupe_id)
-            logger.debug(f"{groupe.statut}")
-
             groupe.statut = "CREATION"
 
             groupe.save()
-            logger.debug(f"{groupe.statut}")
-
-            logger.debug(f"groupe statut modifie {groupe.statut}")
 
             # Création des objets User sans les sauvegarder immédiatement dans la base de données
             users: List[User] = [User(username=username) for username, password in users_info]
             for i, user in enumerate(users):
                 user.set_password(users_info[i][1])  # Définition des mots de passe
-                logger.debug(f"{users_info[i][0]}{users_info[i][1]}")
 
             # Enregistrement en masse des objets User créés
             User.objects.bulk_create(users)
@@ -62,7 +57,6 @@ def save_users_task(groupe_id: int, users_info: List[Tuple[str, str]],
 
             # Association des utilisateurs au groupe "Participant" standard
             groupe_participant: Group = Group.objects.get(name="Participant")
-            logger.debug(f"dans {groupe.nom}")
             UserGroupRelations = User.groups.through
             user_group_relations = [UserGroupRelations(user_id=user.id, group_id=groupe_participant.id) for user in
                                     users]
@@ -101,7 +95,6 @@ def save_users_task(groupe_id: int, users_info: List[Tuple[str, str]],
                 mail.send()
 
             groupe.statut = 'VALIDE'
-            logger.debug(f"{groupe.statut}")
             groupe.save()
             return {'status': 'success', 'email': email, 'epreuve_nom': epreuve_nom, 'users_info': users_info}
 
@@ -109,6 +102,4 @@ def save_users_task(groupe_id: int, users_info: List[Tuple[str, str]],
         # En cas d'erreur, mise à jour du statut du groupe et enregistrement de l'erreur
         groupe.statut = 'ECHEC'
         groupe.save()
-        logger.debug(f"Erreur lors de la création des utilisateurs et de leur inscription : {e}")
-        logger.error(f"Erreur lors de la création des utilisateurs et de leur inscription : {e}")
         return {'status': 'error', 'message': str(e)}
