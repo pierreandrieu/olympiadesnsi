@@ -15,7 +15,7 @@ from django.contrib import messages
 from django.urls import reverse
 from epreuve.models import Epreuve, Exercice, JeuDeTest, MembreComite, UserEpreuve, UserExercice
 from epreuve.forms import ExerciceForm, AjoutOrganisateurForm
-from epreuve.utils import redistribuer_jeux_de_test_exercice
+from epreuve.utils import redistribuer_jeux_de_test_exercice, temps_restant_seconde
 from inscription.utils import assigner_participants_jeux_de_test, inscrire_groupe_a_epreuve
 from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant
 import olympiadesnsi.decorators as decorators
@@ -69,6 +69,21 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     user: User = request.user
     epreuve: Optional[Epreuve] = getattr(request, 'epreuve', None)
 
+    if epreuve.est_close():
+        return render(request, 'epreuve/erreurs/epreuve_terminee.html')
+
+    # Calcul du temps restant pour compléter l'épreuve, si applicable.
+    temps_restant: Optional[timedelta] = None
+    if epreuve and epreuve.temps_limite:
+        user_epreuve, _ = UserEpreuve.objects.get_or_create(participant=user, epreuve=epreuve)
+        if not user_epreuve.debut_epreuve:
+            # Convertit la durée de l'épreuve en minutes en un objet timedelta
+            user_epreuve.debut_epreuve = timezone.now()
+            user_epreuve.save()
+
+        # Calcul du temps restant
+        temps_restant = temps_restant_seconde(user_epreuve, epreuve)
+
     # Sélection de tous les exercices associés à l'épreuve, ordonnés par leur numéro.
     exercices: List[Exercice] = list(Exercice.objects.filter(epreuve=epreuve).order_by('numero'))
 
@@ -101,26 +116,14 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
             'nb_max_soumissions': ex.nombre_max_soumissions,
             'retour_en_direct': ex.retour_en_direct,
             'instance_de_test': jeu_de_test.instance if jeu_de_test else "",
-            'reponse_valide': user_exercice.solution_instance_participant == (
-                jeu_de_test.reponse if jeu_de_test else "")
+            'reponse_valide': str(user_exercice.solution_instance_participant).split() == (
+                str(jeu_de_test.reponse).split() if jeu_de_test else "")
         }
 
         exercices_json_list.append(exercice_dict)
 
     # Conversion des données des exercices en JSON pour utilisation côté client.
     exercices_json: str = json.dumps(exercices_json_list)
-
-    # Calcul du temps restant pour compléter l'épreuve, si applicable.
-    temps_restant: Optional[timedelta] = None
-    if epreuve and epreuve.temps_limite:
-        user_epreuve, _ = UserEpreuve.objects.get_or_create(participant=user, epreuve=epreuve)
-        if not user_epreuve.fin_epreuve:
-            # Convertit la durée de l'épreuve en minutes en un objet timedelta
-            user_epreuve.fin_epreuve = timezone.now() + timedelta(minutes=epreuve.duree)
-            user_epreuve.save()
-
-        # Calcul du temps restant
-        temps_restant = max(user_epreuve.fin_epreuve - timezone.now(), timedelta(seconds=0))
     return render(request, 'epreuve/afficher_epreuve.html', {
         'epreuve': epreuve,
         'exercices_json': exercices_json,
@@ -172,7 +175,11 @@ def soumettre(request):
                 })
 
             # Vérification de la solution
-            reponse_valide = solution_instance == jeu_de_test.reponse if jeu_de_test else False
+
+            reponse_valide: bool = False
+            if jeu_de_test and str(solution_instance).strip() == str(jeu_de_test.reponse).strip():
+                reponse_valide = True
+
             return JsonResponse({
                 'success': True,
                 'reponse_valide': reponse_valide,
