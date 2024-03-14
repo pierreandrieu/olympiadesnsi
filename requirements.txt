@@ -12,3 +12,5 @@ sqlalchemy~=2.0.25
 django-crispy-forms~=2.1
 crispy-bootstrap5~=2024.2
 django-celery-results~=2.5
+pylint-django~=2.5
+pytz~=2024.1
