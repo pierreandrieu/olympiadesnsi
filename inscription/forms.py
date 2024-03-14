@@ -44,9 +44,9 @@ class EquipeInscriptionForm(forms.Form):
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Div(
-                'nombre_participants',
-                HTML(f"<p class='text-info'>Nombre d'inscriptions encore possibles : {self.max_equipes}</p>"),
-                css_class='form-group'
+             'nombre_participants',
+             #   HTML(f"<p class='text-info'>Nombre d'inscriptions encore possibles : {self.max_equipes}</p>"),
+             css_class='form-group'
             ),
             Submit('submit', 'Inscrire des participants', css_class='btn btn-primary')
         )

@@ -6,10 +6,16 @@
     <div class="container my-4">
         <h1 class="mb-4">{{ epreuve }} </h1>
         <h2 class="mb-4">Inscription des participants (ou équipes) </h2>
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
         <form method="post" id="inscriptionEquipeForm">
-            {% csrf_token %}
-            {{ form|crispy }}
-            <button type="submit" class="btn btn-primary">Inscrire des participants</button>
+                {% csrf_token %}
+                {% crispy form %}
         </form>
     </div>
 {% endblock %}
