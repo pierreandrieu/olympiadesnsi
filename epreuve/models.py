@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from django.utils.text import slugify
 from django.contrib.auth.models import User, Group
 from django.db.models import CheckConstraint, Q, F, QuerySet
@@ -28,6 +29,14 @@ class Epreuve(models.Model):
             QuerySet[Exercice]: Un QuerySet contenant les exercices associés à l'épreuve.
         """
         return self.exercice_set.all()
+
+    def est_close(self) -> bool:
+        """
+        Renvoie True SSI l'épreuve est close
+        Returns: True SSI l'épreuve est close
+
+        """
+        return self.date_fin < timezone.now()
 
     def __str__(self):
         return self.nom
@@ -132,6 +141,7 @@ class UserEpreuve(models.Model):
     epreuve = models.ForeignKey(Epreuve, related_name='association_UserEpreuve_Epreuve',
                                 on_delete=models.CASCADE)
     fin_epreuve = models.DateTimeField(auto_now=False, null=True)
+    debut_epreuve = models.DateTimeField(auto_now=False, null=True)
 
     class Meta:
         db_table = 'UserEpreuve'

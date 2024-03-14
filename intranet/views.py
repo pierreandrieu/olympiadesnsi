@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import List, Tuple, Optional, Set
 
 from django.db import transaction
@@ -53,9 +54,11 @@ def espace_participant(request: HttpRequest) -> HttpResponse:
         epreuve: Epreuve = user_epreuve.epreuve  # Récupère l'épreuve associée à partir de l'association
 
         # Détermine si une fin d'épreuve spécifique à l'utilisateur est définie et si elle est passée
-        fin_epreuve_specifique = user_epreuve.fin_epreuve and user_epreuve.fin_epreuve < today
+        fin_epreuve_specifique = (user_epreuve.debut_epreuve
+                                  and epreuve.temps_limite
+                                  and user_epreuve.debut_epreuve + timedelta(minutes=epreuve.duree) < today)
 
-        if epreuve.date_debut > today:
+        if today < epreuve.date_debut:
             epreuves_a_venir.append(epreuve)
         elif epreuve.date_fin < today or fin_epreuve_specifique:
             epreuves_terminees.append(epreuve)
