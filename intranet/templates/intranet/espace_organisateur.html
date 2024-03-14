@@ -234,12 +234,16 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    Êtes-vous sûr de vouloir supprimer cette épreuve ? Seront également supprimés :
-                    - tous ses exercices associés
-                    - toutes les données associées aux candidats pour cette épreuve
-                    
-                    Cette action est irréversible.
+                    <p>Êtes-vous sûr de vouloir supprimer cette épreuve ?</p>
+                    <p>Seront également supprimés :</p>
+                    <ul style="padding-left: 20px;">
+                        <li>tous ses exercices associés</li>
+                        <li>toutes les données associées aux candidats pour cette épreuve</li>
+                        <li>tous les groupes inscrits par des extérieurs pour cette épreuve</li>
+                    </ul>
+                    <p>Cette action est irréversible.</p>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                     <form method="post" action="" id="confirmDeleteForm">
@@ -258,7 +262,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="confirmDeleteModalLabel">Confirmer la Suppression</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -267,7 +271,7 @@
                     Cette action est irréversible. Confirmez :
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                     <form method="post" action="">
                         {% csrf_token %}
                         <input type="submit" class="btn btn-danger" value="Supprimer">
