@@ -19,5 +19,4 @@ urlpatterns = [
          name='redistribuer_jeux_de_test'),
     path('<int:epreuve_id>/desinscription/<int:groupe_id>/',
          views.desinscrire_groupe_epreuve, name='desinscrire_groupe_epreuve'),
-
 ]
