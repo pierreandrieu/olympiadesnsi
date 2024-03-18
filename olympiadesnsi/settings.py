@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 import os
 from decouple import Config, Csv
 
-NIVEAU_DEBUG = "INFO"
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,7 +25,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 env_path = BASE_DIR + "/.env"
 
 load_dotenv(dotenv_path=env_path)
-
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # config Object with right path
 config = Config(env_path)
 
@@ -121,7 +121,7 @@ DATABASES = {
         'NAME': config('NAME_OLYMPIADESNSI_DB'),
         'USER': config('USER_ADMIN_OLYMPIADESNSI_DB'),
         'PASSWORD': config('PASSWORD_ADMIN_OLYMPIADESNSI_DB'),
-        'HOST': 'localhost',
+        'HOST':'postgres-v14.dane.paas.in.ac-versailles.fr',
         'PORT': '5432',
     }
 }
@@ -179,51 +179,3 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = ["bootstrap5"]
 
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': NIVEAU_DEBUG,
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-        'file': {
-            'level': NIVEAU_DEBUG,
-            'class': 'logging.FileHandler',
-            'filename': 'logs/celery.log',
-            'formatter': 'verbose',
-        },
-    },
-    'loggers': {
-        '': {  # Root logger
-            'handlers': ['console', 'file'],
-            'level': NIVEAU_DEBUG,
-            'propagate': True,
-        },
-        'django': {
-            'handlers': ['console', 'file'],
-            'level': NIVEAU_DEBUG,
-            'propagate': False,
-        },
-        'celery': {
-            'handlers': ['console', 'file'],
-            'level': NIVEAU_DEBUG,
-            'propagate': True,
-        },
-    },
-}
-
-LOGS_DIR = os.path.join(BASE_DIR, 'logs')
-if not os.path.exists(LOGS_DIR):
-    os.makedirs(LOGS_DIR)
