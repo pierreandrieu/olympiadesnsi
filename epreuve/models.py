@@ -140,7 +140,6 @@ class UserEpreuve(models.Model):
                                     on_delete=models.CASCADE)
     epreuve = models.ForeignKey(Epreuve, related_name='association_UserEpreuve_Epreuve',
                                 on_delete=models.CASCADE)
-    fin_epreuve = models.DateTimeField(auto_now=False, null=True)
     debut_epreuve = models.DateTimeField(auto_now=False, null=True)
 
     class Meta:
