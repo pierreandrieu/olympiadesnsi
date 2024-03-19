@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import List
 
 from django.contrib import messages
 from django.contrib.auth.models import User
@@ -15,10 +15,9 @@ from login.utils import genere_participants_uniques
 from olympiadesnsi import settings
 from .forms import EquipeInscriptionForm, DemandeLienInscriptionForm
 from .models import InscripteurExterne, InscriptionExterne
-from inscription.utils import generate_unique_token, calculer_nombre_inscrits
+from inscription.utils import generate_unique_token, calculer_nombre_inscrits, save_users
 from inscription.models import InscriptionDomaine, GroupeParticipant
 import olympiadesnsi.constants as constantes
-from intranet.tasks import save_users_task
 
 
 @ratelimit(key='ip', rate='1/s', method='GET', block=True)
@@ -161,8 +160,8 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
             groupe_participant.inscription_externe = inscription_externe
             groupe_participant.save()
             # Génère et enregistre les informations des participants.
-            users_info = genere_participants_uniques(referent, nombre_participants)
-            save_users_task.delay(groupe_participant.id, users_info, inscription_externe.id)
+            users_info: List[str] = genere_participants_uniques(referent, nombre_participants)
+            save_users(groupe_participant.id, users_info, inscription_externe.id)
 
             # Marque le token comme utilisé et sauvegarde l'inscription.
             inscription_externe.token_est_utilise = True
