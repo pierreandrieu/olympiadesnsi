@@ -38,6 +38,17 @@ class Epreuve(models.Model):
         """
         return self.date_fin < timezone.now()
 
+    def pas_commencee(self):
+        """
+        Détermine si l'épreuve n'a pas encore commencé.
+
+        Retourne:
+            bool: True si l'épreuve n'a pas encore commencé, False autrement.
+        """
+        # timezone.now() donne l'heure actuelle de manière "aware" en fonction des paramètres de timezone de Django
+        return self.date_debut > timezone.now()
+
+
     def __str__(self):
         return self.nom
 
