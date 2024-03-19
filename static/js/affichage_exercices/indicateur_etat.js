@@ -20,32 +20,21 @@ export function initIndicateursEtat(exercises) {
 }
 
 export function indicateurExoCourant(exoCourantId, exercises) {
-    console.log("enter indicateur exo courant");
     let i = 0;
     exercises.forEach(exercise => {
-        console.log("boucle i = " + i);
-        console.log(exercise);
         i += 1;
         let exo = document.getElementById(`indic-exo-${exercise.id}`);
-        console.log("exo = " + exo);
         exo.classList.remove('fa-solid');
         exo.classList.remove('fa-2xl');
         exo.classList.add('fa-regular');
         exo.classList.add('fa-lg');
-        console.log(exo.classList);
     });
-    console.log("end");
-    console.log("exo courant = ");
     let exoCourant = document.getElementById(`indic-exo-${exoCourantId}`);
-    console.log(exoCourant.id);
-    console.log(exoCourant.textContent);
 
     exoCourant.classList.remove('fa-regular');
     exoCourant.classList.remove('fa-lg');
     exoCourant.classList.add('fa-solid');
     exoCourant.classList.add('fa-2xl');
-    console.log(exoCourant.classList);
-
 }
 
 export function mettreAJourIndicateur(exerciseId, isSuccess) {
