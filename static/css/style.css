@@ -449,3 +449,29 @@ div#exercice-container div.exercice-row:last-child .move-down {
     max-height: 200px; /* Hauteur maximale avant que le défilement ne s'active */
     overflow-y: auto; /* Active le défilement vertical si nécessaire */
 }
+
+.navbar {
+    background-color: #ffffff; /* Ou une autre couleur de ton choix */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, .1); /* Ajoute une ombre pour un effet de profondeur */
+}
+
+.navbar-toggler {
+    border-color: transparent; /* Cache les bordures par défaut pour un look plus propre */
+}
+
+.navbar-nav .nav-item .nav-link {
+    color: #555555; /* Couleur de texte normale */
+    transition: color 0.3s; /* Transition douce pour les effets de survol */
+}
+
+.navbar-nav .nav-item .nav-link:hover,
+.navbar-nav .nav-item .nav-link:focus {
+    color: #1a73e8; /* Couleur de survol pour les liens */
+}
+
+/* Responsive nav-items */
+@media (max-width: 992px) {
+    .navbar-nav .nav-item {
+        border-top: 1px solid #eeeeee; /* Ajoute un séparateur entre les éléments */
+    }
+}
