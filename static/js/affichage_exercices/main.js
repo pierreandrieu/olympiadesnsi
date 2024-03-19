@@ -1,26 +1,28 @@
 import * as nav from './navigation_exercices.js';
-import {creerElementsExercice, mettreAJourValeursExercice} from './exercice_programmation.js'; // Assurez-vous que ces fonctions sont bien exportées depuis gestion_exercices.js
+import {creerElementsExercice, mettreAJourValeursExercice} from './exercice_programmation.js';
 import {indicateurExoCourant, initIndicateursEtat} from "./indicateur_etat.js";
 
 document.addEventListener('DOMContentLoaded', () => {
+    // console.log("coucou");
     const exercices = JSON.parse(document.getElementById('exercises-data').textContent);
-    const container = document.getElementById('exercice-container'); // Assurez-vous d'avoir un conteneur avec cet ID dans votre HTML
+    console.log(exercices);
+    const container = document.getElementById('exercice-container');
     let prevButton = document.getElementById('prev-exercise');
     let nextButton = document.getElementById('next-exercise');
     const unParUn = prevButton.dataset.unParUn === 'true';
 
     prevButton.addEventListener('click', () => {
-        nav.prevExercise();
+        nav.prevExercise(exercices);
         creerElementsExercice(exercices[nav.currentExerciseIndex], container);
         mettreAJourValeursExercice(exercices[nav.currentExerciseIndex]);
-        updateButtonStates();
+        updateButtonStates(exercices);
     });
 
     nextButton.addEventListener('click', () => {
-        nav.nextExercise();
+        nav.nextExercise(exercices);
         creerElementsExercice(exercices[nav.currentExerciseIndex], container);
         mettreAJourValeursExercice(exercices[nav.currentExerciseIndex]);
-        updateButtonStates();
+        updateButtonStates(exercices);
     });
 
     function updateButtonStates() {
@@ -28,12 +30,21 @@ document.addEventListener('DOMContentLoaded', () => {
         nextButton.disabled = nav.currentExerciseIndex >= exercices.length - 1;
     }
 
-    // Initialisation
     if (exercices.length > 0) {
+        // console.log("oui!");
         initIndicateursEtat(exercices); // Cette fonction doit initialiser visuellement les indicateurs d'état pour tous les exercices
+        // console.log(nav.currentExerciseIndex);
         creerElementsExercice(exercices[nav.currentExerciseIndex], container);
+        // console.log("ok");
         mettreAJourValeursExercice(exercices[nav.currentExerciseIndex]);
+        // console.log("ok2");
     }
     updateButtonStates();
-    indicateurExoCourant(nav.currentExerciseIndex, exercices);
+    // console.log("ok3");
+    console.log("INDIC = ");
+    console.log(nav.currentExerciseIndex);
+    console.log(exercices[nav.currentExerciseIndex].id);
+
+    indicateurExoCourant(exercices[nav.currentExerciseIndex].id, exercices);
+    // console.log("ok4");
 });
