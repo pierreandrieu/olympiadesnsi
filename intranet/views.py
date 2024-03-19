@@ -15,7 +15,7 @@ from django.db.models import Count, Prefetch, QuerySet
 from epreuve.models import User, Epreuve, MembreComite, Exercice, UserEpreuve
 from inscription.models import InscriptionDomaine, GroupeParticipant
 from intranet.models import ParticipantEstDansGroupe
-from intranet.tasks import save_users_task
+from inscription.utils import save_users
 from epreuve.forms import EpreuveForm
 from login.utils import genere_participants_uniques
 from olympiadesnsi import decorators
@@ -127,12 +127,12 @@ def creer_groupe(request: HttpRequest) -> HttpResponse:
             return redirect('creer_groupe')
 
         # Génération des utilisateurs uniques
-        users_info: List[Tuple[str, str]] = genere_participants_uniques(referent, nombre_utilisateurs)
+        users_info: List[str] = genere_participants_uniques(referent, nombre_utilisateurs)
 
         # Envoi des utilisateurs à créer en tâche de fond
-        save_users_task.delay(nouveau_groupe.id, users_info)
+        save_users(nouveau_groupe.id, users_info)
         # Préparation du fichier CSV pour téléchargement
-        user_data = ["Username,Password"] + [f"{username},{password}" for username, password in users_info]
+        user_data = ["Utilisateurs"] + [f"{username}" for username in users_info]
         request.session['csv_data'] = "\n".join(user_data)
         request.session['nom_groupe'] = nom_groupe
 
