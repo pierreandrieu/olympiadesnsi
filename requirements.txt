@@ -1,16 +1,12 @@
-django~=5.0.2
+django~=5.0.3
 django-allauth~=0.60.1
 django-simple-captcha~=0.6.0
 python-decouple~=3.8
 python-dotenv~=1.0.0
 django-debug-toolbar~=4.2.0
 psycopg2-binary~=2.9.9
-celery~=5.3.6
 django-ratelimit~=4.1.0
 whitenoise~=6.6.0
 sqlalchemy~=2.0.25
 django-crispy-forms~=2.1
 crispy-bootstrap5~=2024.2
-django-celery-results~=2.5
-pylint-django~=2.5
-pytz~=2024.1
