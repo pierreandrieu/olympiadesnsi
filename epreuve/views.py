@@ -20,7 +20,6 @@ from inscription.utils import assigner_participants_jeux_de_test, inscrire_group
 from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant
 import olympiadesnsi.decorators as decorators
 import json
-from datetime import timedelta
 from typing import List, Optional, Dict, Set, Tuple
 
 
@@ -142,62 +141,85 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
 @ratelimit(key='user', rate='10/m', block=True)
 @ratelimit(key='user', rate='2/s', block=True)
 def soumettre(request):
-    if request.method == 'POST':
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Non autorisé'}, status=405)
+    try:
+        data = json.loads(request.body)
+        exercice_id = data.get('exercice_id')
+        code_soumis = data.get('code_soumis', "")
+        solution_instance = data.get('solution_instance', "")
+
+        #  Exercice et le jeu de test associé
         try:
-            data = json.loads(request.body)
-            exercice_id = data.get('exercice_id')
-            code_soumis = data.get('code_soumis', "")
-            solution_instance = data.get('solution_instance', "")
+            exercice = Exercice.objects.get(id=exercice_id)
+        except Exercice.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Exercice introuvable'}, status=404)
 
-            #  Exercice et le jeu de test associé
-            try:
-                exercice = Exercice.objects.get(id=exercice_id)
-            except Exercice.DoesNotExist:
-                return JsonResponse({'success': False, 'error': 'Exercice introuvable'}, status=404)
+        # Epreuve
+        epreuve: Epreuve = Epreuve.objects.get(id=exercice.epreuve.id)
 
-            # Association UserExercice
-            user_exercice = UserExercice.objects.get(
+        if epreuve.pas_commencee() or epreuve.est_close():
+            # Redirige vers 'afficher_epreuve' avec l'argument 'epreuve_id' requis
+            return redirect(reverse('afficher_epreuve', kwargs={'epreuve_id': epreuve.id}))
+
+        temps_restant: Optional[int] = None
+        if epreuve and epreuve.temps_limite:
+            # Association UserEpreuve
+            user_epreuve: UserEpreuve = UserEpreuve.objects.get(
                 participant=request.user,
-                exercice=exercice
+                epreuve=epreuve
             )
+            if not user_epreuve.debut_epreuve:
+                # Convertit la durée de l'épreuve en minutes en un objet timedelta
+                user_epreuve.debut_epreuve = timezone.now()
+                user_epreuve.save()
 
-            jeu_de_test = user_exercice.jeu_de_test
+            # Calcul du temps restant
+            temps_restant = temps_restant_seconde(user_epreuve, epreuve)
+            if temps_restant < 1:
+                return redirect(reverse('afficher_epreuve', kwargs={'epreuve_id': epreuve.id}))
 
-            if user_exercice.nb_soumissions >= exercice.nombre_max_soumissions:
-                return JsonResponse({'success': False, 'error': 'Nombre maximum de soumissions atteint'}, status=403)
+        # Association UserExercice
+        user_exercice = UserExercice.objects.get(
+            participant=request.user,
+            exercice=exercice
+        )
 
-            # Mise à jour des champs
-            user_exercice.code_participant = code_soumis
-            user_exercice.solution_instance_participant = solution_instance
-            user_exercice.nb_soumissions += 1
-            user_exercice.save()
+        jeu_de_test = user_exercice.jeu_de_test
 
-            if not exercice.avec_jeu_de_test:
-                return JsonResponse({
-                    'success': True,
-                    'nb_soumissions_restantes': exercice.nombre_max_soumissions - user_exercice.nb_soumissions,
-                    'code_enregistre': user_exercice.code_participant,
-                    'reponse_jeu_de_test_enregistree': user_exercice.solution_instance_participant
-                })
+        if user_exercice.nb_soumissions >= exercice.nombre_max_soumissions:
+            return JsonResponse({'success': False, 'error': 'Nombre maximum de soumissions atteint'}, status=403)
 
-            # Vérification de la solution
+        # Mise à jour des champs
+        user_exercice.code_participant = code_soumis
+        user_exercice.solution_instance_participant = solution_instance
+        user_exercice.nb_soumissions += 1
+        user_exercice.save()
 
-            reponse_valide: bool = False
-            if jeu_de_test and str(solution_instance).strip() == str(jeu_de_test.reponse).strip():
-                reponse_valide = True
-
+        if not exercice.avec_jeu_de_test:
             return JsonResponse({
                 'success': True,
-                'reponse_valide': reponse_valide,
                 'nb_soumissions_restantes': exercice.nombre_max_soumissions - user_exercice.nb_soumissions,
                 'code_enregistre': user_exercice.code_participant,
                 'reponse_jeu_de_test_enregistree': user_exercice.solution_instance_participant
             })
 
-        except json.JSONDecodeError:
-            return JsonResponse({'success': False, 'error': 'Données invalides'}, status=400)
-    else:
-        return JsonResponse({'success': False, 'error': 'Méthode non autorisée'}, status=405)
+        # Vérification de la solution
+
+        reponse_valide: bool = False
+        if jeu_de_test and str(solution_instance).strip() == str(jeu_de_test.reponse).strip():
+            reponse_valide = True
+
+        return JsonResponse({
+            'success': True,
+            'reponse_valide': reponse_valide,
+            'nb_soumissions_restantes': exercice.nombre_max_soumissions - user_exercice.nb_soumissions,
+            'code_enregistre': user_exercice.code_participant,
+            'reponse_jeu_de_test_enregistree': user_exercice.solution_instance_participant
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Données invalides'}, status=400)
 
 
 @login_required
@@ -269,7 +291,7 @@ def ajouter_organisateur(request: HttpRequest, epreuve_id: int):
 
 
 @login_required
-@decorators.administrateur_epreuve_required
+@decorators.membre_comite_required
 def inscrire_groupes_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     """
     Inscrit des groupes de participants à une épreuve donnée, en vérifiant que l'utilisateur est un administrateur
@@ -307,7 +329,7 @@ def inscrire_groupes_epreuve(request: HttpRequest, epreuve_id: int) -> HttpRespo
 
 
 @login_required
-@decorators.administrateur_epreuve_required
+@decorators.membre_comite_required
 def desinscrire_groupe_epreuve(request: HttpRequest, epreuve_id: int, groupe_id: int) -> HttpResponse:
     """
     Désinscrit tous les participants d'un groupe spécifique d'une épreuve donnée.
@@ -458,7 +480,7 @@ def supprimer_jeux_de_test(request: HttpRequest, id_exercice: int) -> HttpRespon
 
 
 @login_required
-@decorators.administrateur_epreuve_required
+@decorators.membre_comite_required
 def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Optional[int] = None) -> HttpResponse:
     """
     Vue pour créer ou éditer un exercice dans une épreuve spécifique.
@@ -475,14 +497,11 @@ def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Op
     Returns:
         HttpResponse: La réponse HTTP rendue.
     """
-
     # L'objet épreuve est récupéré par le décorateur 'administrateur_exercice_required'
     epreuve: Epreuve = getattr(request, 'epreuve', None)
-
     jdt_anciens: Set[Tuple[str, str]] = set()
     jeux_de_test: Optional[QuerySet[JeuDeTest]] = None
     modifications_jdt: bool = False
-
     # Initialise le formulaire pour l'édition si un id_exercice est fourni, sinon pour la création
     if id_exercice:
 

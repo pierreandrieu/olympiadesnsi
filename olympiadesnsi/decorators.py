@@ -149,6 +149,7 @@ def membre_comite_required(view_func):
     def _wrapped_view(request, *args, **kwargs):
         # Récupère l'ID de l'épreuve à partir des arguments de la vue
         epreuve_id = kwargs.get('epreuve_id')
+        id_exercice = kwargs.get('id_exercice', None)
         if epreuve_id is None:
             # Si l'ID de l'épreuve n'est pas fourni, renvoie une réponse Forbidden
             return HttpResponseForbidden("ID de l'épreuve manquant.")
@@ -161,6 +162,9 @@ def membre_comite_required(view_func):
             # Si l'utilisateur n'est pas membre du comité, renvoie une réponse Forbidden
             return HttpResponseForbidden("Vous n'avez pas les droits d'accès nécessaires.")
 
+        if id_exercice is not None:
+            exercice = get_object_or_404(Exercice, id=id_exercice)
+            request.exercice = exercice
         # Attacher l'objet Epreuve à l'objet request pour éviter une nouvelle requête dans la vue
         request.epreuve = epreuve
         # Si toutes les vérifications sont passées, exécute la vue originale
