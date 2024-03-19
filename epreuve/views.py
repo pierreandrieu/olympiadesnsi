@@ -69,11 +69,14 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     user: User = request.user
     epreuve: Optional[Epreuve] = getattr(request, 'epreuve', None)
 
+    if epreuve.pas_commencee():
+        return render(request, 'epreuve/erreurs/epreuve_pas_encore_ouverte.html')
+
     if epreuve.est_close():
         return render(request, 'epreuve/erreurs/epreuve_terminee.html')
 
     # Calcul du temps restant pour compléter l'épreuve, si applicable.
-    temps_restant: Optional[timedelta] = None
+    temps_restant: Optional[int] = None
     if epreuve and epreuve.temps_limite:
         user_epreuve, _ = UserEpreuve.objects.get_or_create(participant=user, epreuve=epreuve)
         if not user_epreuve.debut_epreuve:
@@ -83,6 +86,9 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
 
         # Calcul du temps restant
         temps_restant = temps_restant_seconde(user_epreuve, epreuve)
+        if temps_restant < 1:
+            return render(request, 'epreuve/erreurs/temps_ecoule.html')
+
 
     # Sélection de tous les exercices associés à l'épreuve, ordonnés par leur numéro.
     exercices: List[Exercice] = list(Exercice.objects.filter(epreuve=epreuve).order_by('numero'))
