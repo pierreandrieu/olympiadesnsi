@@ -1,15 +1,15 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from captcha.fields import CaptchaField
-from olympiadesnsi.constants import NB_TENTATIVES_CONNEXIONS_AVANT_CAPTCHA
+from olympiadesnsi.constants import NB_TENTATIVES_CONNEXIONS_AVANT_CAPTCHA, MAX_TAILLE_NOM
 
 
 class LoginForm(forms.Form):
     username = forms.CharField(
-        max_length=100,
+        max_length=MAX_TAILLE_NOM,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('Nom d’utilisateur')}),
         error_messages={'required': _('Veuillez entrer votre nom d’utilisateur.')},
-        label=_('Nom d’utilisateur')
+        label=_('Nom d’utilisateur'),
     )
     password = forms.CharField(
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': _('Mot de passe')}),
@@ -29,3 +29,7 @@ class LoginForm(forms.Form):
                 self.fields['captcha'].required = True
                 self.fields['captcha'].widget.attrs.update({'class': 'form-control'})
                 self.fields['captcha'].error_messages = {'required': _('Veuillez résoudre le captcha.')}
+
+
+class PreLoginForm(forms.Form):
+    username = forms.CharField(label='Nom d’utilisateur', max_length=MAX_TAILLE_NOM)

@@ -1,8 +1,12 @@
+from django.contrib.auth.forms import SetPasswordForm
+from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
-from .forms import LoginForm
+from django.urls import reverse
+
+from .forms import LoginForm, PreLoginForm
 from django_ratelimit.decorators import ratelimit
 
 
@@ -42,6 +46,7 @@ def generic_login(request_generic: HttpRequest, user_group: str, redirect_url: s
         """
         # Traitement des requêtes POST (soumission du formulaire de connexion)
 
+        prelogin_username = request.session.pop('prelogin_username', None)
         if request.method == 'POST':
             # Initialisation du formulaire avec les données POST et la requête
             form = LoginForm(request.POST, request=request)
@@ -68,8 +73,10 @@ def generic_login(request_generic: HttpRequest, user_group: str, redirect_url: s
                     # Affichage d'un message d'erreur
                     messages.error(request, 'Identifiant ou mot de passe incorrect.')
         else:
-            # Pour les requêtes non POST (typiquement GET), initialisation d'un formulaire vierge
-            form = LoginForm(request=request)
+            if prelogin_username:
+                form: LoginForm = LoginForm(initial={'username': prelogin_username})
+            else:
+                form: LoginForm = LoginForm()
 
         # Rendu du template avec le formulaire, pour GET ou POST invalide
         return render(request, form_template, {'form': form})
@@ -126,3 +133,71 @@ def custom_logout(request: HttpRequest) -> HttpResponse:
     """
     logout(request)
     return redirect('home')
+
+
+def prelogin(request: HttpRequest) -> HttpResponse:
+    if request.method == 'POST':
+        form: PreLoginForm = PreLoginForm(request.POST)
+        if form.is_valid():
+            username: str = form.cleaned_data['username']
+            try:
+                user: User = User.objects.get(username=username)
+                if user.password == '':
+                    # Rediriger vers la page de choix de mot de passe si l'utilisateur n'a pas de mot de passe
+                    return redirect('set_password', username=username)
+                else:
+                    # Rediriger vers la page de connexion normale avec le nom d'utilisateur prérempli
+                    request.session['prelogin_username'] = username
+                    return redirect('login_participant')
+            except User.DoesNotExist:
+                # Gestion de l'erreur si l'utilisateur n'existe pas
+                form.add_error(None, 'Aucun utilisateur trouvé avec ce nom d’utilisateur.')
+    else:
+        form: PreLoginForm = PreLoginForm()
+
+    return render(request, 'login/prelogin.html', {'form': form})
+
+
+def set_password(request: HttpRequest, username: str) -> HttpResponse:
+    """
+    Permet à un utilisateur de définir son mot de passe.
+
+    Cette vue est destinée aux utilisateurs qui n'ont pas encore de mot de passe défini.
+    Elle récupère l'utilisateur par son nom d'utilisateur et présente un formulaire pour
+    définir un nouveau mot de passe. Si l'utilisateur a déjà un mot de passe, il est redirigé
+    vers la page de connexion.
+
+    Args:
+        request (HttpRequest): L'objet requête HTTP.
+        username (str): Le nom d'utilisateur pour lequel le mot de passe doit être défini.
+
+    Returns:
+        HttpResponse: L'objet réponse HTTP renvoyé au client.
+    """
+
+    # Récupération de l'utilisateur par son nom d'utilisateur, avec gestion d'erreur 404 si non trouvé
+    user = get_object_or_404(User, username=username)
+
+    # Traitement du formulaire en cas de méthode POST
+    if request.method == 'POST':
+        # Création d'une instance de formulaire avec les données soumises et l'utilisateur concerné
+        form = SetPasswordForm(user=user, data=request.POST)
+
+        # Vérification de la validité du formulaire
+        if form.is_valid():
+            # Enregistrement du nouveau mot de passe pour l'utilisateur
+            form.save()
+            # Activation de l'utilisateur s'il était inactif
+            if not user.is_active:
+                user.is_active = True
+                user.save()
+            # Affichage d'un message de succès et redirection vers la page de connexion
+            messages.success(request,
+                             'Votre mot de passe a été défini avec succès. Vous pouvez maintenant vous connecter.')
+            return redirect(reverse('login_participant'))
+    else:
+        # Création d'une instance de formulaire vierge si la requête n'est pas POST
+        form = SetPasswordForm(user=user)
+
+    # Affichage de la page avec le formulaire si méthode GET ou formulaire invalide
+    return render(request, 'login/set_password.html', {'form': form, 'username': username})

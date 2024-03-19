@@ -1,0 +1,27 @@
+{% extends 'olympiadesnsi/base_extranet.html' %}
+
+{% block content %}
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header text-center">
+                        <h4 class="card-title">Connexion</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" action="{% url 'prelogin' %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                {{ form.username.label_tag }}
+                                {{ form.username }}
+                                <small class="form-text text-muted">Entrez votre nom d’utilisateur pour
+                                    continuer.</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Continuer</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
