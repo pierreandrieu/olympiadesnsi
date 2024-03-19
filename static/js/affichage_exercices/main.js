@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (exercices.length > 0) {
-        initIndicateursEtat(exercices); // Cette fonction doit initialiser visuellement les indicateurs d'état pour tous les exercices
+        initIndicateursEtat(exercices);
         creerElementsExercice(exercices[nav.currentExerciseIndex], container);
         mettreAJourValeursExercice(exercices[nav.currentExerciseIndex]);
     }
