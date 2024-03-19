@@ -17,7 +17,6 @@ import os
 from decouple import Config, Csv
 
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -63,7 +62,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django_celery_results",
     "crispy_forms",
     "crispy_bootstrap5",
     "olympiadesnsi",
@@ -121,12 +119,10 @@ DATABASES = {
         'NAME': config('NAME_OLYMPIADESNSI_DB'),
         'USER': config('USER_ADMIN_OLYMPIADESNSI_DB'),
         'PASSWORD': config('PASSWORD_ADMIN_OLYMPIADESNSI_DB'),
-        'HOST':'postgres-v14.dane.paas.in.ac-versailles.fr',
+        'HOST': config('HOST_DB'),
         'PORT': '5432',
     }
 }
-
-CELERY_RESULT_BACKEND = f'db+postgresql://{config("USER_ADMIN_OLYMPIADESNSI_DB")}:{config("PASSWORD_ADMIN_OLYMPIADESNSI_DB")}@localhost/{config("NAME_OLYMPIADESNSI_DB")}'
 
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
@@ -178,4 +174,3 @@ LOGOUT_REDIRECT_URL = 'home'
 CRISPY_ALLOWED_TEMPLATE_PACKS = ["bootstrap5"]
 
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
-
