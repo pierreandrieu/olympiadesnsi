@@ -1,10 +1,6 @@
 function initialiserChronometre(tempsRestantDataId) {
-    console.log("debut chrono");
     let elem = document.querySelector('script[type="application/json"]#' + tempsRestantDataId);
-    console.log("elem = " + elem);
     let tempsRestant = JSON.parse(elem.textContent);
-    console.log("temps restant " + tempsRestant);
-
     const intervalId = setInterval(function () {
         if (tempsRestant <= 0) {
             clearInterval(intervalId);

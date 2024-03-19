@@ -223,7 +223,6 @@ function soumettreReponse(exercice) {
 
         })
         .catch(error => {
-            console.error('Erreur:', error);
             activeBoutonSoumission(exerciseId);
         });}
 
