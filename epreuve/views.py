@@ -452,7 +452,7 @@ def supprimer_jeux_de_test(request: HttpRequest, id_exercice: int) -> HttpRespon
 
 
 @login_required
-@decorators.administrateur_exercice_required
+@decorators.administrateur_epreuve_required
 def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Optional[int] = None) -> HttpResponse:
     """
     Vue pour créer ou éditer un exercice dans une épreuve spécifique.
@@ -463,6 +463,7 @@ def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Op
 
     Args:
         request (HttpRequest): L'objet requête HTTP.
+        epreuve_id (int): L'identifiant de l'épreuve de l'exercice à éditer
         id_exercice (Union[int, None], optional): L'identifiant de l'exercice à éditer, si applicable. Defaults to None.
 
     Returns:
