@@ -34,5 +34,3 @@ class Command(BaseCommand):
                         self.stdout.write(self.style.SUCCESS(f'Organisateur {username} créé avec succès'))
                     else:
                         self.stdout.write(self.style.SUCCESS(f"organisateur {username} existe déjà"))
-
-
