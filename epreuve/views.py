@@ -2,7 +2,6 @@ import logging
 from random import choice
 
 from django.contrib.auth.models import User
-from django.core.serializers import serialize
 from django.db import transaction
 from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
