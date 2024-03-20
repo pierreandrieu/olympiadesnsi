@@ -1,6 +1,6 @@
 from django.http import HttpResponseForbidden
 from functools import wraps
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from epreuve.models import Epreuve, Exercice, MembreComite
 from inscription.models import GroupeParticipant
 from .interrogations_bd import user_est_inscrit_a_epreuve
@@ -67,11 +67,11 @@ def administrateur_epreuve_required(view_func):
         epreuve_id = kwargs.get('epreuve_id')
         if epreuve_id:
             # Récupérer l'objet Epreuve correspondant ou retourner une erreur 404 si non trouvé.
-            epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+            epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
             # Vérifier si l'utilisateur est le référent de l'épreuve.
             if request.user != epreuve.referent:
                 # Si non, retourner une réponse HTTP "Forbidden".
-                return HttpResponseForbidden("Vous n'êtes pas le référent de cette épreuve.")
+                return HttpResponseForbidden("Cette action est réservée à l'administrateur de lrépreuve.")
             # Attacher l'objet Epreuve à l'objet request pour éviter une nouvelle requête dans la vue.
             request.epreuve = epreuve
         return view_func(request, *args, **kwargs)
@@ -96,12 +96,10 @@ def participant_inscrit_a_epreuve_required(view_func):
     def _wrapped_view(request, *args, **kwargs):
         epreuve_id = kwargs.get('epreuve_id')
         if epreuve_id:
-            epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-            # Réutiliser la logique de la fonction 'user_est_inscrit_a_epreuve'
+            epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
             if not user_est_inscrit_a_epreuve(request.user, epreuve):
-                return HttpResponseForbidden(
-                    "Vous n'êtes pas inscrit à cette épreuve ou vous n'appartenez pas au groupe de participants.")
-            # Attacher l'objet Epreuve à l'objet request pour éviter une nouvelle requête dans la vue
+                context: dict = {'message': f"Accès refusé car vous n'ếtes pas inscrit à l'épreuve concernée"}
+                return render(request, 'olympiadesnsi/erreur.html', context, status=403)
             request.epreuve = epreuve
         return view_func(request, *args, **kwargs)
 
@@ -124,11 +122,13 @@ def administrateur_exercice_required(view_func):
     def _wrapped_view(request, *args, **kwargs):
         epreuve_id = kwargs.get('epreuve_id')
         id_exercice = kwargs.get('id_exercice', None)  # Utilisez 'id_exercice' pour correspondre à la vue
-        epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+        epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
         if id_exercice:
-            exercice = get_object_or_404(Exercice, id=id_exercice)
+            exercice: Exercice = get_object_or_404(Exercice, id=id_exercice)
             if not (request.user == epreuve.referent or request.user == exercice.auteur):
-                return HttpResponseForbidden("Vous n'avez pas les droits nécessaires pour cette action.")
+                context: dict = {'message': "Vous n'avez pas les droits nécessaires pour cette action réservée à "
+                                            "l'administrateur de l'épreuve ou au créateur de l'éxercice."}
+                return render(request, 'olympiadesnsi/erreur.html', context, status=403)
             request.exercice = exercice
 
         request.epreuve = epreuve  # Toujours attacher l'épreuve à la requête
@@ -155,15 +155,16 @@ def membre_comite_required(view_func):
             return HttpResponseForbidden("ID de l'épreuve manquant.")
 
         # Récupère l'épreuve correspondante ou renvoie une erreur 404 si non trouvée
-        epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+        epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
 
         # Vérifie si l'utilisateur courant est membre du comité de cette épreuve
         if not MembreComite.objects.filter(membre=request.user, epreuve=epreuve).exists():
             # Si l'utilisateur n'est pas membre du comité, renvoie une réponse Forbidden
-            return HttpResponseForbidden("Vous n'avez pas les droits d'accès nécessaires.")
-
+            context: dict = {'message': "Vous n'avez pas les droits nécessaires pour cette action réservée aux membres "
+                                        "du comité d'organisation de l'épreuve."}
+            return render(request, 'olympiadesnsi/erreur.html', context, status=403)
         if id_exercice is not None:
-            exercice = get_object_or_404(Exercice, id=id_exercice)
+            exercice: Exercice = get_object_or_404(Exercice, id=id_exercice)
             request.exercice = exercice
         # Attacher l'objet Epreuve à l'objet request pour éviter une nouvelle requête dans la vue
         request.epreuve = epreuve
@@ -192,11 +193,11 @@ def administrateur_groupe_required(view_func):
         if groupe_id:
             # Tente de récupérer le groupe et vérifie si l'utilisateur courant en est l'administrateur.
             try:
-                groupe = GroupeParticipant.objects.get(id=groupe_id, referent=request.user)
+                groupe: GroupeParticipant = GroupeParticipant.objects.get(id=groupe_id, referent=request.user)
             except GroupeParticipant.DoesNotExist:
                 # Si l'utilisateur n'est pas l'administrateur du groupe, renvoie une réponse interdite.
-                return HttpResponseForbidden("Vous n'avez pas les droits nécessaires pour accéder à cette ressource.")
-
+                context: dict = {'message': "Vous n'avez pas les droits nécessaires pour cette action."}
+                return render(request, 'olympiadesnsi/erreur.html', context, status=403)
             # Attache l'objet GroupeParticipant à l'objet request pour éviter une nouvelle requête dans la vue.
             request.groupe = groupe
 
