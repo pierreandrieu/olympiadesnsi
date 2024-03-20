@@ -3,11 +3,16 @@ export function initIndicateursEtat(exercises) {
     exercises.forEach(exercise => {
         const indicateur = document.createElement('span');
         if(exercise.retour_en_direct) {
-            if(exercise.reponse_valide) {
-                indicateur.className = 'indic-exo-valide fa-regular fa-circle-check fa-lg';
+            if (exercise.reponse_jeu_de_test_enregistree === '' || exercise.reponse_jeu_de_test_enregistree === null) {
+                indicateur.className = 'indic-exo-non-soumis fa-regular fa-circle-question fa-lg';
             }
-            else {
-                indicateur.className = 'indic-exo-invalide fa-regular fa-circle-xmark fa-lg';
+            else
+            {
+                if (exercise.reponse_valide) {
+                    indicateur.className = 'indic-exo-valide fa-regular fa-circle-check fa-lg';
+                } else {
+                    indicateur.className = 'indic-exo-invalide fa-regular fa-circle-xmark fa-lg';
+                }
             }
         }
         else {
