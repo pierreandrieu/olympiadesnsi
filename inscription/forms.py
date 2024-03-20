@@ -35,7 +35,7 @@ class DemandeLienInscriptionForm(forms.Form):
 
 
 class EquipeInscriptionForm(forms.Form):
-    nombre_participants = forms.IntegerField(label="Nombre de participants (ou équipes) à inscrire", min_value=1)
+    nombre_participants = forms.IntegerField(label="Nombre d'équipes à inscrire", min_value=1)
 
     def __init__(self, *args, **kwargs):
         self.max_equipes = kwargs.pop('max_equipes', constantes.MAX_USERS_PAR_GROUPE)
@@ -48,5 +48,5 @@ class EquipeInscriptionForm(forms.Form):
              #   HTML(f"<p class='text-info'>Nombre d'inscriptions encore possibles : {self.max_equipes}</p>"),
              css_class='form-group'
             ),
-            Submit('submit', 'Inscrire des participants', css_class='btn btn-primary')
+            Submit('submit', 'Inscrire des équipes', css_class='btn btn-primary')
         )
