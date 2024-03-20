@@ -192,8 +192,8 @@ def save_users(groupe_id: int, usernames: List[str],
 
                 # Ajout de la pièce jointe
                 mail.attach(
-                    filename=f"identifiants_participants_{epreuve_nom}_{datetime.now().strftime('%d-%m_%H-%M')}",
-                    content="Nom d'utilisateur\n" +
+                    filename=f"identifiants_equipes_{epreuve_nom}_{datetime.now().strftime('%d-%m_%H-%M')}.csv",
+                    content="username\n" +
                             "\n".join([f"{user}" for user in usernames]),
                     mimetype='text/csv')
 
