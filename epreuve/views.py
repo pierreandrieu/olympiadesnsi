@@ -1,4 +1,5 @@
 import logging
+from random import choice
 
 from django.contrib.auth.models import User
 from django.core.serializers import serialize
@@ -236,12 +237,46 @@ def supprimer_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
 @decorators.membre_comite_required
 def visualiser_epreuve_organisateur(request, epreuve_id):
     epreuve: Epreuve = getattr(request, 'epreuve', None)
-    exercices: QuerySet[Exercice] = Exercice.objects.filter(epreuve=epreuve).order_by('numero')
-    exercices_json = json.loads(serialize('json', exercices))
+    # Calcul du temps restant pour compléter l'épreuve, si applicable.
+    temps_restant_secondes: Optional[int] = None
+    if epreuve and epreuve.temps_limite:
+        temps_restant_secondes = epreuve.duree * 60
 
-    return render(request, 'epreuve/visualiser_epreuve.html', {
+    # Sélection de tous les exercices associés à l'épreuve, ordonnés par leur numéro.
+    exercices: List[Exercice] = list(Exercice.objects.filter(epreuve=epreuve).order_by('numero'))
+
+    exercices_json_list: List[Dict[str, object]] = []
+    for ex in exercices:
+        jeu_de_test: Optional[JeuDeTest] = None
+        if ex.avec_jeu_de_test:
+            jeu_de_test = choice(JeuDeTest.objects.filter(exercice_id=ex.id))
+
+        exercice_dict: Dict[str, object] = {
+            'id': ex.id,
+            'titre': ex.titre,
+            'bareme': ex.bareme,
+            'enonce': ex.enonce,
+            'enonce_code': ex.enonce_code,
+            'type_exercice': ex.type_exercice,
+            'avec_jeu_de_test': ex.avec_jeu_de_test,
+            'reponse_jeu_de_test_enregistree': "reponse_eleve",
+            'code_enregistre': "code_eleve",
+            'code_a_soumettre': ex.code_a_soumettre,
+            'nb_soumissions_restantes': ex.nombre_max_soumissions,
+            'nb_max_soumissions': ex.nombre_max_soumissions,
+            'retour_en_direct': ex.retour_en_direct,
+            'instance_de_test': jeu_de_test.instance if jeu_de_test else "",
+            'reponse_valide': False
+        }
+
+        exercices_json_list.append(exercice_dict)
+
+    # Conversion des données des exercices en JSON pour utilisation côté client.
+    exercices_json: str = json.dumps(exercices_json_list)
+    return render(request, 'epreuve/afficher_epreuve.html', {
         'epreuve': epreuve,
-        'exercices_json': json.dumps(exercices_json)
+        'exercices_json': exercices_json,
+        'temps_restant': temps_restant_secondes
     })
 
 

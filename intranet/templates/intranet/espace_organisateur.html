@@ -78,9 +78,9 @@
 
                                     </td>
                                         <td>
-                                            <!-- <a href=>
+                                            <a href="{% url 'visualiser_epreuve' epreuve.id %}">
                                                 <i class="fas fa-eye"></i>
-                                            </a> -->
+                                            </a>
                                             {% if request.user == epreuve.referent %}
 
                                                 <a href="{% url 'editer_epreuve' epreuve.id %}">
