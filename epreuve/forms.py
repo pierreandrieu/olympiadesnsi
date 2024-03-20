@@ -148,7 +148,7 @@ class ExerciceForm(forms.ModelForm):
             'code_a_soumettre': 'Code à soumettre',
             'nombre_max_soumissions': 'Nombre maximum de soumissions',
             'avec_jeu_de_test': 'Avec jeu de test',
-            'retour_en_direct': 'Retour en direct',
+            'retour_en_direct': 'Indicateur de réussite',
         }
         widgets = {
             'titre': forms.TextInput(attrs={
