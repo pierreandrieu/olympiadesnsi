@@ -132,7 +132,8 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
         if request.method == 'POST' and form.is_valid():
             nombre_participants: int = form.cleaned_data['nombre_participants']
             if nombre_participants > max_participants_encore_possibles:
-                messages.error(request,f"Pour l'épreuve {epreuve.nom}, il vous reste au maximum "
+                messages.error(request,f"Pour l'épreuve "
+                                       f"{epreuve.nom}, il vous reste au maximum "
                                f"{max_participants_encore_possibles} inscriptions possibles."
                                f"Contactez le référent de l'épreuve en cas de problème.")
                 return redirect(reverse('inscription_par_token', args=[token]))
