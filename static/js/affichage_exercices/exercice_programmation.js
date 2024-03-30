@@ -17,21 +17,53 @@ export function creerElementsExercice(exercice, container) {
     titleElement.textContent = exercice.titre; // Utilise textContent pour éviter les risques XSS
     container.appendChild(titleElement);
 
-// Crée et ajoute l'énoncé de l'exercice, avec gestion du LaTeX
+    // Crée et ajoute l'énoncé de l'exercice, avec gestion du LaTeX
     if (exercice.enonce && exercice.enonce.trim().length > 0) {
         const enonceElement = document.createElement('div');
         renderLatex(exercice.enonce, enonceElement);
+        // Ajoute une marge en bas pour créer un espace après l'énoncé
+        enonceElement.style.marginBottom = '10px';
         container.appendChild(enonceElement);
     }
 
     // Vérifie et ajoute l'énoncé de code si présent
     if (exercice.enonce_code && exercice.enonce_code.trim().length > 0) {
+        // Crée un paragraphe d'introduction pour le code
+        const introCodeP = document.createElement('p');
+        introCodeP.textContent = "Le code ci-dessous vous est fourni :";
+        container.appendChild(introCodeP); // Ajoute le paragraphe au conteneur
+
+        // Création du conteneur pour le bouton de copie
+        const copyButtonContainer = document.createElement('div');
+        const copyButton = document.createElement('button');
+        copyButton.textContent = 'Copier le code fourni';
+        copyButton.className = 'copy-code-button'; // Ajoutez une classe pour le style si nécessaire
+        copyButtonContainer.appendChild(copyButton);
+        container.appendChild(copyButtonContainer); // Ajoute le conteneur du bouton au conteneur principal
+
         const codeElement = document.createElement('pre');
+        codeElement.className = 'pre-scrollable';
         const codeContent = document.createElement('code');
+        codeContent.className = 'language-python';
         codeContent.textContent = exercice.enonce_code;
         codeElement.appendChild(codeContent);
-        container.appendChild(codeElement);
+        container.appendChild(codeElement); // Ajoute le bloc de code au conteneur
+
+        // Fonction pour copier le texte dans le presse-papier
+        copyButton.addEventListener('click', function() {
+            const textToCopy = exercice.enonce_code.replace(/\n\n/g, '\n');
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                // Afficher un message de confirmation ou changer brièvement le texte du bouton pour indiquer le succès de la copie
+                copyButton.textContent = 'Copié!';
+                setTimeout(() => copyButton.textContent = 'Copier', 2000); // Revenir au texte original après 2 secondes
+            }).catch(err => {
+                // Gérer l'erreur (par exemple, afficher un message d'erreur)
+                console.error('Erreur lors de la copie du texte: ', err);
+            });
+        });
     }
+
+
 
     // Ajoute un champ de réponse et l'instance du jeu de test si l'exercice comporte un jeu de test
     if (exercice.avec_jeu_de_test) {
@@ -44,9 +76,27 @@ export function creerElementsExercice(exercice, container) {
         jeuDeTestExplication.textContent = 'Votre jeu de test :';
         jeuDeTestContainer.appendChild(jeuDeTestExplication);
 
+        // Création et ajout du bouton de copie
+        const copyButton = document.createElement('button');
+        copyButton.textContent = 'Copier le jeu de test';
+        copyButton.className = 'copy-test-button'; // Ajoutez une classe pour le style si nécessaire
+        jeuDeTestContainer.appendChild(copyButton);
+
+        // Fonction pour copier le texte de l'instance du jeu de test dans le presse-papier
+        copyButton.addEventListener('click', function() {
+            navigator.clipboard.writeText(exercice.instance_de_test).then(() => {
+                // Afficher un message de confirmation ou changer brièvement le texte du bouton pour indiquer le succès de la copie
+                copyButton.textContent = 'Copié!';
+                setTimeout(() => copyButton.textContent = 'Copier le jeu de test', 2000); // Revenir au texte original après 2 secondes
+            }).catch(err => {
+                // Gérer l'erreur (par exemple, afficher un message d'erreur)
+                console.error('Erreur lors de la copie du texte: ', err);
+            });
+        });
+
         // Affichage de l'instance du jeu de test
         const jeuDeTestInstance = document.createElement('pre');
-        jeuDeTestInstance.className = 'jeu-de-test-instance';
+        jeuDeTestInstance.className = 'jeu-de-test-instance pre-scrollable';
         jeuDeTestInstance.textContent = exercice.instance_de_test;
         jeuDeTestContainer.appendChild(jeuDeTestInstance);
 
@@ -74,6 +124,7 @@ export function creerElementsExercice(exercice, container) {
         // Ajout du conteneur de réponse au conteneur principal
         container.appendChild(responseContainer);
     }
+
 
 // Création du champ pour la soumission du code, si nécessaire
     if (exercice.code_a_soumettre) {

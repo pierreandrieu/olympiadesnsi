@@ -39,3 +39,9 @@ document.addEventListener('DOMContentLoaded', () => {
     updateButtonStates();
     indicateurExoCourants(exercices[nav.currentExerciseIndex].id, exercices);
 });
+
+document.addEventListener('DOMContentLoaded', (event) => {
+  document.querySelectorAll('pre code').forEach((block) => {
+    hljs.highlightBlock(block);
+  });
+});

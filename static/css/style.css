@@ -223,6 +223,13 @@ code {
     margin-bottom: 20px; /* Espacement après les indicateurs d'état */
 }
 
+.pre-scrollable {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 20px; /* Ajoute un peu d'espace en bas */
+}
+
+
 .indic-exo {
     /*width: 20px;*/ /* Taille des indicateurs d'état */
     /*height: 20px;*/ /* Hauteur des indicateurs d'état */
