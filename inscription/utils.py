@@ -185,7 +185,10 @@ def save_users(groupe_id: int, usernames: List[str],
                          f"des {len(usernames)} équipes. "
                          f"Les mots de passe devront être définis à la première connexion.\n"
                          f"En cas de perte de mot de passe par une équipe, vous pourrez utiliser l'onglet de "
-                         f"récupération de compte sur la page principale des olympiades.",
+                         f"récupération de compte sur la page principale des olympiades.\n\n"
+                         f"Pour rappel, l'épreuve pratique des olympiades de NSI se déroule sur une période de trois jours. "
+                         f"Chaque enseignant choisit le créneau pour faire concourir ses élèves. "
+                         f"Il est donc important de ne distribuer les identifiants qu'au moment approprié, afin d'éviter un accès anticipé à l'épreuve.",
                     from_email=settings.EMAIL_HOST_USER,
                     to=[email],
                 )
