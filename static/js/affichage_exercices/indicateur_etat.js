@@ -9,7 +9,12 @@ export function initIndicateursEtat(exercises, id_indicateur) {
             else
             {
                 if (exercise.reponse_valide) {
-                    indicateur.className = 'indic-exo-valide fa-regular fa-circle-check fa-lg';
+                    if(exercise.code_enregistre.trim().length > 0) {
+                        indicateur.className = 'indic-exo-valide fa-regular fa-circle-check fa-lg';
+                    }
+                    else {
+                        indicateur.className = 'indic-exo-code-manquant fa-regular fa-pencil fa-lg';
+                    }
                 } else {
                     indicateur.className = 'indic-exo-invalide fa-regular fa-circle-xmark fa-lg';
                 }
@@ -43,24 +48,31 @@ export function indicateurExoCourant(exoCourantId, exercises, id_indicateur) {
     exoCourant.classList.add('fa-2xl');
 }
 
-export function mettreAJourIndicateur(exerciseId, isSuccess, id_indicateur) {
+export function mettreAJourIndicateur(exerciseId, isSuccess, id_indicateur, code_rempli) {
     const indicateur = document.getElementById(`${id_indicateur}-${exerciseId}`);
+    // Nettoie d'abord toutes les classes potentielles pour repartir d'une base propre
+    indicateur.classList.remove('indic-exo-non-soumis', 'fa-circle-question', 'indic-exo-invalide', 'indic-exo-code-manquant', 'fa-circle-xmark', 'indic-exo-valide', 'fa-circle-check', 'fa-pencil');
+
     if (isSuccess) {
-        indicateur.classList.remove('indic-exo-non-soumis');
-        indicateur.classList.remove('fa-circle-question');
-        indicateur.classList.remove('indic-exo-invalide');
-        indicateur.classList.remove('fa-circle-xmark');
-        indicateur.classList.add('indic-exo-valide');
-        indicateur.classList.add('fa-circle-check');
+        if (code_rempli) {
+            // Cas où l'exercice est réussi et le code est rempli
+            indicateur.classList.add('indic-exo-valide', 'fa-circle-check');
+            indicateur.setAttribute('title', 'Félicitations, vous avez trouvé la bonne réponse à votre jeu de test !');
+
+
+        } else {
+            // Cas où l'exercice est réussi mais le code n'est pas rempli
+            indicateur.classList.add('indic-exo-code-manquant', 'fa-pencil'); // Utilise 'fa-pencil'
+            indicateur.setAttribute('title', 'Code manquant : n’oubliez pas de soumettre votre code pour cet exercice.');
+        }
     } else {
-        indicateur.classList.remove('indic-exo-non-soumis');
-        indicateur.classList.remove('fa-circle-question');
-        indicateur.classList.add('indic-exo-invalide');
-        indicateur.classList.add('fa-circle-xmark');
-        indicateur.classList.remove('indic-exo-valide');
-        indicateur.classList.remove('fa-circle-check');
+        // Cas où l'exercice n'est pas réussi
+        indicateur.classList.add('indic-exo-invalide', 'fa-circle-xmark');
+        indicateur.setAttribute('title', 'Vous n\'avez pas encore trouvé la bonne réponse à votre jeu de test.');
+
     }
 }
+
 
 export function initIndicateursEtats(exercises) {
     initIndicateursEtat(exercises, "etat-exercices");
@@ -72,7 +84,7 @@ export function indicateurExoCourants(exoCourantId, exercises) {
     indicateurExoCourant(exoCourantId, exercises, "etat-exercices2");
 }
 
-export function mettreAJourIndicateurs(exerciseId, isSuccess) {
-    mettreAJourIndicateur(exerciseId, isSuccess, "etat-exercices")
-    mettreAJourIndicateur(exerciseId, isSuccess, "etat-exercices2")
+export function mettreAJourIndicateurs(exerciseId, isSuccess, code_rempli) {
+    mettreAJourIndicateur(exerciseId, isSuccess, "etat-exercices", code_rempli)
+    mettreAJourIndicateur(exerciseId, isSuccess, "etat-exercices2", code_rempli)
 }

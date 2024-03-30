@@ -267,9 +267,8 @@ function soumettreReponse(exercice) {
             // Appelle mettreAJourValeursExercice avec l'objet exercice mis à jour
             mettreAJourExercice(exercice);
             if (exercice.retour_en_direct) {
-                mettreAJourIndicateurs(exerciseId, data.reponse_valide);
-            }
-
+                const codeRempli = exercice.code_enregistre && exercice.code_enregistre.trim().length > 0;
+                mettreAJourIndicateurs(exerciseId, data.reponse_valide, codeRempli);            }
         })
         .catch(error => {
             activeBoutonSoumission(exerciseId);

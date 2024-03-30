@@ -256,9 +256,14 @@ code {
 
 /* Vert pour soumission correcte */
 .indic-exo-valide {
-    /*background-color: #4CAF50;*/
     margin: 0 5px;
     color: green;
+}
+
+/* Vert pour soumission correcte */
+.indic-exo-code-manquant {
+    margin: 0 5px;
+    color: #F4C430;
 }
 
 .exercise-navigation {
