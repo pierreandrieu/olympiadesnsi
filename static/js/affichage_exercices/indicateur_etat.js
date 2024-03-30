@@ -1,5 +1,5 @@
-export function initIndicateursEtat(exercises) {
-    const etatExercicesContainer = document.getElementById('etat-exercices');
+export function initIndicateursEtat(exercises, id_indicateur) {
+    const etatExercicesContainer = document.getElementById(id_indicateur);
     exercises.forEach(exercise => {
         const indicateur = document.createElement('span');
         if(exercise.retour_en_direct) {
@@ -19,22 +19,23 @@ export function initIndicateursEtat(exercises) {
             indicateur.className = 'indic-exo-non-soumis fa-regular fa-circle-question fa-lg';
         }
 
-        indicateur.id = `indic-exo-${exercise.id}`;
+        indicateur.id = `${id_indicateur}-${exercise.id}`;
         etatExercicesContainer.appendChild(indicateur);
     });
 }
 
-export function indicateurExoCourant(exoCourantId, exercises) {
+export function indicateurExoCourant(exoCourantId, exercises, id_indicateur) {
     let i = 0;
     exercises.forEach(exercise => {
         i += 1;
-        let exo = document.getElementById(`indic-exo-${exercise.id}`);
+        let exo = document.getElementById(`${id_indicateur}-${exercise.id}`);
+
         exo.classList.remove('fa-solid');
         exo.classList.remove('fa-2xl');
         exo.classList.add('fa-regular');
         exo.classList.add('fa-lg');
     });
-    let exoCourant = document.getElementById(`indic-exo-${exoCourantId}`);
+    let exoCourant = document.getElementById(`${id_indicateur}-${exoCourantId}`);
 
     exoCourant.classList.remove('fa-regular');
     exoCourant.classList.remove('fa-lg');
@@ -42,8 +43,8 @@ export function indicateurExoCourant(exoCourantId, exercises) {
     exoCourant.classList.add('fa-2xl');
 }
 
-export function mettreAJourIndicateur(exerciseId, isSuccess) {
-    const indicateur = document.getElementById(`indic-exo-${exerciseId}`);
+export function mettreAJourIndicateur(exerciseId, isSuccess, id_indicateur) {
+    const indicateur = document.getElementById(`${id_indicateur}-${exerciseId}`);
     if (isSuccess) {
         indicateur.classList.remove('indic-exo-non-soumis');
         indicateur.classList.remove('fa-circle-question');
@@ -59,4 +60,19 @@ export function mettreAJourIndicateur(exerciseId, isSuccess) {
         indicateur.classList.remove('indic-exo-valide');
         indicateur.classList.remove('fa-circle-check');
     }
+}
+
+export function initIndicateursEtats(exercises) {
+    initIndicateursEtat(exercises, "etat-exercices");
+    initIndicateursEtat(exercises, "etat-exercices2");
+}
+
+export function indicateurExoCourants(exoCourantId, exercises) {
+    indicateurExoCourant(exoCourantId, exercises, "etat-exercices");
+    indicateurExoCourant(exoCourantId, exercises, "etat-exercices2");
+}
+
+export function mettreAJourIndicateurs(exerciseId, isSuccess) {
+    mettreAJourIndicateur(exerciseId, isSuccess, "etat-exercices")
+    mettreAJourIndicateur(exerciseId, isSuccess, "etat-exercices2")
 }

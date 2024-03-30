@@ -1,7 +1,7 @@
 import {renderLatex} from './render_latex.js';
 import {desactiveBoutonSoumission, activeBoutonSoumission}  from "./bouton_submit.js";
 import {getCookie} from "./cookies.js";
-import {mettreAJourIndicateur} from "./indicateur_etat.js";
+import {mettreAJourIndicateurs} from "./indicateur_etat.js";
 
 /**
  * Crée et affiche les éléments d'un exercice de programmation dans un conteneur spécifié.
@@ -103,7 +103,7 @@ export function creerElementsExercice(exercice, container) {
     soumissionsInfo.className = 'soumissions-info';
     soumissionsInfo.id = `soumissions-info-${exercice.id}`;
     const soumissionsRestantes = exercice.nb_soumissions_restantes;
-    soumissionsInfo.textContent = `Soumissions restantes : ${soumissionsRestantes}`;
+    soumissionsInfo.textContent = `Soumissions restantes (max 10 par minute): ${soumissionsRestantes}`;
     container.appendChild(soumissionsInfo);
 
     // Ajoute un bouton de soumission si des soumissions sont encore possibles
@@ -118,8 +118,6 @@ export function creerElementsExercice(exercice, container) {
         container.appendChild(submissionButton);
     }
 }
-
-
 /**
  * Met à jour les valeurs dynamiques pour un exercice donné.
  * Cette fonction est appelée pour rafraîchir l'interface utilisateur avec les dernières données,
@@ -218,7 +216,7 @@ function soumettreReponse(exercice) {
             // Appelle mettreAJourValeursExercice avec l'objet exercice mis à jour
             mettreAJourExercice(exercice);
             if (exercice.retour_en_direct) {
-                mettreAJourIndicateur(exerciseId, data.reponse_valide);
+                mettreAJourIndicateurs(exerciseId, data.reponse_valide);
             }
 
         })

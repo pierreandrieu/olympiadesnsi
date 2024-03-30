@@ -217,6 +217,12 @@ code {
     margin-bottom: 20px; /* Espacement après les indicateurs d'état */
 }
 
+#etat-exercices2 {
+    display: flex;
+    justify-content: center; /* Centre les indicateurs d'état */
+    margin-bottom: 20px; /* Espacement après les indicateurs d'état */
+}
+
 .indic-exo {
     /*width: 20px;*/ /* Taille des indicateurs d'état */
     /*height: 20px;*/ /* Hauteur des indicateurs d'état */

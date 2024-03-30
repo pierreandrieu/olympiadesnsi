@@ -1,6 +1,9 @@
 import * as nav from './navigation_exercices.js';
 import {creerElementsExercice, mettreAJourValeursExercice} from './exercice_programmation.js';
-import {indicateurExoCourant, initIndicateursEtat} from "./indicateur_etat.js";
+import {
+    indicateurExoCourants,
+    initIndicateursEtats
+} from "./indicateur_etat.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const exercices = JSON.parse(document.getElementById('exercises-data').textContent);
@@ -29,10 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (exercices.length > 0) {
-        initIndicateursEtat(exercices);
         creerElementsExercice(exercices[nav.currentExerciseIndex], container);
+        initIndicateursEtats(exercices);
         mettreAJourValeursExercice(exercices[nav.currentExerciseIndex]);
     }
     updateButtonStates();
-    indicateurExoCourant(exercices[nav.currentExerciseIndex].id, exercices);
+    indicateurExoCourants(exercices[nav.currentExerciseIndex].id, exercices);
 });
