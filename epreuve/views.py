@@ -15,7 +15,7 @@ from django.contrib import messages
 from django.urls import reverse
 from epreuve.models import Epreuve, Exercice, JeuDeTest, MembreComite, UserEpreuve, UserExercice
 from epreuve.forms import ExerciceForm, AjoutOrganisateurForm
-from epreuve.utils import redistribuer_jeux_de_test_exercice, temps_restant_seconde
+from epreuve.utils import redistribuer_jeux_de_test_exercice, temps_restant_seconde, vider_jeux_test_exercice
 from inscription.utils import assigner_participants_jeux_de_test, inscrire_groupe_a_epreuve
 from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant
 import olympiadesnsi.decorators as decorators
@@ -531,90 +531,122 @@ def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Op
     Returns:
         HttpResponse: La réponse HTTP rendue.
     """
-    # L'objet épreuve est récupéré par le décorateur 'administrateur_exercice_required'
     epreuve: Epreuve = getattr(request, 'epreuve', None)
-    jdt_anciens: Set[Tuple[str, str]] = set()
-    jeux_de_test: Optional[QuerySet[JeuDeTest]] = None
-    modifications_jdt: bool = False
-    # Initialise le formulaire pour l'édition si un id_exercice est fourni, sinon pour la création
-    if id_exercice:
-
-        # L'objet exercice est récupéré par le décorateur 'administrateur_exercice_required'
-
-        exercice: Exercice = getattr(request, 'exercice', None)
-        jeux_de_test_str: str = ''
-        resultats_jeux_de_test_str: str = ''
-        if exercice.avec_jeu_de_test:
-            jeux_de_test = JeuDeTest.objects.filter(exercice=exercice)
-            jeux_de_test_str += "\n".join(jeu.instance for jeu in jeux_de_test)
-            resultats_jeux_de_test_str += "\n".join(jeu.reponse for jeu in jeux_de_test)
-            for jeu in jeux_de_test:
-                jdt_anciens.add((jeu.instance, jeu.reponse))
-
-        form: ExerciceForm = ExerciceForm(request.POST or None,
-                                          instance=exercice,
-                                          initial={'jeux_de_test': jeux_de_test_str,
-                                                   'resultats_jeux_de_test': resultats_jeux_de_test_str,
-                                                   })
-
+    if id_exercice is None:
+        return creer_exercice(request, epreuve)
     else:
-        form: ExerciceForm = ExerciceForm(request.POST or None)
+        return editer_exercice(request, epreuve, getattr(request, 'exercice', None))
 
-    # Traite le formulaire lors de la soumission
-    if request.method == "POST" and form.is_valid():
-        exercice = form.save(commit=False)
-        exercice.epreuve = epreuve  # Assigne l'épreuve à l'exercice
-        exercice.auteur = request.user  # Définit l'utilisateur actuel comme auteur de l'exercice
-        exercice.save()  # Sauvegarde l'exercice dans la base de données
 
-        if not id_exercice:
-            users_inscrits = User.objects.filter(association_UserEpreuve_User__epreuve=epreuve)
-
-            # Pour chaque utilisateur inscrit, crée ou met à jour une entrée UserExercice
-            for user in users_inscrits:
-                UserExercice.objects.create(
-                    participant=user,
-                    exercice=exercice,
-                )
-
-        # Gère les jeux de test si le champ 'avec_jeu_de_test' est coché
-        if form.cleaned_data.get('avec_jeu_de_test'):
-            nouveaux_jdt: Set[Tuple[str, str]] = set()
-            jeux_de_tests = form.cleaned_data.get('jeux_de_test', '').split("\n")
-            resultats_jeux_de_tests = form.cleaned_data.get('resultats_jeux_de_test', '').split("\n")
-
-            # Crée de nouveaux jeux de test
-            for jeu, resultat in zip(jeux_de_tests, resultats_jeux_de_tests):
-                nouveaux_jdt.add((jeu, resultat))
-                if jeu.strip() and resultat.strip() and (jeu, resultat) not in jdt_anciens:
-                    JeuDeTest.objects.create(exercice=exercice, instance=jeu, reponse=resultat)
-                    modifications_jdt = True
-
-            # Supprime les jeux de test qui n'apparaissent plus
-            if jeux_de_test:
-                for jeu in jeux_de_test:
-                    if (jeu.instance, jeu.reponse) not in nouveaux_jdt:
-                        jeu.delete()
-                        modifications_jdt = True
-
-            # Redistribue les jeux de test s'il y a une modification
-            if modifications_jdt:
-                redistribuer_jeux_de_test_exercice(exercice)
-        # Affiche un message de succès et redirige vers l'espace organisateur
-        messages.success(request,
-                         'L\'exercice a été ajouté avec succès.'
-                         if not id_exercice else 'L\'exercice a été mis à jour avec succès.')
-        return redirect('espace_organisateur')
-
-    # Prépare les champs du formulaire à afficher, en distinguant les champs visibles des champs initialement cachés
+def creer_exercice(request: HttpRequest, epreuve: Epreuve) -> HttpResponse:
+    form = ExerciceForm(request.POST or None)
     champs_invisibles = ['jeux_de_test', 'resultats_jeux_de_test', 'retour_en_direct']
     champs_visibles = [field.name for field in form.visible_fields() if field.name not in champs_invisibles]
+    if request.method == 'POST':
+        if form.is_valid():
+            exercice = form.save(commit=False)
+            exercice.epreuve = epreuve
+            exercice.auteur = request.user
+            exercice.save()
+            messages.success(request, f"L'exercice {exercice.titre} a été créé avec succès pour l'épreuve {epreuve.nom}.")
+            return redirect('espace_organisateur')
 
-    # Rend le template avec le formulaire et les informations nécessaires
     return render(request, 'epreuve/creer_exercice.html', {
         'form': form,
         'champs_visibles': champs_visibles,
         'champs_invisibles': champs_invisibles,
         'epreuve': epreuve,
-        'exercice_id': id_exercice,  # Pour identifier si c'est une édition
+        'exercice_id': None,
+        'separateur_jeux_de_test': "\\n",
+        'separateur_resultats_jeux_de_test': "\\n"
+    })
+
+
+def editer_exercice(request: HttpRequest, epreuve: Epreuve, exercice: Exercice) -> HttpResponse:
+
+    jdt_anciens: Set[Tuple[str, str]] = set()
+    jeux_de_test: QuerySet[JeuDeTest] = JeuDeTest.objects.filter(exercice=exercice)
+
+    modifications_jdt: bool = False
+    # Charger les données existantes des jeux de test si l'exercice les utilise
+    jeux_de_test_str, resultats_jeux_de_test_str = "", ""
+    if exercice.avec_jeu_de_test:
+
+        jeux_de_test_str = exercice.separateur_jeu_test_effectif.join(jeu.instance for jeu in jeux_de_test)
+        resultats_jeux_de_test_str = exercice.separateur_reponse_jeudetest_effectif.join(
+            jeu.reponse for jeu in jeux_de_test)
+
+    if request.method == 'POST':
+        post_data = request.POST.copy()
+        # Remplacer les séparateurs spéciaux par leurs équivalents fonctionnels dans les données POST
+        post_data['separateur_jeux_de_test'] = post_data.get('separateur_jeux_de_test').replace('\\n', '\n')
+        post_data['separateur_resultats_jeux_de_test'] = post_data.get('separateur_resultats_jeux_de_test').replace('\\n', '\n')
+
+        form = ExerciceForm(post_data, instance=exercice, initial={
+            'jeux_de_test': jeux_de_test_str,
+            'resultats_jeux_de_test': resultats_jeux_de_test_str,
+            'separateur_jeux_de_test': post_data['separateur_jeux_de_test'],
+            'separateur_resultats_jeux_de_test':  post_data['separateur_resultats_jeux_de_test'],
+
+        })
+
+        if form.is_valid():
+            exercice.separateur_jeu_test = post_data['separateur_jeux_de_test']
+            exercice.separateur_reponse_jeudetest = post_data['separateur_resultats_jeux_de_test']
+            exercice = form.save()
+            # Gère les jeux de test si le champ 'avec_jeu_de_test' est coché
+            if form.cleaned_data.get('avec_jeu_de_test'):
+                for jeu in jeux_de_test:
+                    jdt_anciens.add((jeu.instance, jeu.reponse))
+                nouveaux_jdt: Set[Tuple[str, str]] = set()
+
+                jeux_de_tests = form.cleaned_data.get('jeux_de_test', '').split(exercice.separateur_jeu_test_effectif)
+                resultats_jeux_de_tests = form.cleaned_data.get(
+                    'resultats_jeux_de_test', '').split(exercice.separateur_reponse_jeudetest_effectif)
+
+                # Crée de nouveaux jeux de test
+                for jeu, resultat in zip(jeux_de_tests, resultats_jeux_de_tests):
+                    nouveaux_jdt.add((jeu, resultat))
+                    if jeu.strip() and resultat.strip() and (jeu, resultat) not in jdt_anciens:
+                        JeuDeTest.objects.create(exercice=exercice, instance=jeu, reponse=resultat)
+                        modifications_jdt = True
+
+                # Supprime les jeux de test qui n'apparaissent plus
+                for jeu in jeux_de_test:
+                    if (jeu.instance, jeu.reponse) not in nouveaux_jdt:
+                        jeu.delete()
+                        modifications_jdt = True
+
+                # Redistribue les jeux de test s'il y a une modification
+                if modifications_jdt:
+                    redistribuer_jeux_de_test_exercice(exercice)
+
+            else:
+                vider_jeux_test_exercice(exercice)
+
+            messages.success(request, f"L'exercice {exercice.titre} de l'épreuve {epreuve.nom}"
+                                      f" a été mis à jour avec succès.")
+            return redirect('espace_organisateur')
+
+    else:
+        form = ExerciceForm(instance=exercice, initial={
+            'jeux_de_test': jeux_de_test_str,
+            'resultats_jeux_de_test': resultats_jeux_de_test_str,
+            'separateur_jeux_de_test': exercice.separateur_jeu_test_effectif.replace("\n","\\n"),
+            'separateur_resultats_jeux_de_test': exercice.separateur_reponse_jeudetest_effectif.replace("\n", "\\n"),
+
+        })
+
+    champs_invisibles = ['jeux_de_test', 'resultats_jeux_de_test', 'retour_en_direct']
+    champs_visibles = [field.name for field in form.visible_fields() if field.name not in champs_invisibles]
+    return render(request, 'epreuve/creer_exercice.html', {
+        'form': form,
+        'champs_visibles': champs_visibles,
+        'champs_invisibles': champs_invisibles,
+        'jeux_de_test': jeux_de_test_str,
+        'resultats_jeux_de_test': resultats_jeux_de_test_str,
+        'epreuve': epreuve,
+        'exercice_id': exercice.id,
+        'separateur_jeux_de_test': exercice.separateur_jeu_test_effectif.replace("\n","\\n"),
+        'separateur_resultats_jeux_de_test': exercice.separateur_reponse_jeudetest_effectif.replace("\n", "\\n"),
     })

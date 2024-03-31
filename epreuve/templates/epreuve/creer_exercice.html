@@ -41,18 +41,31 @@
                     <label for="{{ form.retour_en_direct.id_for_label }}">{{ form.retour_en_direct.label }}</label>
                     {{ form.retour_en_direct }}
                 </div>
+
+
                 <div class="row">
                     <div class="col-md-6">
                         <label for="{{ form.jeux_de_test.id_for_label }}">Jeu de Test</label>
                         {{ form.jeux_de_test }}
+                        <!-- Champ pour le séparateur des jeux de test -->
+                        <div class="form-group mb-2">
+                            <label for="separateur_jeux_de_test">Séparateur pour le jeu de test</label>
+                            <input type="text" id="separateur_jeux_de_test" name="separateur_jeux_de_test" class="form-control" value="{{separateur_jeux_de_test}}" placeholder="Séparateur personnalisé">
+                        </div>
                         <br>Nombre de jeux de test : <span id="nombre_jeux_test">0</span>
                     </div>
                     <div class="col-md-6">
                         <label for="{{ form.resultats_jeux_de_test.id_for_label }}">Résultat Attendu</label>
                         {{ form.resultats_jeux_de_test }}
+                        <!-- Champ pour le séparateur des résultats attendus -->
+                        <div class="form-group mb-2">
+                            <label for="separateur_resultats">Séparateur pour le résultat attendu</label>
+                            <input type="text" id="separateur_resultats" name="separateur_resultats_jeux_de_test" class="form-control" value="{{separateur_resultats_jeux_de_test}}" placeholder="Séparateur personnalisé">
+                        </div>
                         <br>Nombre de réponses associées : <span id="nombre_resultats">0</span>
                     </div>
                 </div>
+
             </div>
 
             <button type="submit" class="btn btn-primary">Ajouter Exercice</button>

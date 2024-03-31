@@ -2,19 +2,39 @@ document.addEventListener('DOMContentLoaded', function () {
     const checkboxAvecJeuDeTest = document.getElementById('id_avec_jeu_de_test');
     const elementsAvecHiddenJDT = document.querySelectorAll('.hiddenjdt');
     const retourEnDirect = document.getElementById('id_retour_en_direct');
+    const separateurJeuxDeTestInput = document.getElementById('separateur_jeux_de_test');
+    const separateurResultatsInput = document.getElementById('separateur_resultats');
+
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
 
     function updateCounts() {
-        const jeuxDeTestValue = document.getElementById('id_jeux_de_test').value.split('\n').filter(line => line.trim() !== '').length;
-        const resultatsValue = document.getElementById('id_resultats_jeux_de_test').value.split('\n').filter(line => line.trim() !== '').length;
+        let separateurJeuxDeTest = separateurJeuxDeTestInput.value || '\n'; // Utilise \n comme valeur par défaut
+        let separateurResultats = separateurResultatsInput.value || '\n'; // Utilise \n comme valeur par défaut
+        separateurJeuxDeTest = escapeRegExp(separateurJeuxDeTest.replace(/\\n/g, '\n'));
+        separateurResultats = escapeRegExp(separateurResultats.replace(/\\n/g, '\n'));
+
+        console.log(`Séparateur Jeux de Test: '${separateurJeuxDeTest}'`);
+        console.log(`Séparateur Résultats: '${separateurResultats}'`);
+
+        const regexSeparateurJeux = new RegExp(separateurJeuxDeTest.replace(/\\n/g, '\n'), 'g');
+        const regexSeparateurResultats = new RegExp(separateurResultats.replace(/\\n/g, '\n'), 'g');
+
+        const jeuxDeTestValue = document.getElementById('id_jeux_de_test').value.split(regexSeparateurJeux).filter(line => line.trim() !== '').length;
+        const resultatsValue = document.getElementById('id_resultats_jeux_de_test').value.split(regexSeparateurResultats).filter(line => line.trim() !== '').length;
+
         document.getElementById('nombre_jeux_test').textContent = jeuxDeTestValue;
         document.getElementById('nombre_resultats').textContent = resultatsValue;
     }
 
     document.getElementById('id_jeux_de_test').addEventListener('input', updateCounts);
     document.getElementById('id_resultats_jeux_de_test').addEventListener('input', updateCounts);
+    // Ajoute des écouteurs d'événements sur les champs de séparateurs pour mettre à jour les décomptes dynamiquement
+    separateurJeuxDeTestInput.addEventListener('input', updateCounts);
+    separateurResultatsInput.addEventListener('input', updateCounts);
 
     checkboxAvecJeuDeTest.addEventListener('change', function () {
-        // Mettre à jour le champ "retour en direct" pour qu'il soit désactivé et non coché quand "avec jeu de test" change
         retourEnDirect.checked = false;
         retourEnDirect.disabled = !checkboxAvecJeuDeTest.checked;
         elementsAvecHiddenJDT.forEach(function (element) {
@@ -22,7 +42,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // S'assurer que l'état initial des champs est correct, y compris pour "retour en direct"
     if (checkboxAvecJeuDeTest.checked) {
         elementsAvecHiddenJDT.forEach(function (element) {
             element.classList.remove('hiddenjdt');
@@ -32,9 +51,9 @@ document.addEventListener('DOMContentLoaded', function () {
         retourEnDirect.disabled = true;
     }
 
-    updateCounts(); // S'assure que les compteurs sont à jour dès le chargement
+    updateCounts(); // Initialiser les compteurs au chargement de la page
 
-    // Initialisation des tooltips pour Bootstrap 5
+    // Initialisation des tooltips Bootstrap 5
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.forEach(function (tooltipTriggerEl) {
         new bootstrap.Tooltip(tooltipTriggerEl);

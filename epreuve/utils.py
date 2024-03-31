@@ -93,3 +93,11 @@ def temps_restant_seconde(user_epreuve: UserEpreuve, epreuve: Epreuve) -> Option
     temps_restant_sec = max(temps_restant.total_seconds(), 0)
 
     return int(temps_restant_sec)
+
+
+def vider_jeux_test_exercice(exercice: Exercice):
+    for jeu in JeuDeTest.objects.filter(exercice=exercice):
+        jeu.delete()
+    exercice.separateur_reponse_jeudetest = "\n"
+    exercice.separateur_jeu_test = "\n"
+    exercice.save()

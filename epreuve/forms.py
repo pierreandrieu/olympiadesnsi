@@ -140,7 +140,7 @@ class ExerciceForm(forms.ModelForm):
     class Meta:
         model = Exercice
         fields = ['titre', 'enonce', 'enonce_code', 'code_a_soumettre', 'nombre_max_soumissions',
-                  'avec_jeu_de_test', 'retour_en_direct',]
+                  'avec_jeu_de_test', 'retour_en_direct']
         labels = {
             'titre': 'Titre',
             'enonce': 'Énoncé',
@@ -209,11 +209,21 @@ class ExerciceForm(forms.ModelForm):
         # Vérifier la présence des jeux de test si nécessaire
         if avec_jeu_de_test:
             # Obtenir et filtrer les jeux de tests et les résultats
-            jeux_de_tests = [jeu.strip() for jeu in cleaned_data.get('jeux_de_test', '').split("\n") if
-                             jeu.strip()]
-            resultats_jeux_de_tests = [resultat.strip() for resultat in
-                                       cleaned_data.get('resultats_jeux_de_test', '').split("\n") if
-                                       resultat.strip()]
+            separateur_jeux_de_test = self.data.get('separateur_jeux_de_test', '\\n').replace('\\n', '\n')
+            separateur_resultats_jeux_de_test = self.data.get('separateur_resultats_jeux_de_test', '\\n').replace('\\n',
+                                                                                                                  '\n')
+            jeux_de_test = cleaned_data.get('jeux_de_test', '')
+            resultats_jeux_de_test = cleaned_data.get('resultats_jeux_de_test', '')
+            if not separateur_jeux_de_test:
+                separateur_jeux_de_test = "\n"
+            if not separateur_resultats_jeux_de_test:
+                separateur_resultats_jeux_de_test = "\n"
+
+            jeux_de_tests = [jeu.strip() for jeu in jeux_de_test.split(
+                separateur_jeux_de_test) if jeu.strip()]
+            resultats_jeux_de_tests = [resultat.strip() for resultat in resultats_jeux_de_test
+                                       .split(
+                                           separateur_resultats_jeux_de_test) if resultat.strip()]
 
             nb_jeux_test = len(jeux_de_tests)
             nb_resultats = len(resultats_jeux_de_tests)
@@ -244,7 +254,6 @@ class ExerciceForm(forms.ModelForm):
         self.fields['titre'].required = True
         self.fields['nombre_max_soumissions'].required = True
         self.initial['nombre_max_soumissions'] = DEFAULT_MAX_SOUMISSIONS_PAR_EXERCICE
-
         for field_name, field in self.fields.items():
             if field.required:
                 field.label = f"{field.label} *"

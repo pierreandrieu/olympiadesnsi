@@ -95,10 +95,26 @@ class Exercice(models.Model):
     enonce = models.TextField(null=True, blank=True)
     enonce_code = models.TextField(null=True, blank=True)
     avec_jeu_de_test = models.BooleanField(default=False)
+    separateur_jeu_test = models.CharField(null=True, blank=True)
+    separateur_reponse_jeudetest = models.CharField(null=True, blank=True)
     retour_en_direct = models.BooleanField(default=False)
     code_a_soumettre = models.BooleanField(default=False)
     nombre_max_soumissions = models.IntegerField(default=50)
     numero = models.IntegerField(null=True, blank=True)
+
+    @property
+    def separateur_jeu_test_effectif(self):
+        """Retourne le séparateur de jeu de test défini ou '\n' par défaut."""
+        if self.separateur_jeu_test is not None:
+            return self.separateur_jeu_test
+        return "\n"
+
+    @property
+    def separateur_reponse_jeudetest_effectif(self):
+        """Retourne le séparateur de réponse de jeu de test défini ou '\n' par défaut."""
+        if self.separateur_reponse_jeudetest is not None:
+            return self.separateur_reponse_jeudetest
+        return '\n'
 
     def save(self, *args, **kwargs):
         # Si le numéro n'est pas déjà défini (nouvel exercice)
