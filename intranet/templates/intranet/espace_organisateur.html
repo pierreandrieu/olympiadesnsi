@@ -117,9 +117,11 @@
 
                                 <tr id="comite-{{ epreuve.id }}" class="table-secondary toggle-element" style="display:none;">
                                     <td colspan="7">
-                                        <ul>
+                                        <ul class="liste_espace_orga">
                                             {% for membre_comite in membres_comite %}
-                                                <li>{{ membre_comite.username }}</li>
+                                                <li>
+                                                    {{ membre_comite.username }}
+                                                </li>
                                             {% endfor %}
                                         </ul>
                                     </td>
@@ -184,9 +186,12 @@
 
                                     <td>
                                         {{ groupe.get_nombre_participants }}
-                                        <i class="fas fa-users" style="color:#3465a4"></i>
-                                        <i class="fas fa-plus-circle" style="color:#3465a4"></i>
+                                        <a href="#" onclick="toggleMembres('membres-{{ groupe.id }}'); return false;">
+                                            <i class="fas fa-users" style="color:#3465a4"></i>
+                                        </a>
+
                                     </td>
+
 
                                     <td>
                                         {% if groupe.statut == 'VALIDE' %}
@@ -198,23 +203,40 @@
                                         {% endif %}
                                     </td>
 
-                                    <td>
+                                     <td>
                                         <i class="fas fa-edit" style="color:#3465a4"></i>
-
                                         <a href="#" data-bs-toggle="modal" data-bs-target="#confirmDeleteGroupModal"
                                            data-groupe-url="{% url 'supprimer_groupe' groupe.id %}"
                                            class="text-danger">
                                             <i class="fas fa-trash-alt"></i>
                                         </a>
 
+                                        <a href="{% url 'envoyer_email_participants' groupe.id %}" class="text-info">
+                                            <i class="fas fa-envelope"></i>
+                                        </a>
                                     </td>
 
+
                                 </tr>
-                                <tr id="membres-{{ groupe.id }}" class="table-secondary" style="display:none;">
-                                    <td colspan="3">
-                                        <!-- Tableau imbriqué ou autre contenu pour les détails des membres -->
+
+                                <tr id="membres-{{ groupe.id }}" class="table-secondary toggle-element"
+                                    style="display:none;">
+                                    <td colspan="7">
+                                        <ul class="liste_espace_orga">
+                                            {% for membre in groupe.participants.all %}
+                                                <li>
+                                                    {{ membre.username }}
+                                                       <a href="{% url 'reset_password' membre.id %}" title="Réinitialiser le mot de passe">
+                                                           <i class="fas fa-minus-circle"></i>
+                                                       </a>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+
                                     </td>
                                 </tr>
+
+
                             {% endfor %}
                             </tbody>
                         </table>

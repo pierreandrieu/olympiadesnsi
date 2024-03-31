@@ -249,6 +249,7 @@ function soumettreReponse(exercice) {
 
     fetch('/epreuve/soumettre_reponse/', {
         method: 'POST',
+        credentials: 'include',
         body: JSON.stringify(data),
         headers: {
             'X-CSRFToken': getCookie('csrftoken'),

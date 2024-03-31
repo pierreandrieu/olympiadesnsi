@@ -40,6 +40,17 @@ class GroupeParticipant(models.Model):
     def __str__(self):
         return f"{self.nom} (Référent : {self.referent.username})"
 
+    def email_contact(self):
+        """
+
+        Returns: Le mail de l'inscripteur externe a l'origine de la création du groupe, None si le groupe n'a pas été
+        crée de façon externe.
+
+        """
+        if self.inscription_externe:
+            return self.inscription_externe.inscripteur.email
+        return None
+
     class Meta:
         db_table = 'GroupeParticipant'
         indexes = [

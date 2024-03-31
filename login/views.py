@@ -142,7 +142,7 @@ def prelogin(request: HttpRequest) -> HttpResponse:
             username: str = form.cleaned_data['username']
             try:
                 user: User = User.objects.get(username=username)
-                if user.password == '':
+                if user.password == '' or not user.is_active:
                     # Rediriger vers la page de choix de mot de passe si l'utilisateur n'a pas de mot de passe
                     return redirect('set_password', username=username)
                 else:
@@ -194,6 +194,7 @@ def set_password(request: HttpRequest, username: str) -> HttpResponse:
             # Affichage d'un message de succès et redirection vers la page de connexion
             messages.success(request,
                              'Votre mot de passe a été défini avec succès. Vous pouvez maintenant vous connecter.')
+            request.session['prelogin_username'] = user.username
             return redirect(reverse('login_participant'))
     else:
         # Création d'une instance de formulaire vierge si la requête n'est pas POST

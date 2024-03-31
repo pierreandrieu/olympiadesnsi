@@ -1,6 +1,7 @@
 from datetime import timedelta
 from typing import List, Tuple, Optional, Set
 
+from django.core.mail import EmailMessage
 from django.db import transaction
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -18,8 +19,11 @@ from intranet.models import ParticipantEstDansGroupe
 from inscription.utils import save_users
 from epreuve.forms import EpreuveForm
 from login.utils import genere_participants_uniques
-from olympiadesnsi import decorators
+from olympiadesnsi import decorators, settings
 import olympiadesnsi.constants as constantes
+import csv
+from django.conf import settings
+import io
 
 
 @login_required
@@ -377,3 +381,58 @@ def change_password_participant(request):
 def change_password_organisateur(request):
     return change_password_generic(request, "intranet/change_password_organisateur.html",
                                    "espace_organisateur")
+
+
+@login_required
+@decorators.administrateur_groupe_required
+def envoyer_email_participants(request: HttpRequest, groupe_id: int) -> HttpResponse:
+    groupe: GroupeParticipant = getattr(request, 'groupe', None)
+
+    email_contact = groupe.email_contact()
+
+    if email_contact:
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Entête du fichier CSV
+        writer.writerow(['username'])
+
+        # Écrire chaque participant dans le CSV
+        for participant in groupe.membres.all():
+            writer.writerow([participant.utilisateur.username])
+
+        # S'assurer que le pointeur est bien au début du fichier
+        output.seek(0)
+        nom_epreuve: str = groupe.inscription_externe.epreuve.nom
+        email = EmailMessage(
+            "Liste des comptes pour l'épreuve " + nom_epreuve,
+            "Vous trouverez en pièce jointe la liste de vos comptes inscrits à l'épreuve " + nom_epreuve + ".",
+            settings.EMAIL_HOST_USER,
+            [email_contact]
+        )
+
+        # Attacher le fichier CSV
+        email.attach('liste_participants.csv', output.getvalue(), 'text/csv')
+
+        # Envoyer l'email
+        email.send()
+
+        messages.success(request, "L'email a été envoyé avec succès à {}.".format(email_contact))
+    else:
+        messages.error(request, "Aucun email de contact trouvé pour ce groupe.")
+
+    return redirect('espace_organisateur')
+
+
+@login_required
+@decorators.organisateur_required
+def reset_password(request, user_id):
+    try:
+        user = User.objects.get(id=user_id)
+        user.is_active = False
+        user.set_unusable_password()  # Rend le mot de passe actuel inutilisable
+        user.save()
+        messages.success(request, 'Le compte utilisateur est prêt pour une réinitialisation de mot de passe.')
+    except User.DoesNotExist:
+        messages.error(request, 'Utilisateur non trouvé.')
+    return redirect('espace_organisateur')

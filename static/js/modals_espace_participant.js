@@ -42,4 +42,9 @@ document.addEventListener('DOMContentLoaded', function () {
             element.style.display = "block";
         }
     };
+
+    window.toggleMembres = function(id) {
+        let element = document.getElementById(id);
+        element.style.display = element.style.display === "none" ? "table-row" : "none";
+    };
 });
