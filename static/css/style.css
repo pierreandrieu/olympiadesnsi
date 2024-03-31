@@ -493,3 +493,11 @@ div#exercice-container div.exercice-row:last-child .move-down {
         border-top: 1px solid #eeeeee; /* Ajoute un séparateur entre les éléments */
     }
 }
+
+.fas {
+    color: #3465a4; /* Bleu */
+}
+
+.fas.fa-trash-alt {
+    color: #a94442;
+}

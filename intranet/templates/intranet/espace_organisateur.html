@@ -187,7 +187,7 @@
                                     <td>
                                         {{ groupe.get_nombre_participants }}
                                         <a href="#" onclick="toggleMembres('membres-{{ groupe.id }}'); return false;">
-                                            <i class="fas fa-users" style="color:#3465a4"></i>
+                                            <i class="fas fa-users"></i>
                                         </a>
 
                                     </td>
@@ -204,7 +204,7 @@
                                     </td>
 
                                      <td>
-                                        <i class="fas fa-edit" style="color:#3465a4"></i>
+                                        <i class="fas fa-edit"></i>
                                         <a href="#" data-bs-toggle="modal" data-bs-target="#confirmDeleteGroupModal"
                                            data-groupe-url="{% url 'supprimer_groupe' groupe.id %}"
                                            class="text-danger">
@@ -227,7 +227,7 @@
                                                 <li>
                                                     {{ membre.username }}
                                                        <a href="{% url 'reset_password' membre.id %}" title="Réinitialiser le mot de passe">
-                                                           <i class="fas fa-minus-circle"></i>
+                                                           <i class="fas fa-lock-open"></i>
                                                        </a>
                                                 </li>
                                             {% endfor %}
