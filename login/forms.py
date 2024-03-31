@@ -33,3 +33,22 @@ class LoginForm(forms.Form):
 
 class PreLoginForm(forms.Form):
     username = forms.CharField(label='Nom d’utilisateur', max_length=MAX_TAILLE_NOM)
+
+
+class RecoveryForm(forms.Form):
+    username = forms.CharField(
+        label='Nom d’utilisateur',
+        max_length=MAX_TAILLE_NOM,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('Nom d’utilisateur')}),
+        error_messages={
+            'required': _('Veuillez entrer le nom d’utilisateur pour lequel vous souhaitez récupérer le compte.')},
+    )
+    email = forms.EmailField(
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': _('E-mail')}),
+        error_messages={'required': _('Veuillez entrer votre adresse e-mail.')},
+        label=_('E-mail')
+    )
+    captcha = CaptchaField(
+        required=True,
+        error_messages={'required': _('Veuillez résoudre le captcha.')},
+    )

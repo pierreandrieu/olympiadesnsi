@@ -1,12 +1,21 @@
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth.views import PasswordResetConfirmView
+from django.core.mail import EmailMessage
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
-from django.urls import reverse
+from django.template.loader import render_to_string
+from django.urls import reverse, reverse_lazy
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
-from .forms import LoginForm, PreLoginForm
+from inscription.models import InscriptionExterne
+from intranet.models import ParticipantEstDansGroupe
+from olympiadesnsi import settings
+from .forms import LoginForm, PreLoginForm, RecoveryForm
 from django_ratelimit.decorators import ratelimit
 
 
@@ -202,3 +211,61 @@ def set_password(request: HttpRequest, username: str) -> HttpResponse:
 
     # Affichage de la page avec le formulaire si méthode GET ou formulaire invalide
     return render(request, 'login/set_password.html', {'form': form, 'username': username})
+
+
+def recuperation_compte(request: HttpRequest) -> HttpResponse:
+    form: RecoveryForm = RecoveryForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        username = form.cleaned_data.get('username')
+        email = form.cleaned_data.get('email')
+        try:
+            user = User.objects.get(username=username)
+            groupes_participant = ParticipantEstDansGroupe.objects.filter(utilisateur=user)
+            if len(groupes_participant) != 1:
+                form.add_error(None, "Aucun compte trouvé avec ces informations.")
+            else:
+                groupe_participant: ParticipantEstDansGroupe = groupes_participant[0]
+                inscription_externe: InscriptionExterne = groupe_participant.groupe.inscription_externe
+                email_contact = inscription_externe.inscripteur.email
+                if email_contact != email:
+                    form.add_error(None, "Aucun compte trouvé avec ces informations.")
+                else:
+                    # Génération du token de réinitialisation
+                    token = default_token_generator.make_token(user)
+                    uid = urlsafe_base64_encode(force_bytes(user.pk))
+                    # Construction du lien de réinitialisation
+                    reset_link = request.build_absolute_uri(
+                        reverse('nom_de_l_url_de_reinitialisation', kwargs={'uidb64': uid, 'token': token})
+                    )
+
+                    # Préparation de l'email
+                    context = {
+                        'reset_link': reset_link,
+                        'user': user,
+                    }
+                    subject = f"Réinitialisation du mot de passe pour l'épreuve {inscription_externe.epreuve.nom}"
+                    message = render_to_string('login/contenu_mail_recuperation.html', context)
+                    email = EmailMessage(
+                        subject=subject,
+                        body=message,
+                        from_email=settings.EMAIL_HOST_USER,
+                        to=[email_contact],
+                    )
+                    email.content_subtype = "html"
+                    # Envoi de l'email
+                    email.send()
+                    return render(request, 'login/confirmation_envoi_lien_reset_password.html')
+        except User.DoesNotExist:
+            form.add_error(None, "Aucun compte trouvé avec ces informations.")
+
+    return render(request, 'login/recuperation_compte.html', {'form': form})
+
+
+def confirmation_modification_mot_de_passe(request):
+    return render(request, 'login/confirmation_modification_mot_de_passe.html')
+
+
+class CustomPasswordResetConfirmView(PasswordResetConfirmView):
+    template_name = 'login/custom_password_reset_confirm.html'
+    success_url = reverse_lazy('confirmation_modification_mot_de_passe')
+
