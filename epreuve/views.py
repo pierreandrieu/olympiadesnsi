@@ -265,14 +265,15 @@ def visualiser_epreuve_organisateur(request, epreuve_id):
             'nb_max_soumissions': ex.nombre_max_soumissions,
             'retour_en_direct': ex.retour_en_direct,
             'instance_de_test': jeu_de_test.instance if jeu_de_test else "",
-            'reponse_valide': False
+            'reponse_valide': False,
+            'reponse_attendue' : jeu_de_test.reponse if jeu_de_test else ""
         }
 
         exercices_json_list.append(exercice_dict)
 
     # Conversion des données des exercices en JSON pour utilisation côté client.
     exercices_json: str = json.dumps(exercices_json_list)
-    return render(request, 'epreuve/afficher_epreuve.html', {
+    return render(request, 'epreuve/visualiser_epreuve.html', {
         'epreuve': epreuve,
         'exercices_json': exercices_json,
         'temps_restant': temps_restant_secondes

@@ -5,6 +5,8 @@
     <script src="{% static 'js/charger_mathjax.js' %}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js"
             crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>
+
 {% endblock %}
 
 {% block content %}
@@ -14,7 +16,7 @@
         <div id="etat-exercices"></div>
         {% if epreuve.temps_limite %}
             <div id="chronometre">Temps restant : <span id="temps-restant"></span></div>
-            {{ epreuve.duree }}
+            {{ temps_restant|json_script:"temps-restant-data" }}
         {% endif %}
 
         <div class="exercise-navigation">
@@ -23,12 +25,15 @@
                 <i class="fa-solid fa-arrow-left" style="color:white;"></i>
             </button>
 
-
             <div id="exercice-container" class="exercise-box"></div>
-            <button id="next-exercise" class="btn nav-btn"><i class="fa-solid fa-arrow-right" style="color:white;"></i>
+            <button
+                    id="next-exercise" class="btn nav-btn"><i class="fa-solid fa-arrow-right" style="color:white;"></i>
             </button>
         </div>
+        <div id="etat-exercices2"></div>
+
     </div>
+
 {% endblock %}
 
 {% block scripts %}
