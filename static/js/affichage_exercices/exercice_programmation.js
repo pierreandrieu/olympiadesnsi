@@ -123,7 +123,31 @@ export function creerElementsExercice(exercice, container) {
 
         // Ajout du conteneur de réponse au conteneur principal
         container.appendChild(responseContainer);
+
+        // Ajoute une section pour la réponse attendue si elle existe
+        if (exercice.reponse_attendue) {
+            console.log("COUOU!");
+            // Création du conteneur pour la réponse attendue
+            const reponseAttendueContainer = document.createElement('div');
+            reponseAttendueContainer.className = 'reponse-attendue-container';
+
+            // Ajout d'un texte explicatif pour la réponse attendue
+            const reponseAttendueExplication = document.createElement('p');
+            reponseAttendueExplication.textContent = 'Réponse attendue :';
+            reponseAttendueContainer.appendChild(reponseAttendueExplication);
+
+            // Affichage de la réponse attendue
+            const reponseAttendueInstance = document.createElement('pre');
+            reponseAttendueInstance.className = 'reponse-attendue-instance pre-scrollable';
+            reponseAttendueInstance.textContent = exercice.reponse_attendue;
+            reponseAttendueContainer.appendChild(reponseAttendueInstance);
+
+            // Ajout du conteneur de la réponse attendue au conteneur principal
+            container.appendChild(reponseAttendueContainer);
+        }
     }
+
+
 
 
 // Création du champ pour la soumission du code, si nécessaire
