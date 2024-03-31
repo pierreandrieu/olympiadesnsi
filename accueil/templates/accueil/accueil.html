@@ -7,6 +7,8 @@
         <h1 class="text-center mb-4">Olympiades académiques de NSI</h1>
         <h2 class="text-center mb-3">Académie de Versailles</h2>
 
+
+
         <div class="row mt-4">
             <div class="col-md-12 mb-3">
                 <h3><i class="fas fa-bullseye" style="color: #0056b3;"></i> Objectifs</h3>
@@ -48,7 +50,19 @@
                 <p class="text-justify"> Afin de protéger la vie privée des élèves, aucune donnée personnelle n'est demandée. Il incombe donc
                     aux enseignants de NSI de gérer l'attribution des identifiants aux équipes. </p>
             </div>
-
+            <div class="mt-4">
+                <div class="row">
+                    {% for epreuve in epreuves_info %}
+                    <div class="col-lg-10 mb-6">
+                        <div class="d-flex justify-content-between align-items-center p-3 border rounded">
+                            <span>{{ epreuve.nom }}</span>
+                            <span>Nombre de participants inscrits: <strong>{{ epreuve.nombre_participants }}</strong></span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div><br><br></div>
             <!-- Boutons d'action -->
             <div class="d-flex justify-content-center">
                 <a href="{% url 'prelogin' %}" class="btn btn-primary me-2">Espace Candidat</a>

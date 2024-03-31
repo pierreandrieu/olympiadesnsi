@@ -42,11 +42,30 @@ class Epreuve(models.Model):
         """
         Détermine si l'épreuve n'a pas encore commencé.
 
-        Retourne:
+        Returns:
             bool: True si l'épreuve n'a pas encore commencé, False autrement.
         """
         # timezone.now() donne l'heure actuelle de manière "aware" en fonction des paramètres de timezone de Django
         return self.date_debut > timezone.now()
+
+    def compte_participants_inscrits(self) -> int:
+        """
+        Compte le nombre total de participants inscrits à l'épreuve par le biais de l'inscription externe.
+
+        Returns:
+            int: Le nombre total de participants inscrits.
+        """
+        # On récupère tous les groupes participants associés à cette épreuve
+        groupes = self.groupes_participants.all()
+
+        # On initialise un compteur
+        total_participants = 0
+
+        # Pour chaque groupe, on compte le nombre de membres et on ajoute ce nombre au total
+        for groupe in groupes:
+            total_participants += groupe.get_nombre_participants()
+
+        return total_participants
 
 
     def __str__(self):
