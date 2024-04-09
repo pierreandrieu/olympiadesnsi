@@ -210,10 +210,10 @@
                                            class="text-danger">
                                             <i class="fas fa-trash-alt"></i>
                                         </a>
-
-                                        <a href="{% url 'envoyer_email_participants' groupe.id %}" class="text-info">
-                                            <i class="fas fa-envelope"></i>
-                                        </a>
+                                         {% if groupe.email_contact %}                                            <a href="{% url 'envoyer_email_participants' groupe.id %}" class="text-info">
+                                                <i class="fas fa-envelope"></i>
+                                            </a>
+                                        {% endif %}
                                     </td>
 
 

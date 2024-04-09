@@ -21,6 +21,26 @@ class GroupeParticipant(models.Model):
         """
         return User.objects.filter(appartenances__groupe=self)
 
+    @property
+    def is_externe(self) -> bool:
+        """Détermine si le groupe est externe."""
+        return self.inscription_externe is not None
+
+    @property
+    def email_contact(self):
+        """
+        Renvoie l'email de contact de l'inscription externe si présente, None sinon.
+
+        Returns:
+            str or None: L'email de l'inscripteur externe ou None.
+        """
+        # Si le groupe a une inscription externe, renvoyer l'email de l'inscripteur
+
+        if self.is_externe:
+            return self.inscription_externe.inscripteur.email
+        # Sinon, renvoyer None
+        return None
+
     STATUT_CHOICES = (
         ('VALIDE', 'Valide'),
         ('CREATION', 'En cours de création'),
