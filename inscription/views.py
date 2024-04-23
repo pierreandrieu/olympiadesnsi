@@ -20,8 +20,8 @@ from inscription.models import InscriptionDomaine, GroupeParticipant
 import olympiadesnsi.constants as constantes
 
 
-@ratelimit(key='ip', rate='1/s', method='GET', block=True)
-@ratelimit(key='ip', rate='10/m', method='GET', block=True)
+@ratelimit(key='ip', rate='3/s', method='GET', block=True)
+@ratelimit(key='ip', rate='15/m', method='GET', block=True)
 @ratelimit(key='ip', rate='50/h', method='GET', block=True)
 def inscription_demande(request: HttpRequest) -> HttpResponse:
     """
@@ -89,15 +89,15 @@ def get_domaines_for_epreuve(request: HttpRequest, epreuve_id: int) -> HttpRespo
     return JsonResponse(list(domaines), safe=False)
 
 
-@ratelimit(key='ip', rate='1/s', method='GET', block=True)
-@ratelimit(key='ip', rate='10/m', method='GET', block=True)
+@ratelimit(key='ip', rate='3/s', method='GET', block=True)
+@ratelimit(key='ip', rate='15/m', method='GET', block=True)
 @ratelimit(key='ip', rate='50/h', method='GET', block=True)
 def confirmation_envoi_lien_email(request: HttpRequest) -> HttpResponse:
     return render(request, 'inscription/confirmation_envoi_lien_inscription.html')
 
 
-@ratelimit(key='ip', rate='1/s', method='GET', block=True)
-@ratelimit(key='ip', rate='10/m', method='GET', block=True)
+@ratelimit(key='ip', rate='3/s', method='GET', block=True)
+@ratelimit(key='ip', rate='15/m', method='GET', block=True)
 @ratelimit(key='ip', rate='50/h', method='GET', block=True)
 def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
     """
@@ -186,8 +186,8 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
         return render(request, 'inscription/erreur_lien_expire.html')
 
 
-@ratelimit(key='ip', rate='1/s', method='GET', block=True)
-@ratelimit(key='ip', rate='10/m', method='GET', block=True)
+@ratelimit(key='ip', rate='3/s', method='GET', block=True)
+@ratelimit(key='ip', rate='15/m', method='GET', block=True)
 @ratelimit(key='ip', rate='50/h', method='GET', block=True)
 def confirmation_inscription_externe(request: HttpRequest) -> HttpResponse:
     return render(request, 'inscription/confirmation_inscription_externe.html')
