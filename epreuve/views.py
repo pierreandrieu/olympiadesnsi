@@ -1,9 +1,13 @@
+import csv
 import logging
+import zipfile
+from collections import defaultdict
+from io import BytesIO, StringIO
 from random import choice
 
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Count, Prefetch, Case, When, IntegerField, Value, Q, F, Max
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -90,7 +94,6 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
 
     # Sélection de tous les exercices associés à l'épreuve, ordonnés par leur numéro.
     exercices: List[Exercice] = list(Exercice.objects.filter(epreuve=epreuve).order_by('numero'))
-    user_exercice_list: list[UserExercice] = []
     exercice_a_traiter_si_un_par_un: Optional[Exercice] = None
     for exercice in exercices:
         user_exercice, _ = UserExercice.objects.get_or_create(exercice=exercice, participant=user)
@@ -101,11 +104,7 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
 
     # Si l'épreuve impose de passer les exercices un par un, filtrer pour ne garder que le premier non complété.
     if epreuve and epreuve.exercices_un_par_un:
-        for ex in exercices:
-            user_exercice, _ = UserExercice.objects.get_or_create(exercice=ex, participant=user)
-            if not user_exercice.solution_instance_participant and not user_exercice.code_participant:
-                exercices = [ex]
-                break
+        exercices = [exercice_a_traiter_si_un_par_un]
 
     # Préparation des données des exercices pour le frontend.
     exercices_json_list: List[Dict[str, object]] = []
@@ -404,7 +403,7 @@ def desinscrire_groupe_epreuve(request: HttpRequest, epreuve_id: int, groupe_id:
         user_epreuves = UserEpreuve.objects.filter(epreuve=epreuve, participant__in=participants)
 
         # Récupérer les IDs de tous les exercices associés à l'épreuve
-        exercices_ids: List[int] = list(epreuve.exercice_set.values_list('id', flat=True))
+        exercices_ids: List[int] = list(epreuve.exercices.values_list('id', flat=True))
 
         # Supprimer tous les UserExercice associés aux participants de l'épreuve et du groupe
         UserExercice.objects.filter(exercice_id__in=exercices_ids,
@@ -658,3 +657,194 @@ def editer_exercice(request: HttpRequest, epreuve: Epreuve, exercice: Exercice) 
         'separateur_jeux_de_test': exercice.separateur_jeu_test_effectif.replace("\n","\\n"),
         'separateur_resultats_jeux_de_test': exercice.separateur_reponse_jeudetest_effectif.replace("\n", "\\n"),
     })
+
+
+@login_required
+@decorators.membre_comite_required
+def rendus_participants(request: HttpRequest, epreuve_id: int) -> HttpResponse:
+    epreuve: Epreuve = getattr(request, 'epreuve', None)  # Épreuve récupérée par le décorateur.
+
+    exercices = epreuve.exercices.prefetch_related(
+        'jeudetest_set',
+        Prefetch('user_exercices', queryset=UserExercice.objects.select_related('participant', 'jeu_de_test'))
+    ).all()
+
+    # Récupération des UserExercice avec les informations nécessaires
+    user_exercices: QuerySet[UserExercice] = UserExercice.objects.filter(
+        exercice__epreuve=epreuve,
+        exercice__avec_jeu_de_test=True
+    ).select_related('jeu_de_test')
+
+    au_moins_un_exo_avec_jeu_test: bool = False
+
+    # Création d'un dictionnaire pour compter les bonnes réponses pour chaque participant
+    bonnes_reponses_par_participant = defaultdict(int)
+    for ue in user_exercices:
+        if ue.exercice.avec_jeu_de_test:
+            au_moins_un_exo_avec_jeu_test = True
+            if ue.solution_instance_participant:
+                if ue.solution_instance_participant.strip() == ue.jeu_de_test.reponse.strip():
+                    bonnes_reponses_par_participant[ue.participant_id] += 1
+
+    # Ajout des informations de bonnes réponses aux participants
+    participants: QuerySet[User] = User.objects.filter(
+        user_epreuves__epreuve=epreuve
+    ).distinct().annotate(
+        debut_epreuve=F('user_epreuves__debut_epreuve'),
+        groupe_id=Max('appartenances__groupe_id'),
+        bonnes_reponses=Case(
+            *[When(id=k, then=Value(v)) for k, v in bonnes_reponses_par_participant.items()],
+            default=Value(0),
+            output_field=IntegerField()
+        )
+    )
+
+    # Statistiques
+    total_inscrits = UserEpreuve.objects.filter(epreuve=epreuve).count()
+    total_participants = UserEpreuve.objects.filter(epreuve=epreuve, debut_epreuve__isnull=False).count()
+
+    # Statistiques des groupes (si applicable)
+    groupes = GroupeParticipant.objects.filter(epreuves=epreuve)
+    total_groupes_inscrits = groupes.count()
+    total_groupes_avec_participation: int = groupes.annotate(
+        debut_non_null=Count(
+            'membres__utilisateur__user_epreuves',
+            # Correct si 'user_epreuves' est le related_name dans User pour UserEpreuve
+            filter=Q(membres__utilisateur__user_epreuves__debut_epreuve__isnull=False,
+                     membres__utilisateur__user_epreuves__epreuve=epreuve)
+        )
+    ).filter(debut_non_null__gt=0).count()
+
+    data_for_js = [
+        {
+            'exerciceId': ue.exercice.id,
+            'exerciceTitre': ue.exercice.titre,
+            'participantId': ue.participant.id,
+            'username': ue.participant.username,
+            'solution': ue.solution_instance_participant if ue.solution_instance_participant else "N/A",
+            'expected': ue.jeu_de_test.reponse if ue.jeu_de_test else "N/A",
+            'code': ue.code_participant if ue.code_participant else "N/A",
+            'test': ue.jeu_de_test.instance if ue.jeu_de_test else "N/A"
+        }
+        for ue in user_exercices
+    ]
+    context = {
+        'epreuve': epreuve,
+        'exercices': exercices,
+        'participants': participants,
+        'total_inscrits': total_inscrits,
+        'total_participants': total_participants,
+        'total_groupes_inscrits': total_groupes_inscrits,
+        'au_moins_un_exo_avec_jeu_test': au_moins_un_exo_avec_jeu_test,
+        'total_groupes_avec_participation': total_groupes_avec_participation,
+        'data_for_js': data_for_js
+    }
+
+    return render(request, 'epreuve/rendus_participants.html', context)
+
+
+@login_required
+@decorators.membre_comite_required
+def export_data(request, epreuve_id: int, by: str) -> HttpResponse:
+    """
+    Génère et retourne une archive zip des données des utilisateurs, organisées par exercice ou par participant,
+    pour une épreuve donnée.
+
+    Args:
+        request (HttpRequest): L'objet HttpRequest.
+        epreuve_id (int): ID de l'épreuve pour laquelle les données doivent être exportées.
+        by (str): Critère d'organisation de l'exportation ('exercice' ou 'participant').
+
+    Returns:
+        HttpResponse: Une réponse HTTP avec l'archive zip en pièce jointe.
+    """
+    epreuve: Epreuve = getattr(request, 'epreuve', None)  # Épreuve récupérée par le décorateur.
+
+    user_exercices = (UserExercice.objects.filter(exercice__epreuve=epreuve).
+                      select_related('exercice', 'participant', 'jeu_de_test'))
+
+    user_epreuves = UserEpreuve.objects.filter(epreuve=epreuve).select_related('participant')
+
+    # Calculer les bonnes réponses
+    bonnes_reponses_dict = {}
+    for ue in user_exercices:
+        # Comparaison en tenant compte de strip()
+        is_correct = ue.solution_instance_participant.strip() == ue.jeu_de_test.reponse.strip() if ue.jeu_de_test and ue.solution_instance_participant else False
+        bonnes_reponses_dict.setdefault(ue.participant.username, 0)
+        if is_correct:
+            bonnes_reponses_dict[ue.participant.username] += 1
+
+    # Préparation du fichier CSV
+    csv_output = StringIO()
+    writer = csv.writer(csv_output)
+    writer.writerow(['username', 'date/heure de debut', 'nombre de bonnes reponses'])
+
+    for user_epreuve in UserEpreuve.objects.filter(epreuve=epreuve).select_related('participant'):
+        username = user_epreuve.participant.username
+        debut = user_epreuve.debut_epreuve.strftime('%Y-%m-%d %H:%M:%S') if user_epreuve.debut_epreuve else 'N/A'
+        bonnes_reponses = bonnes_reponses_dict.get(username, 0)
+        writer.writerow([username, debut, bonnes_reponses])
+
+    au_moins_un_exo_avec_jeu_test: bool = False
+
+    # Création d'un dictionnaire pour compter les bonnes réponses pour chaque participant
+    bonnes_reponses_par_participant = defaultdict(int)
+    for ue in user_exercices:
+        if ue.exercice.avec_jeu_de_test:
+            au_moins_un_exo_avec_jeu_test = True
+            if ue.solution_instance_participant:
+                if ue.solution_instance_participant.strip() == ue.jeu_de_test.reponse.strip():
+                    bonnes_reponses_par_participant[ue.participant_id] += 1
+
+    # Ajout des informations de bonnes réponses aux participants
+    participants: QuerySet[User] = User.objects.filter(
+        user_epreuves__epreuve=epreuve
+    ).distinct().annotate(
+        bonnes_reponses=Case(
+            *[When(id=k, then=Value(v)) for k, v in bonnes_reponses_par_participant.items()],
+            default=Value(0),
+            output_field=IntegerField()
+        )
+    )
+
+    # Création du fichier zip en mémoire
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED, False) as zip_file:
+        zip_file.writestr('resume_epreuve.csv', csv_output.getvalue())
+        if by == 'exercice':
+            for exercice in epreuve.exercices.all().prefetch_related('user_exercices'):
+                for user_exercice in exercice.user_exercices.all():
+                    user = user_exercice.participant
+                    user_folder = f"{exercice.titre}/{user.username}"
+                    if exercice.avec_jeu_de_test:
+                        solution = user_exercice.solution_instance_participant.strip() if user_exercice.solution_instance_participant else ""
+                        expected = user_exercice.jeu_de_test.reponse.strip() if user_exercice.jeu_de_test and user_exercice.jeu_de_test.reponse else ""
+                        zip_file.writestr(f"{user_folder}/jeu_de_test.txt",
+                                          f"reponse_partitipant:{solution}\n"
+                                          f"reponse_attendue:{expected}\n"
+                                          f"jeu_de_test:{user_exercice.jeu_de_test.instance}")
+
+                    code = user_exercice.code_participant if user_exercice.code_participant else ""
+                    zip_file.writestr(f"{user_folder}/code.py", code)
+        elif by == 'participant':
+            for user in User.objects.filter(user_exercices__exercice__epreuve=epreuve).distinct():
+                for user_exercice in user_exercices.filter(participant=user):
+                    exercice_folder = f"{user.username}/{user_exercice.exercice.titre}"
+                    if user_exercice.exercice.avec_jeu_de_test:
+                        solution = user_exercice.solution_instance_participant.strip() if user_exercice.solution_instance_participant else ""
+                        expected = user_exercice.jeu_de_test.reponse.strip() if user_exercice.jeu_de_test and user_exercice.jeu_de_test.reponse else ""
+                        zip_file.writestr(f"{exercice_folder}/jeu_de_test.txt",
+                                          f"reponse_partitipant:{solution}\n"
+                                          f"reponse_attendue:{expected}\n"
+                                          f"jeu_de_test:{user_exercice.jeu_de_test.instance}")
+
+                    code = user_exercice.code_participant if user_exercice.code_participant else ""
+                    zip_file.writestr(f"{exercice_folder}/code.py", code)
+
+    # Réinitialiser le curseur du fichier en mémoire
+    zip_buffer.seek(0)
+
+    # Créer la réponse HTTP avec le fichier zip en pièce jointe
+    response = HttpResponse(zip_buffer, content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename={by}_data_export_{epreuve_id}.zip'
+    return response
