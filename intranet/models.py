@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User, Group
+from django.core.cache import cache
 # from inscription.models import InscriptionExterne
 import olympiadesnsi.constants as constantes
 
@@ -11,7 +12,12 @@ class GroupeParticipant(models.Model):
 
         :return: Le nombre de participants dans le groupe.
         """
-        return self.membres.count()  # Utilise la relation inverse `membres` définie dans ParticipantEstDansGroupe
+        cache_key = f'nombre_participants_{self.id}'
+        nombre_participants = cache.get(cache_key)
+        if nombre_participants is None:
+            nombre_participants = self.membres.count()
+            cache.set(cache_key, nombre_participants, timeout=300)  # Cache pour 5 minutes
+        return nombre_participants
 
     def participants(self):
         """
@@ -59,17 +65,6 @@ class GroupeParticipant(models.Model):
 
     def __str__(self):
         return f"{self.nom} (Référent : {self.referent.username})"
-
-    def email_contact(self):
-        """
-
-        Returns: Le mail de l'inscripteur externe a l'origine de la création du groupe, None si le groupe n'a pas été
-        crée de façon externe.
-
-        """
-        if self.inscription_externe:
-            return self.inscription_externe.inscripteur.email
-        return None
 
     class Meta:
         db_table = 'GroupeParticipant'
