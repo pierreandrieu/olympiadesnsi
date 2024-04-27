@@ -1,0 +1,232 @@
+{% extends 'olympiadesnsi/base_organisateur.html' %}
+
+{% block content %}
+    <div class="container mt-4">
+        <h1>Retour sur l'épreuve {{ epreuve.nom }}</h1>
+        <div class="mb-3">
+            <br>
+            <h5 style="text-align:center">Informations Générales</h5>
+            <p><strong>Date de début :</strong> {{ epreuve.date_debut|date:"d M Y H:i" }}</p>
+            <p><strong>Date de fin :</strong> {{ epreuve.date_fin|date:"d M Y H:i" }}</p>
+            <p><strong>Statut :</strong> {{ epreuve.est_close|yesno:"Fermée,Ouverte" }}</p>
+        </div>
+
+        <div class="mb-4">
+            <br>
+
+            <h5 style="text-align:center">Statistiques de Participation</h5>
+            <p><strong>Nombre total d'inscrits :</strong> {{ total_inscrits }}</p>
+            <p><strong>Nombre d'inscrits ayant ouvert l'épreuve :</strong> {{ total_participants }}</p>
+            {% if epreuve.inscription_externe %}
+                <p><strong>Nombre total de groupes inscrits :</strong> {{ total_groupes_inscrits }}</p>
+                <p><strong>Nombre de groupes inscrits dont au moins un participant a ouvert l'épreuve
+                    :</strong> {{ total_groupes_avec_participation }}</p>
+            {% endif %}
+        </div>
+        <br>
+        <br>
+        <h5 style="text-align:center">Exporter les données</h5>
+
+        <button onclick="window.location.href='{% url 'export_data' epreuve.id 'exercice' %}'">
+            Exporter par Exercice
+        </button>
+        <button onclick="window.location.href='{% url 'export_data' epreuve.id 'participant' %}'">
+            Exporter par Participant
+        </button>
+        <br><br>
+
+        <br>
+        <br>
+        <h5 style="text-align:center">Retour global</h5>
+
+        <div class="table-responsive">
+            <table class="table participants-table">
+                <thead>
+                <tr>
+                    <th>Nom d'utilisateur</th>
+                    <th>ID du Groupe</th>
+                    <th>Date de début</th>
+                    <th>Bonnes réponses</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for participant in participants %}
+                    <tr>
+                        <td>{{ participant.username }}</td>
+                        <td>{{ participant.groupe_id }}</td>
+                        <td>{{ participant.debut_epreuve }}</td>
+                        <td>{{ participant.bonnes_reponses }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <br>
+        <p style="text-align: center;"> #######################################################</p>
+        <br>
+
+
+        <!-- Tableau de données -->
+        <h5 style="text-align:center">Rendu détaillé</h5>
+
+        <div class="table-responsive">
+            <table class="table data-table">
+                <thead>
+                <tr>
+                    <th>Nom d'utilisateur</th>
+                    <th>ExerciceID</th>
+                    <th>Exercice</th>
+                    <th>Réponse au Jeu de Test</th>
+                    <th>Réponse Attendue</th>
+                    <th>Code du Participant</th>
+                    <th>Jeu de Test</th>
+                </tr>
+                </thead>
+                <tbody id="table-body">
+                </tbody>
+            </table>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <label for="exercice-select">Sélectionner un Exercice:</label>
+                <select id="exercice-select" class="form-control">
+                    <option value="all">Tous les Exercices</option>
+                    {% for exercice in exercices %}
+                        <option value="{{ exercice.id }}">{{ exercice.titre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 mb-4">
+                <label for="participant-select">Sélectionner un Participant:</label>
+                <select id="participant-select" class="form-control">
+                    <option value="all">Tous les Participants</option>
+                    {% for participant in participants %}
+                        <option value="{{ participant.id }}">{{ participant.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+{% block scripts %}
+
+<script>
+    $(document).ready(function () {
+        // Charger les données initiales et les afficher dans la console pour vérification
+        const originalData = {{ data_for_js|safe }};
+        console.log("Original Data Loaded:", originalData);
+
+        // Fonction pour initialiser DataTables
+        function initDataTable() {
+            return $('.data-table').DataTable({
+                scrollX: true,
+                scrollY: "200px", // Hauteur fixe pour le défilement vertical
+                scrollCollapse: true,
+                data: transformDataForDataTable(originalData), // Transforme et charge les données initiales
+                columns: [
+                    {data: 'username'},
+                    {data: 'exerciceId'},
+                    {data: 'exerciceTitre'},
+                    {data: 'solution', width: '30px'},
+                    {data: 'expected', width: '30px'},
+                    {data: 'code', width: '30px'},
+                    {data: 'test', width: '30px'}
+                ],
+                columnDefs: [
+                    {
+                        targets: [3, 4, 5, 6],
+                    }
+                ],
+                language: {
+                    "lengthMenu": "Afficher _MENU_ éléments par page",
+                    "zeroRecords": "Aucun élément trouvé",
+                    "info": "Affichage de la page _PAGE_ sur _PAGES_",
+                    "infoEmpty": "Aucun enregistrement disponible",
+                    "infoFiltered": "(filtré de _MAX_ enregistrements au total)",
+                    "search": "Recherche:",
+                    "paginate": {
+                        "first": "Premier",
+                        "last": "Dernier",
+                        "next": "Suivant",
+                        "previous": "Précédent"
+                    },
+                    "aria": {
+                        "sortAscending": ": activer pour trier la colonne par ordre croissant",
+                        "sortDescending": ": activer pour trier la colonne par ordre décroissant"
+                    }
+                }
+            });
+        }
+
+        // Transforme les données pour correspondre à la structure attendue par DataTables
+        function transformDataForDataTable(data) {
+            return data.map(item => ({
+                username: `<div style="text-align: left;max-width: 100px; overflow: auto;">${item.username}</div>`,
+                exerciceId: `<div style="text-align: left;max-width: 100px; overflow: auto;">${item.exerciceId}</div>`,
+                exerciceTitre: `<div style="text-align: left;max-width: 100px; overflow: auto;">${item.exerciceTitre}</div>`,
+                solution: `<div style="text-align: left;max-width: 100px; overflow: auto;">${item.solution}</div>`,
+                expected: `<div style="text-align: left;max-width: 100px; overflow: auto;">${item.expected}</div>`,
+                code: `<div style="text-align: left;max-width: 100px; overflow: auto;">${item.code}</div>`,
+                test: `<div style="text-align: left;max-width: 100px; overflow: auto;">${item.test}</div>`
+            }));
+        }
+
+        // Stocker l'instance de DataTable
+        let table = initDataTable();
+        console.log("DataTable initialized");
+
+        // Fonction pour filtrer les données
+        function filterData() {
+            // Récupère les valeurs des sélecteurs
+            const exerciceId = $('#exercice-select').val();
+            const participantId = $('#participant-select').val();
+
+            // Filtre les données en fonction des valeurs sélectionnées
+            const filteredData = originalData.filter(item => {
+                const matchesExercice = exerciceId === "all" || item.exerciceId.toString() === exerciceId;
+                const matchesParticipant = participantId === "all" || item.participantId.toString() === participantId;
+                return matchesExercice && matchesParticipant;
+            });
+
+            // Mise à jour des données dans DataTables
+            table.clear(); // Effacez les données actuelles
+            table.rows.add(transformDataForDataTable(filteredData)); // Ajoutez les nouvelles données filtrées
+            table.draw(); // Redessinez le tableau
+        }
+
+
+        // Attache l'événement change aux sélecteurs pour déclencher le filtrage
+        $('#exercice-select, #participant-select').change(filterData);
+        console.log("Change handlers for select elements attached");
+        filterData();
+    });
+</script>
+
+    <script>
+        $(document).ready(function () {
+            // Initialise DataTable sur le tableau de participants
+            $('table.participants-table').DataTable({
+                "language": {
+                    "lengthMenu": "Afficher _MENU_ éléments par page",
+                    "zeroRecords": "Aucun élément trouvé",
+                    "info": "Affichage de la page _PAGE_ sur _PAGES_",
+                    "infoEmpty": "Aucun enregistrement disponible",
+                    "infoFiltered": "(filtré de _MAX_ enregistrements au total)",
+                    "search": "Recherche:",
+                    "paginate": {
+                        "first": "Premier",
+                        "last": "Dernier",
+                        "next": "Suivant",
+                        "previous": "Précédent"
+                    },
+                    "aria": {
+                        "sortAscending": ": activer pour trier la colonne par ordre croissant",
+                        "sortDescending": ": activer pour trier la colonne par ordre décroissant"
+                    }
+                }
+            });
+        });
+    </script>
+
+{% endblock %}
