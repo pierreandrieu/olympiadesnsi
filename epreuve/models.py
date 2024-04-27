@@ -5,7 +5,6 @@ from django.contrib.auth.models import User, Group
 from django.db.models import CheckConstraint, Q, F, QuerySet
 from inscription.models import GroupeParticipant
 from olympiadesnsi.constants import MAX_TAILLE_NOM
-from random import choice
 
 
 class Epreuve(models.Model):
@@ -29,7 +28,7 @@ class Epreuve(models.Model):
         Returns:
             QuerySet[Exercice]: Un QuerySet contenant les exercices associés à l'épreuve.
         """
-        return self.exercice_set.all()
+        return self.exercices.all()
 
     def est_close(self) -> bool:
         """
@@ -120,7 +119,7 @@ class Exercice(models.Model):
         ('qcs', 'QCS')
     ]
 
-    epreuve = models.ForeignKey(Epreuve, on_delete=models.CASCADE)
+    epreuve = models.ForeignKey(Epreuve, on_delete=models.CASCADE, related_name='exercices')
     auteur = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     titre = models.CharField(max_length=MAX_TAILLE_NOM)
     bareme = models.IntegerField(null=True)
@@ -205,9 +204,9 @@ class JeuDeTest(models.Model):
 
 
 class UserEpreuve(models.Model):
-    participant = models.ForeignKey(User, related_name='association_UserEpreuve_User',
+    participant = models.ForeignKey(User, related_name='user_epreuves',
                                     on_delete=models.CASCADE)
-    epreuve = models.ForeignKey(Epreuve, related_name='association_UserEpreuve_Epreuve',
+    epreuve = models.ForeignKey(Epreuve, related_name='participant_entries',
                                 on_delete=models.CASCADE)
     debut_epreuve = models.DateTimeField(auto_now=False, null=True)
 
@@ -223,9 +222,8 @@ class UserEpreuve(models.Model):
 
 
 class UserExercice(models.Model):
-    participant = models.ForeignKey(User, related_name='association_UserExercice_User',
-                                    on_delete=models.CASCADE)
-    exercice = models.ForeignKey(Exercice, related_name='association_UserExercice_Exercice', on_delete=models.CASCADE)
+    participant = models.ForeignKey(User, related_name='user_exercices', on_delete=models.CASCADE)
+    exercice = models.ForeignKey(Exercice, related_name='user_exercices', on_delete=models.CASCADE)
     jeu_de_test = models.ForeignKey(JeuDeTest, on_delete=models.SET_NULL, null=True, blank=True)
     solution_instance_participant = models.TextField(null=True)
     code_participant = models.TextField(null=True)
