@@ -5,6 +5,7 @@ from django.contrib.auth.models import User, Group
 from django.db.models import CheckConstraint, Q, F, QuerySet
 from inscription.models import GroupeParticipant
 from olympiadesnsi.constants import MAX_TAILLE_NOM
+from random import choice
 
 
 class Epreuve(models.Model):
@@ -147,6 +148,15 @@ class Exercice(models.Model):
         if self.separateur_reponse_jeudetest is not None:
             return self.separateur_reponse_jeudetest
         return '\n'
+
+    def pick_jeu_de_test(self):
+        """
+        Sélectionne aléatoirement un jeu de test associé à cet exercice.
+
+        Returns:
+            JeuDeTest: Un objet JeuDeTest sélectionné aléatoirement, ou None si aucun jeu de test n'est disponible.
+        """
+        return self.jeudetest_set.order_by('?').first()
 
     def save(self, *args, **kwargs):
         # Si le numéro n'est pas déjà défini (nouvel exercice)
