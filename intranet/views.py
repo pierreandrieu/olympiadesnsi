@@ -251,14 +251,18 @@ def creer_editer_epreuve(request: HttpRequest, epreuve_id: Optional[int] = None)
 
     if epreuve_id:
         epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-        if epreuve.referent != request.user:
-            return HttpResponseForbidden()
+        if not epreuve.a_pour_membre_comite(request.user):
+            return HttpResponseForbidden("Seuls les membres du comité d'organisation d'une épreuve sont "
+                                         "peuvent consulter cette page.")
 
         # Récupère les domaines autorisés associés à l'épreuve pour pré-remplir le formulaire.
         domaines_qs: QuerySet[InscriptionDomaine] = InscriptionDomaine.objects.filter(epreuve=epreuve)
         domaines_autorises: str = "\n".join([domaine.domaine for domaine in domaines_qs])
 
     if request.method == 'POST':
+        if epreuve.referent != request.user:
+            context: dict = {'message': f"Accès refusé, seul l'administrateur d'une épreuve peut en changer les paramètres"}
+            return render(request, 'olympiadesnsi/erreur.html', context, status=403)
         form: EpreuveForm = EpreuveForm(request.POST, instance=epreuve)
         if form.is_valid():
             epreuve: Epreuve = form.save(commit=False)
