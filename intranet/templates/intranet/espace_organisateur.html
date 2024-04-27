@@ -85,6 +85,11 @@
                                                 <a href="{% url 'editer_epreuve' epreuve.id %}">
                                                 <i class="fas fa-edit"></i>
                                             </a>
+
+                                            <a href="{% url 'rendus_participants' epreuve.id %}">
+                                                <i class="fas fa-marker"></i>
+                                            </a>
+                                        
                                             {% if request.user == epreuve.referent %}
 
                                                 <a href="#" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal"
@@ -99,7 +104,7 @@
                                 <tr id="exercices-{{ epreuve.id }}" class="table-secondary toggle-element" style="display:none;">
                                     <td colspan="5">
                                         <ul>
-                                            {% for exercice in epreuve.exercice_set.all %}
+                                            {% for exercice in epreuve.exercices.all %}
                                                 <li>
                                                     {{ exercice.titre }}
                                                     <a href="{% url 'editer_exercice' epreuve.id exercice.id %}">
