@@ -319,7 +319,7 @@ def espace_organisateur(request: HttpRequest) -> HttpResponse:
         .annotate(nombre_membres=Count('membres'))
 
     # Préparation des requêtes pré-fetch pour optimiser les accès aux données des épreuves.
-    exercice_prefetch: Prefetch = Prefetch('exercice_set', queryset=Exercice.objects.order_by('numero'))
+    exercice_prefetch: Prefetch = Prefetch('exercices', queryset=Exercice.objects.order_by('numero'))
     epreuves_organisees: QuerySet[Epreuve] = Epreuve.objects.filter(
         membrecomite__membre=user
     ).prefetch_related(
@@ -341,7 +341,7 @@ def espace_organisateur(request: HttpRequest) -> HttpResponse:
             groupe_id__in=groupes_participants_ids
         ).distinct('utilisateur').count()
 
-        nombre_exercices: int = epreuve.exercice_set.count()
+        nombre_exercices: int = epreuve.exercices.count()
         membres_comite: List[User] = list(User.objects.filter(membrecomite__epreuve=epreuve))
         nombre_organisateurs: int = len(membres_comite)
         epreuves_info.append((epreuve, nombre_organisateurs, epreuve.groupes_participants.all(), nombre_groupes,
