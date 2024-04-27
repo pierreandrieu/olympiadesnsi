@@ -501,3 +501,9 @@ div#exercice-container div.exercice-row:last-child .move-down {
 .fas.fa-trash-alt {
     color: #a94442;
 }
+
+.scrollable-cell {
+    max-width: 100px; /* Limite la largeur visible */
+    overflow: auto; /* Active le défilement lorsque le contenu dépasse la largeur */
+    white-space: pre-wrap; /* Conserve les sauts de ligne naturels et permet les césures */
+}
