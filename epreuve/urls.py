@@ -19,4 +19,5 @@ urlpatterns = [
          name='redistribuer_jeux_de_test'),
     path('<int:epreuve_id>/desinscription/<int:groupe_id>/',
          views.desinscrire_groupe_epreuve, name='desinscrire_groupe_epreuve'),
-]
+    path('epreuve/<int:epreuve_id>/correction/', views.rendus_participants, name='rendus_participants'),
+    path('export/<int:epreuve_id>/<str:by>/', views.export_data, name='export_data'),]
