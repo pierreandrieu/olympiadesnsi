@@ -67,6 +67,19 @@ class Epreuve(models.Model):
 
         return total_participants
 
+    def a_pour_membre_comite(self, user: User) -> bool:
+        """
+        Détermine si l'utilisateur donné est un membre du comité d'organisation de cette épreuve.
+
+        Args:
+            user (User): L'utilisateur à vérifier.
+
+        Returns:
+            bool: True si l'utilisateur est membre du comité, False autrement.
+        """
+        # On utilise `self.comite` pour accéder directement à la relation ManyToMany via le modèle intermédiaire
+        # et on vérifie si l'utilisateur est dans la liste des membres du comité.
+        return self.comite.filter(id=user.id).exists()
 
     def __str__(self):
         return self.nom

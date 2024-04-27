@@ -81,11 +81,12 @@
                                             <a href="{% url 'visualiser_epreuve' epreuve.id %}">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            {% if request.user == epreuve.referent %}
 
                                                 <a href="{% url 'editer_epreuve' epreuve.id %}">
                                                 <i class="fas fa-edit"></i>
                                             </a>
+                                            {% if request.user == epreuve.referent %}
+
                                                 <a href="#" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal"
                                                    data-epreuve-url="{% url 'supprimer_epreuve' epreuve.id %}"
                                                    class="text-danger">
@@ -216,7 +217,7 @@
                                     </td>
 
                                 </tr>
-                                
+
                             {% endfor %}
                             </tbody>
                         </table>
