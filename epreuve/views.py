@@ -819,10 +819,13 @@ def export_data(request, epreuve_id: int, by: str) -> HttpResponse:
                     if exercice.avec_jeu_de_test:
                         solution = user_exercice.solution_instance_participant.strip() if user_exercice.solution_instance_participant else ""
                         expected = user_exercice.jeu_de_test.reponse.strip() if user_exercice.jeu_de_test and user_exercice.jeu_de_test.reponse else ""
+                        jeu_test_instance: str = "N/A"
+                        if user_exercice.jeu_de_test:
+                            jeu_test_instance = user_exercice.jeu_de_test.instance
                         zip_file.writestr(f"{user_folder}/jeu_de_test.txt",
                                           f"reponse_partitipant:{solution}\n"
                                           f"reponse_attendue:{expected}\n"
-                                          f"jeu_de_test:{user_exercice.jeu_de_test.instance}")
+                                          f"jeu_de_test:{jeu_test_instance}")
 
                     code = user_exercice.code_participant if user_exercice.code_participant else ""
                     zip_file.writestr(f"{user_folder}/code.py", code)
@@ -833,10 +836,13 @@ def export_data(request, epreuve_id: int, by: str) -> HttpResponse:
                     if user_exercice.exercice.avec_jeu_de_test:
                         solution = user_exercice.solution_instance_participant.strip() if user_exercice.solution_instance_participant else ""
                         expected = user_exercice.jeu_de_test.reponse.strip() if user_exercice.jeu_de_test and user_exercice.jeu_de_test.reponse else ""
+                        jeu_test_instance: str = "N/A"
+                        if user_exercice.jeu_de_test:
+                            jeu_test_instance = user_exercice.jeu_de_test.instance
                         zip_file.writestr(f"{exercice_folder}/jeu_de_test.txt",
                                           f"reponse_partitipant:{solution}\n"
                                           f"reponse_attendue:{expected}\n"
-                                          f"jeu_de_test:{user_exercice.jeu_de_test.instance}")
+                                          f"jeu_de_test:{jeu_test_instance}")
 
                     code = user_exercice.code_participant if user_exercice.code_participant else ""
                     zip_file.writestr(f"{exercice_folder}/code.py", code)
