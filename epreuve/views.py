@@ -852,5 +852,5 @@ def export_data(request, epreuve_id: int, by: str) -> HttpResponse:
 
     # Créer la réponse HTTP avec le fichier zip en pièce jointe
     response = HttpResponse(zip_buffer, content_type='application/zip')
-    response['Content-Disposition'] = f'attachment; filename={by}_data_export_{epreuve_id}.zip'
+    response['Content-Disposition'] = f'attachment; filename={epreuve.nom[:30]}_{by}_data_export_{epreuve_id}.zip'
     return response
