@@ -5,7 +5,7 @@
         <h1>Retour sur l'épreuve {{ epreuve.nom }}</h1>
         <div class="mb-3">
             <br>
-            <h5 style="text-align:center">Informations Générales</h5>
+            <h5 style="text-align:center">Informations générales</h5>
             <p><strong>Date de début :</strong> {{ epreuve.date_debut|date:"d M Y H:i" }}</p>
             <p><strong>Date de fin :</strong> {{ epreuve.date_fin|date:"d M Y H:i" }}</p>
             <p><strong>Statut :</strong> {{ epreuve.est_close|yesno:"Fermée,Ouverte" }}</p>
@@ -14,12 +14,12 @@
         <div class="mb-4">
             <br>
 
-            <h5 style="text-align:center">Statistiques de Participation</h5>
-            <p><strong>Nombre total d'inscrits :</strong> {{ total_inscrits }}</p>
-            <p><strong>Nombre d'inscrits ayant ouvert l'épreuve :</strong> {{ total_participants }}</p>
+            <h5 style="text-align:center">Statistiques de participation</h5>
+            <p><strong>Nombre total d'équipes inscrites :</strong> {{ total_inscrits }}</p>
+            <p><strong>Nombre d'équipes ayant ouvert l'épreuve :</strong> {{ total_participants }}</p>
             {% if epreuve.inscription_externe %}
-                <p><strong>Nombre total de groupes inscrits :</strong> {{ total_groupes_inscrits }}</p>
-                <p><strong>Nombre de groupes inscrits dont au moins un participant a ouvert l'épreuve
+                <p><strong>Nombre total de groupes d'équipes :</strong> {{ total_groupes_inscrits }}</p>
+                <p><strong>Nombre de groupes dont au moins une équipe a ouvert l'épreuve
                     :</strong> {{ total_groupes_avec_participation }}</p>
             {% endif %}
         </div>
@@ -28,10 +28,10 @@
         <h5 style="text-align:center">Exporter les données</h5>
 
         <button onclick="window.location.href='{% url 'export_data' epreuve.id 'exercice' %}'">
-            Exporter par Exercice
+            Exporter par exercice
         </button>
         <button onclick="window.location.href='{% url 'export_data' epreuve.id 'participant' %}'">
-            Exporter par Participant
+            Exporter par équipe
         </button>
         <br><br>
 
@@ -44,7 +44,7 @@
                 <thead>
                 <tr>
                     <th>Nom d'utilisateur</th>
-                    <th>ID du Groupe</th>
+                    <th>ID du groupe</th>
                     <th>Date de début</th>
                     <th>Bonnes réponses</th>
                 </tr>
@@ -76,9 +76,9 @@
                 <tr>
                     <th>Nom d'utilisateur</th>
                     <th>ExerciceID</th>
-                    <th>Exercice</th>
-                    <th>Réponse au Jeu de Test</th>
-                    <th>Réponse Attendue</th>
+                    <th>Titre de l'exercice</th>
+                    <th>Réponse au jeu de test</th>
+                    <th>Réponse attendue</th>
                     <!-- <th>Code du Participant</th>
                     <th>Jeu de Test</th>
                     -->
@@ -90,18 +90,18 @@
         </div>
         <div class="row">
             <div class="col-md-6 mb-4">
-                <label for="exercice-select">Sélectionner un Exercice:</label>
+                <label for="exercice-select">Sélectionner un exercice:</label>
                 <select id="exercice-select" class="form-control">
-                    <option value="all">Tous les Exercices</option>
+                    <option value="all">Tous les exercices</option>
                     {% for exercice in exercices %}
                         <option value="{{ exercice.id }}">{{ exercice.titre }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-6 mb-4">
-                <label for="participant-select">Sélectionner un Participant:</label>
+                <label for="participant-select">Sélectionner une équipe:</label>
                 <select id="participant-select" class="form-control">
-                    <option value="all">Tous les Participants</option>
+                    <option value="all">Toutes les équipes</option>
                     {% for participant in participants %}
                         <option value="{{ participant.id }}">{{ participant.username }}</option>
                     {% endfor %}

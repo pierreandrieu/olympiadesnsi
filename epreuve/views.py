@@ -776,7 +776,7 @@ def export_data(request, epreuve_id: int, by: str) -> HttpResponse:
 
     # Préparation du fichier CSV
     csv_output = StringIO()
-    writer = csv.writer(csv_output)
+    writer = csv.writer(csv_output, delimiter='\t')
     writer.writerow(['username', 'date/heure de debut', 'nombre de bonnes reponses'])
 
     for user_epreuve in UserEpreuve.objects.filter(epreuve=epreuve).select_related('participant'):
@@ -810,42 +810,47 @@ def export_data(request, epreuve_id: int, by: str) -> HttpResponse:
     # Création du fichier zip en mémoire
     zip_buffer = BytesIO()
     with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED, False) as zip_file:
-        zip_file.writestr('resume_epreuve.csv', csv_output.getvalue())
+        zip_file.writestr('resume_epreuve.tsv', csv_output.getvalue())
         if by == 'exercice':
             for exercice in epreuve.exercices.all().prefetch_related('user_exercices'):
                 for user_exercice in exercice.user_exercices.all():
                     user = user_exercice.participant
-                    user_folder = f"{exercice.titre}/{user.username}"
+                    nom_participant: str = user.username
+                    exercice_titre: str = exercice.titre
+                    exercice_id: int = exercice.id
+                    user_folder = f"{exercice_titre}/{nom_participant}"
                     if exercice.avec_jeu_de_test:
                         solution = user_exercice.solution_instance_participant.strip() if user_exercice.solution_instance_participant else ""
                         expected = user_exercice.jeu_de_test.reponse.strip() if user_exercice.jeu_de_test and user_exercice.jeu_de_test.reponse else ""
                         jeu_test_instance: str = "N/A"
                         if user_exercice.jeu_de_test:
                             jeu_test_instance = user_exercice.jeu_de_test.instance
-                        zip_file.writestr(f"{user_folder}/jeu_de_test.txt",
-                                          f"reponse_partitipant:{solution}\n"
-                                          f"reponse_attendue:{expected}\n"
-                                          f"jeu_de_test:{jeu_test_instance}")
+                        zip_file.writestr(f"{user_folder}/reponse_{exercice_id}_{nom_participant}.txt",
+                                          f"##### reponse_equipe :\n{solution}\n\n"
+                                          f"##### reponse_attendue :\n{expected}\n\n"
+                                          f"##### jeu_de_test :\n{jeu_test_instance}")
 
                     code = user_exercice.code_participant if user_exercice.code_participant else ""
-                    zip_file.writestr(f"{user_folder}/code.py", code)
+                    zip_file.writestr(f"{user_folder}/code_{exercice_id}_{nom_participant}.py", code)
         elif by == 'participant':
             for user in User.objects.filter(user_exercices__exercice__epreuve=epreuve).distinct():
+                nom_participant: str = user.username
                 for user_exercice in user_exercices.filter(participant=user):
-                    exercice_folder = f"{user.username}/{user_exercice.exercice.titre}"
-                    if user_exercice.exercice.avec_jeu_de_test:
+                    exercice: Exercice = user_exercice.exercice
+                    exercice_folder = f"{nom_participant}/{exercice.titre}"
+                    if exercice.avec_jeu_de_test:
                         solution = user_exercice.solution_instance_participant.strip() if user_exercice.solution_instance_participant else ""
                         expected = user_exercice.jeu_de_test.reponse.strip() if user_exercice.jeu_de_test and user_exercice.jeu_de_test.reponse else ""
                         jeu_test_instance: str = "N/A"
                         if user_exercice.jeu_de_test:
                             jeu_test_instance = user_exercice.jeu_de_test.instance
-                        zip_file.writestr(f"{exercice_folder}/jeu_de_test.txt",
-                                          f"reponse_partitipant:{solution}\n"
-                                          f"reponse_attendue:{expected}\n"
-                                          f"jeu_de_test:{jeu_test_instance}")
+                        zip_file.writestr(f"{exercice_folder}/reponse_{nom_participant}_{exercice.id}.txt",
+                                          f"##### reponse_equipe :\n{solution}\n\n"
+                                          f"##### reponse_attendue :\n{expected}\n\n"
+                                          f"##### jeu_de_test :\n{jeu_test_instance}")
 
                     code = user_exercice.code_participant if user_exercice.code_participant else ""
-                    zip_file.writestr(f"{exercice_folder}/code.py", code)
+                    zip_file.writestr(f"{exercice_folder}/code_{nom_participant}_{exercice.id}.py", code)
 
     # Réinitialiser le curseur du fichier en mémoire
     zip_buffer.seek(0)
