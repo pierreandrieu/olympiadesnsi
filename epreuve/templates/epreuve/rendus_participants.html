@@ -79,8 +79,9 @@
                     <th>Exercice</th>
                     <th>Réponse au Jeu de Test</th>
                     <th>Réponse Attendue</th>
-                    <th>Code du Participant</th>
+                    <!-- <th>Code du Participant</th>
                     <th>Jeu de Test</th>
+                    -->
                 </tr>
                 </thead>
                 <tbody id="table-body">
@@ -127,9 +128,9 @@
                     {data: 'exerciceId', width: '100px'},
                     {data: 'exerciceTitre', width: '150px'},
                     {data: 'solution', width: '100px'},
-                    {data: 'expected', width: '100px'},
-                    {data: 'code', width: '100px'},
-                    {data: 'test', width: '100px'}
+                    {data: 'expected', width: '100px'}
+                    //{data: 'code', width: '100px'},
+                    //{data: 'test', width: '100px'}
                 ],
                 columnDefs: [
                     {targets: "_all", className: "dt-head-center"} // Centre les entêtes
@@ -157,10 +158,10 @@
                 username: `<div class="scrollable-cell" style="width:100px;">${item.username}</div>`,
                 exerciceId: `<div class="scrollable-cell" style="width:100px;">${item.exerciceId}</div>`,
                 exerciceTitre: `<div class="scrollable-cell" style="width:100px;">${item.exerciceTitre}</div>`,
-                solution: `<div class="scrollable-cell" style="width:100px;">${item.solution}</div>`,
-                expected: `<div class="scrollable-cell" style="width:100px;">${item.expected}</div>`,
-                code: `<div class="scrollable-cell" style="width:100px;">${item.code}</div>`,
-                test: `<div class="scrollable-cell" style="width:100px;">${item.test}</div>`
+                solution: `<div class="scrollable-cell" style="width:200px;">${item.solution}</div>`,
+                expected: `<div class="scrollable-cell" style="width:200px;">${item.expected}</div>`,
+              //  code: `<div class="scrollable-cell" style="width:100px;">${item.code}</div>`,
+              //  test: `<div class="scrollable-cell" style="width:100px;">${item.test}</div>`
             }));
         }
 
