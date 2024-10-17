@@ -101,6 +101,7 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
             exercice_a_traiter_si_un_par_un = exercice
         if exercice.avec_jeu_de_test and not user_exercice.jeu_de_test:
             user_exercice.jeu_de_test = exercice.pick_jeu_de_test()
+            user_exercice.save()
 
     # Si l'épreuve impose de passer les exercices un par un, filtrer pour ne garder que le premier non complété.
     if epreuve and epreuve.exercices_un_par_un:
