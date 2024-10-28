@@ -48,7 +48,15 @@ def detail_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
         HttpResponse: La réponse HTTP avec le template d'affichage de l'épreuve.
     """
     epreuve: Epreuve = getattr(request, 'epreuve', None)
-    return render(request, 'epreuve/detail_epreuve.html', {'epreuve': epreuve})
+    indication_utilisateurs_retour: int = 0
+    if epreuve:
+        exercices: QuerySet[Exercice] = epreuve.get_exercices()
+        for exercice in exercices:
+            if exercice.avec_jeu_de_test and exercice.retour_en_direct:
+                indication_utilisateurs_retour += 1
+    return render(request, 'epreuve/detail_epreuve.html',
+                  {'epreuve': epreuve,
+                   'indication_utilisateurs_retour': indication_utilisateurs_retour})
 
 
 @login_required

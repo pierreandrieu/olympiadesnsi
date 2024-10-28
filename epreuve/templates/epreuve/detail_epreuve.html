@@ -31,9 +31,25 @@
             </div>
         {% endif %}
 
+        {% if indication_utilisateurs_retour > 0 %}
+            <div class="alert alert-secondary">
+                <p> Pour {{ indication_utilisateurs_retour }} exercice(s) de cette épreuve, un retour en direct
+                vous est fourni concernant la réponse au jeu de test sur lequel vous devrez
+                    travailler. </p>
+
+                <p> Un crayon vert indique que votre réponse est correcte (ce qui ne signifie pas
+                nécessairement que le code est correct) et qu'un code a bien été soumis.
+
+                    Faites attention à ce que le code soumis corresponde bien à la version qui a permis de générer la réponse validée !
+                </p>
+
+                <p> Un crayon orange indique que votre réponse est correcte mais qu'aucun code n'a été soumis. </p>
+
+                <p> Un crayon rouge indique que votre réponse est incorrecte. </p>
+            </div>
+        {% endif %}
+
         <a href="{% url 'afficher_epreuve' epreuve.id %}" class="btn btn-primary">Démarrer l'épreuve</a>
 
-
-        <!-- Informations supplémentaires si nécessaire -->
     </div>
 {% endblock %}
