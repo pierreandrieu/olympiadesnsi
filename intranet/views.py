@@ -258,7 +258,7 @@ def creer_editer_epreuve(request: HttpRequest, epreuve_id: Optional[int] = None)
 
         # Récupère les domaines autorisés associés à l'épreuve pour pré-remplir le formulaire.
         domaines_qs: QuerySet[InscriptionDomaine] = InscriptionDomaine.objects.filter(epreuve=epreuve)
-        domaines_autorises: str = "\n".join([domaine.domaine for domaine in domaines_qs])
+        domaines_autorises: str = "\n".join([str(domaine.domaine) for domaine in domaines_qs])
 
     if request.method == 'POST':
         form: EpreuveForm = EpreuveForm(request.POST, instance=epreuve)
