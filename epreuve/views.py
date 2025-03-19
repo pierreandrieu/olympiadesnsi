@@ -263,7 +263,7 @@ def visualiser_epreuve_organisateur(request, epreuve_id):
     for ex in exercices:
         jeu_de_test: Optional[JeuDeTest] = None
         if ex.avec_jeu_de_test:
-            jeu_de_test = choice(JeuDeTest.objects.filter(exercice_id=ex.id))
+            jeu_de_test = ex.pick_jeu_de_test()
 
         exercice_dict: Dict[str, object] = {
             'id': ex.id,
