@@ -33,30 +33,43 @@ logger = logging.getLogger(__name__)
 @login_required
 @decorators.participant_inscrit_a_epreuve_required
 def detail_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
-    """
-    Affiche le détail d'une épreuve pour les participants inscrits.
-
-    Utilise `epreuve_id` pour identifier l'épreuve et s'appuie sur le décorateur
-    `participant_inscrit_a_epreuve_required` pour attacher l'objet épreuve correspondant
-    à `request`. Assure que l'utilisateur est authentifié et inscrit à l'épreuve.
-
-    Args:
-        request (HttpRequest): La requête HTTP.
-        epreuve_id (int): L'ID de l'épreuve à afficher.
-
-    Returns:
-        HttpResponse: La réponse HTTP avec le template d'affichage de l'épreuve.
-    """
     epreuve: Epreuve = getattr(request, 'epreuve', None)
     indication_utilisateurs_retour: int = 0
+    anonymats = ["", "", ""]  # Valeurs par défaut
+
     if epreuve:
         exercices: QuerySet[Exercice] = epreuve.get_exercices()
         for exercice in exercices:
             if exercice.avec_jeu_de_test and exercice.retour_en_direct:
                 indication_utilisateurs_retour += 1
-    return render(request, 'epreuve/detail_epreuve.html',
-                  {'epreuve': epreuve,
-                   'indication_utilisateurs_retour': indication_utilisateurs_retour})
+
+        # Récupération ou création de l'entrée `UserEpreuve`
+        user_epreuve, _ = UserEpreuve.objects.get_or_create(participant=request.user, epreuve=epreuve)
+        anonymats = user_epreuve.get_anonymat()
+
+    if request.method == "POST":
+        # Récupération des choix de l'utilisateur
+        anonymats = []
+        for i in range(1, 4):
+            choix = request.POST.get(f"choix_{i}")
+            if choix == "1":  # Numéro d'anonymat fourni
+                anonymat = request.POST.get(f"anonymat_{i}", "").strip()
+                anonymats.append(anonymat if anonymat else "?")
+            elif choix == "2":  # Pas de numéro mais a participé
+                anonymats.append("?")
+            else:  # N'a pas participé
+                anonymats.append("-")
+
+        # Sauvegarde en base de données
+        user_epreuve.set_anonymat(anonymats)
+
+        return redirect("detail_epreuve", epreuve_id=epreuve.id)
+
+    return render(request, "epreuve/detail_epreuve.html", {
+        "epreuve": epreuve,
+        "indication_utilisateurs_retour": indication_utilisateurs_retour,
+        "anonymats": anonymats
+    })
 
 
 @login_required
@@ -281,7 +294,7 @@ def visualiser_epreuve_organisateur(request, epreuve_id):
             'retour_en_direct': ex.retour_en_direct,
             'instance_de_test': jeu_de_test.instance if jeu_de_test else "",
             'reponse_valide': False,
-            'reponse_attendue' : jeu_de_test.reponse if jeu_de_test else ""
+            'reponse_attendue': jeu_de_test.reponse if jeu_de_test else ""
         }
 
         exercices_json_list.append(exercice_dict)
@@ -358,7 +371,8 @@ def inscrire_groupes_epreuve(request: HttpRequest, epreuve_id: int) -> HttpRespo
     logger.debug("epreuve pour inscription : ", epreuve)
 
     if request.method == 'POST':
-        groupe_ids: List[str] = request.POST.getlist(key='groups', default=[])  # IDs des groupes sélectionnés pour l'inscription.
+        # IDs des groupes sélectionnés pour l'inscription.
+        groupe_ids: List[str] = request.POST.getlist(key='groups', default=[])
         logger.debug("id des groupes a inscrire : ", groupe_ids)
         with transaction.atomic():
             for groupe_id in groupe_ids:

@@ -1,3 +1,4 @@
+from typing import List
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
@@ -80,6 +81,15 @@ class Epreuve(models.Model):
         # On utilise `self.comite` pour accéder directement à la relation ManyToMany via le modèle intermédiaire
         # et on vérifie si l'utilisateur est dans la liste des membres du comité.
         return self.comite.filter(id=user.id).exists()
+
+    def doit_demander_identifiants(self) -> bool:
+        """
+        Retourne True SSI on veut récupérer, au moment de la première connexion pour
+        une épreuve d'olympiades, les identifiants de l'épreuve papier.
+        :return:
+        """
+        return ("lympiade" in self.nom and "2025" in self.nom and "entrainement" not in self.nom
+                and "annale" not in self.nom and self.referent.username == "pierre.andrieu" )
 
     def __str__(self):
         return self.nom
@@ -209,6 +219,8 @@ class UserEpreuve(models.Model):
     epreuve = models.ForeignKey(Epreuve, related_name='participant_entries',
                                 on_delete=models.CASCADE)
     debut_epreuve = models.DateTimeField(auto_now=False, null=True)
+    anonymat = models.CharField(max_length=255, blank=True, null=True,
+                                    help_text="Stocke les numéros d'anonymat des 3 participants séparés par '|'.")
 
     class Meta:
         db_table = 'UserEpreuve'
@@ -219,6 +231,21 @@ class UserEpreuve(models.Model):
         ]
 
         unique_together = ['participant', 'epreuve']
+
+    def set_anonymat(self, anonymats: List[str]) -> None:
+        """
+        Enregistre les numéros d'anonymat sous la forme d'une chaîne formatée.
+        Exemple : ["123", "?", "-"] => "123|?|-"
+        """
+        self.anonymat = "|".join(anonymats)
+        self.save()
+
+    def get_anonymat(self) -> List[str]:
+        """
+        Récupère les numéros d'anonymat sous forme de liste.
+        Retourne ["123", "?", "-"] si l'entrée en BD est "123|?|-"
+        """
+        return self.anonymat.split("|") if self.anonymat else ["", "", ""]
 
 
 class UserExercice(models.Model):
