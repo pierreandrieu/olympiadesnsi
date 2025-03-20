@@ -1,4 +1,4 @@
-{% extends 'olympiadesnsi/base.html' %}  <!-- Remplacez par votre template de base -->
+{% extends 'olympiadesnsi/base_participant.html' %}
 
 {% block content %}
     <div class="container mt-4">
@@ -32,24 +32,94 @@
         {% endif %}
 
         {% if indication_utilisateurs_retour > 0 %}
-            <div class="alert alert-secondary">
-                <p> Pour {{ indication_utilisateurs_retour }} exercice(s) de cette épreuve, un retour en direct
-                vous est fourni concernant la réponse au jeu de test sur lequel vous devrez
-                    travailler. </p>
-
-                <p> Un crayon vert indique que votre réponse est correcte (ce qui ne signifie pas
-                nécessairement que le code est correct) et qu'un code a bien été soumis.
-
-                    Faites attention à ce que le code soumis corresponde bien à la version qui a permis de générer la réponse validée !
+            <div class="alert alert-info shadow-sm border rounded p-3">
+                <p>
+                    <strong>🔎 Pour {{ indication_utilisateurs_retour }} exercice(s), vous avez un retour en
+                        direct</strong>
+                    sur la réponse au jeu de test !
                 </p>
 
-                <p> Un crayon orange indique que votre réponse est correcte mais qu'aucun code n'a été soumis. </p>
+                <ul class="list-unstyled">
+                    <li>
+                        <i class="indic-exo-valide fa-regular fa-circle-check fa-lg" style="color:green;"></i>
+                        <strong> Réponse correcte avec code enregistré :</strong> votre code a bien été soumis et
+                        validé.
+                    </li>
+                    <li>
+                        <i class="indic-exo-code-manquant fa-regular fa-pencil fa-lg" style="color:orange;"></i>
+                        <strong> Réponse correcte mais code manquant :</strong> attention, votre réponse est correcte
+                        mais
+                        aucun code n’a été soumis.
+                    </li>
+                    <li>
+                        <i class="indic-exo-invalide fa-regular fa-circle-xmark fa-lg" style="color:red;"></i>
+                        <strong> Réponse incorrecte :</strong> votre code n’a pas produit la bonne réponse.
+                    </li>
+                    <li>
+                        <i class="indic-exo-non-soumis fa-regular fa-circle-question fa-lg" style="color:gray;"></i>
+                        <strong> Exercice non soumis ou pas de vérification:</strong> Soit aucune réponse n’a été enregistrée, soit aucune vérification n'est prévue pour cet exercice.
+                    </li>
+                </ul>
 
-                <p> Un crayon rouge indique que votre réponse est incorrecte. </p>
+                <p class="mt-3">
+                    <i class="fa-solid fa-triangle-exclamation fa-lg text-warning"></i>
+                    <strong> Attention :</strong> assurez-vous que le code soumis correspond bien à la version ayant
+                    généré la réponse validée.
+                </p>
             </div>
         {% endif %}
 
-        <a href="{% url 'afficher_epreuve' epreuve.id %}" class="btn btn-primary">Démarrer l'épreuve</a>
 
+
+        {% if epreuve.doit_demander_identifiants %}
+            <p>Merci de renseigner votre situation concernant l'épreuve théorique :</p>
+
+            <form method="POST">
+                {% csrf_token %}
+                {% for i in "123"|make_list %}
+                    <div class="form-group">
+                        <label>Participant {{ i }} :</label><br>
+
+                        <input type="radio" name="choix_{{ i }}" value="1" id="choix_{{ i }}_1"
+                               {% if anonymats|slice:i|last != "?" and anonymats|slice:i|last != "-" %}checked{% endif %}
+                               onchange="toggleInput({{ i }})">
+                        <label for="choix_{{ i }}_1">J'ai participé et j'ai mon numéro d'anonymat</label><br>
+
+                        <input type="radio" name="choix_{{ i }}" value="2" id="choix_{{ i }}_2"
+                               {% if anonymats|slice:i|last == "?" %}checked{% endif %}
+                               onchange="toggleInput({{ i }})">
+                        <label for="choix_{{ i }}_2">J'ai participé mais je n'ai pas mon numéro</label><br>
+
+                        <input type="radio" name="choix_{{ i }}" value="3" id="choix_{{ i }}_3"
+                               {% if anonymats|slice:i|last == "-" %}checked{% endif %}
+                               onchange="toggleInput({{ i }})">
+                        <label for="choix_{{ i }}_3">Je n'ai pas participé</label><br>
+
+                        <input type="text" class="form-control anonymat" id="anonymat_{{ i }}" name="anonymat_{{ i }}"
+                               value="
+                                       {% if anonymats|slice:i|last != "?" and anonymats|slice:i|last != "-" %}{{ anonymats|slice:i|last }}{% endif %}"
+                               {% if anonymats|slice:i|last == "?" or anonymats|slice:i|last == "-" %}style="display:none;"{% endif %}
+                               placeholder="Entrez votre numéro d'anonymat">
+                    </div>
+                {% endfor %}
+
+                <button type="submit" class="btn btn-primary mt-3">Enregistrer</button>
+            </form>
+        {% endif %}
     </div>
+
+    <script>
+        function toggleInput(index) {
+            const choix1 = document.getElementById(`choix_${index}_1`);
+            const input = document.getElementById(`anonymat_${index}`);
+
+            if (choix1.checked) {
+                input.style.display = "block"; // Afficher l'input si choix 1
+            } else {
+                input.style.display = "none";  // Masquer sinon
+                input.value = ""; // Réinitialiser l'input si masqué
+            }
+        }
+    </script>
+
 {% endblock %}
