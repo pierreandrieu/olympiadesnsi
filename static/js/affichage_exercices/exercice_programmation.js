@@ -126,7 +126,6 @@ export function creerElementsExercice(exercice, container) {
 
         // Ajoute une section pour la réponse attendue si elle existe
         if (exercice.reponse_attendue) {
-            console.log("COUOU!");
             // Création du conteneur pour la réponse attendue
             const reponseAttendueContainer = document.createElement('div');
             reponseAttendueContainer.className = 'reponse-attendue-container';
@@ -146,9 +145,6 @@ export function creerElementsExercice(exercice, container) {
             container.appendChild(reponseAttendueContainer);
         }
     }
-
-
-
 
 // Création du champ pour la soumission du code, si nécessaire
     if (exercice.code_a_soumettre) {
