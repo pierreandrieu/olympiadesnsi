@@ -36,20 +36,21 @@
                 <p>
                     <strong>🔎 Pour {{ indication_utilisateurs_retour }} exercice(s), vous avez un retour en
                         direct</strong>
-                    sur la réponse au jeu de test !
+                    sur la réponse au jeu de test que vous enregistrez.
                 </p>
 
                 <ul class="list-unstyled">
                     <li>
                         <i class="indic-exo-valide fa-regular fa-circle-check fa-lg" style="color:green;"></i>
-                        <strong> Réponse correcte avec code enregistré :</strong> votre code a bien été soumis et
-                        validé.
+                        <strong> Réponse correcte avec code enregistré :</strong> votre réponse au jeu de test est valide
+                        et un code a bien été enregistré.
+                        Pensez à vérifier que le code soumis est bien celui qui a généré la réponse.
+
                     </li>
                     <li>
                         <i class="indic-exo-code-manquant fa-regular fa-pencil fa-lg" style="color:orange;"></i>
                         <strong> Réponse correcte mais code manquant :</strong> attention, votre réponse est correcte
-                        mais
-                        aucun code n’a été soumis.
+                        mais aucun code n’a été soumis.
                     </li>
                     <li>
                         <i class="indic-exo-invalide fa-regular fa-circle-xmark fa-lg" style="color:red;"></i>
@@ -68,8 +69,6 @@
                 </p>
             </div>
         {% endif %}
-
-
 
         {% if epreuve.doit_demander_identifiants %}
             <p>Merci de renseigner votre situation concernant l'épreuve théorique :</p>
@@ -102,6 +101,7 @@
                                placeholder="Entrez votre numéro d'anonymat">
                     </div>
                 {% endfor %}
+
 
                 <button type="submit" class="btn btn-primary mt-3">Enregistrer</button>
             </form>
