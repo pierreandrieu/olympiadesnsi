@@ -20,4 +20,5 @@ urlpatterns = [
     path('organisateur/changer-mot-de-passe/', views.change_password_organisateur, name='change_password_organisateur'),
     path('envoyer_email/<int:groupe_id>/', views.envoyer_email_participants, name='envoyer_email_participants'),
     path('reset_password/<int:user_id>/', views.reset_password, name='reset_password'),
+    path('organisateur/import/json/', views.importer_epreuve_json, name='importer_epreuve_json'),
 ]
