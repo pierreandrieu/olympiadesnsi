@@ -2,6 +2,7 @@ import {renderLatex} from './render_latex.js';
 import {desactiveBoutonSoumission, activeBoutonSoumission}  from "./bouton_submit.js";
 import {getCookie} from "./cookies.js";
 import {mettreAJourIndicateurs} from "./indicateur_etat.js";
+import {ajouterTesteurPython} from './python.js';
 
 /**
  * Crée et affiche les éléments d'un exercice de programmation dans un conteneur spécifié.
@@ -153,7 +154,7 @@ export function creerElementsExercice(exercice, container) {
 
         // Ajout d'un texte explicatif pour l'insertion du code
         const codeExplication = document.createElement('p');
-        codeExplication.textContent = 'Insérez votre code ici :';
+        codeExplication.textContent = 'Insérez ici votre code ayant permis de générer la réponse :';
         codeContainer.appendChild(codeExplication);
 
         // Création et configuration de la zone de texte pour la soumission du code
@@ -166,6 +167,7 @@ export function creerElementsExercice(exercice, container) {
 
         // Ajout du conteneur de soumission de code au conteneur principal
         container.appendChild(codeContainer);
+        ajouterTesteurPython(container, exercice.code_enregistre || "");
     }
 
 
