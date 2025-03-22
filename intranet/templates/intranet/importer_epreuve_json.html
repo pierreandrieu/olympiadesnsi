@@ -1,0 +1,18 @@
+{% extends 'olympiadesnsi/base_organisateur.html' %}
+
+{% block content %}
+    <div class="container mt-4">
+        <h2>Importer une épreuve depuis un fichier JSON</h2>
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group mb-3">
+                <label for="json_file">Fichier JSON :</label>
+                <input type="file" name="json_file" id="json_file" accept=".json" required class="form-control">
+            </div>
+
+            <button type="submit" class="btn btn-primary">Importer</button>
+            <a href="{% url 'espace_organisateur' %}" class="btn btn-secondary">Annuler</a>
+        </form>
+    </div>
+{% endblock %}

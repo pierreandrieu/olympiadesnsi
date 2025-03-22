@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.contrib import messages
 from django.http import HttpResponse
 from django.db.models import Count, Prefetch, QuerySet
-from epreuve.models import User, Epreuve, MembreComite, Exercice, UserEpreuve
+from epreuve.models import User, Epreuve, MembreComite, Exercice, UserEpreuve, JeuDeTest
 from inscription.models import InscriptionDomaine, GroupeParticipant
 from intranet.models import ParticipantEstDansGroupe
 from inscription.utils import save_users
@@ -21,9 +21,11 @@ from epreuve.forms import EpreuveForm
 from login.utils import genere_participants_uniques
 from olympiadesnsi import decorators, settings
 import olympiadesnsi.constants as constantes
+from .classesdict import EpreuveDict, ExerciceDict, JeuDeTestDict
 import csv
 from django.conf import settings
 import io
+import json
 
 
 @login_required
@@ -295,6 +297,81 @@ def creer_editer_epreuve(request: HttpRequest, epreuve_id: Optional[int] = None)
         'form': form,
         'epreuve': epreuve,
     })
+
+
+@login_required
+@decorators.organisateur_required
+@transaction.atomic
+def importer_epreuve_json(request: HttpRequest) -> HttpResponse:
+    """
+    Permet à un organisateur d'importer une épreuve complète depuis un fichier JSON.
+    Crée l'épreuve, les exercices et les jeux de test associés dans une transaction atomique.
+
+    Args:
+        request (HttpRequest): La requête HTTP POST avec un fichier JSON.
+
+    Returns:
+        HttpResponse: Page d'importation (GET) ou redirection vers l'espace organisateur (POST).
+    """
+    if request.method == "POST":
+        json_file = request.FILES.get("json_file")
+        if not json_file:
+            messages.error(request, "Aucun fichier n’a été sélectionné.")
+            return redirect('importer_epreuve_json')
+
+        try:
+            data: EpreuveDict = json.load(json_file)
+        except json.JSONDecodeError:
+            messages.error(request, "Le fichier n’est pas un JSON valide.")
+            return redirect('importer_epreuve_json')
+
+        # Création de l'épreuve
+        nouvelle_epreuve: Epreuve = Epreuve.objects.create(
+            nom=f"import de {data['nom']}",
+            date_debut=data['date_debut'],
+            date_fin=data['date_fin'],
+            duree=data.get('duree'),
+            referent=request.user,
+            exercices_un_par_un=data.get('exercices_un_par_un', False),
+            temps_limite=data.get('temps_limite', False),
+            inscription_externe=False,
+        )
+
+        # Ajout du créateur comme membre du comité
+        MembreComite.objects.create(epreuve=nouvelle_epreuve, membre=request.user)
+
+        # Création des exercices
+        exercices_importes: List[ExerciceDict] = data.get('exercices', [])
+        for exo_data in exercices_importes:
+            nouvel_exo: Exercice = Exercice.objects.create(
+                epreuve=nouvelle_epreuve,
+                auteur=request.user,
+                titre=exo_data['titre'],
+                bareme=exo_data.get('bareme'),
+                type_exercice=exo_data.get('type_exercice', 'programmation'),
+                enonce=exo_data.get('enonce'),
+                enonce_code=exo_data.get('enonce_code'),
+                avec_jeu_de_test=exo_data.get('avec_jeu_de_test', False),
+                separateur_jeu_test=exo_data.get('separateur_jeu_test'),
+                separateur_reponse_jeudetest=exo_data.get('separateur_reponse_jeudetest'),
+                retour_en_direct=exo_data.get('retour_en_direct', False),
+                code_a_soumettre=exo_data.get('code_a_soumettre', False),
+                nombre_max_soumissions=exo_data.get('nombre_max_soumissions', 50)
+            )
+
+            if nouvel_exo.avec_jeu_de_test:
+                jeux: List[JeuDeTestDict] = exo_data.get('jeux_de_test', [])
+                for jeu in jeux:
+                    JeuDeTest.objects.create(
+                        exercice=nouvel_exo,
+                        instance=jeu['instance'],
+                        reponse=jeu['reponse']
+                    )
+
+        messages.success(request, f"L’épreuve « {nouvelle_epreuve.nom} » a été importée avec succès.")
+        return redirect('espace_organisateur')
+
+    return render(request, 'intranet/importer_epreuve_json.html')
 
 
 @login_required
