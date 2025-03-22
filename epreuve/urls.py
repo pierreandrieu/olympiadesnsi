@@ -20,4 +20,7 @@ urlpatterns = [
     path('<int:epreuve_id>/desinscription/<int:groupe_id>/',
          views.desinscrire_groupe_epreuve, name='desinscrire_groupe_epreuve'),
     path('epreuve/<int:epreuve_id>/correction/', views.rendus_participants, name='rendus_participants'),
-    path('export/<int:epreuve_id>/<str:by>/', views.export_data, name='export_data'),]
+    path('export/<int:epreuve_id>/<str:by>/', views.export_data, name='export_data'),
+    path('epreuve/<int:epreuve_id>/copier/', views.copier_epreuve, name='copier_epreuve'),
+    path('epreuve/<int:epreuve_id>/export/', views.exporter_epreuve, name='exporter_epreuve'),
+]
