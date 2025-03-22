@@ -3,46 +3,64 @@ import logging
 from datetime import timedelta
 from typing import Iterable, Optional
 from django.contrib.auth.models import User
+from django.db.models import QuerySet
 from django.utils import timezone
 from epreuve.models import Epreuve, Exercice, JeuDeTest, UserExercice, UserEpreuve
 
 logger = logging.getLogger(__name__)
 
 
-def assigner_participants_jeux_de_test(participants: Iterable[User], exercice: Exercice):
-    if exercice.avec_jeu_de_test:
-        # Récupérer tous les ID des Jeux de Test pour cet exercice
-        jeux_de_test_ids = set(JeuDeTest.objects.filter(exercice=exercice).values_list('id', flat=True))
-        # Récupérer les ID des Jeux de Test déjà attribués
-        jeux_attribues_ids = set(UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=False)
-                                 .values_list('jeu_de_test_id', flat=True))
-        # Calculer les jeux de tests non attribués
-        jeux_non_attribues = jeux_de_test_ids - jeux_attribues_ids
+def assigner_participants_jeux_de_test(participants: Iterable[User], exercice: Exercice) -> None:
+    """
+    Attribue à chaque participant un jeu de test pour un exercice donné, si nécessaire.
 
-        jeux_non_attribues_copie = list(jeux_non_attribues)
-        random.shuffle(jeux_non_attribues_copie)
-        # Trouver les participants sans jeu de test attribué
+    - Si des jeux de test sont encore disponibles et non attribués, on les utilise.
+    - Sinon, on réutilise des jeux existants de façon aléatoire.
 
-        cpt = 0
-        fusion: bool = True
-        # Pour chaque participant
-        for participant in participants:
-            # on récupère l'association User / Exercice
-            user_exercice: UserExercice = UserExercice.objects.get(participant=participant, exercice=exercice)
-            logger.debug("user = " + str(user_exercice.participant.username) + " exercice = " + str(user_exercice.exercice.titre))
-            if cpt == len(jeux_non_attribues_copie):
-                cpt = 0
-                if fusion:
-                    for id_jeu_attribue in jeux_attribues_ids:
-                        jeux_non_attribues_copie.append(id_jeu_attribue)
-                        fusion = False
-                random.shuffle(jeux_non_attribues_copie)
+    Args:
+        participants (Iterable[User]): Les utilisateurs à qui on souhaite attribuer un jeu.
+        exercice (Exercice): L’exercice concerné.
+    """
+    if not exercice.avec_jeu_de_test:
+        return
 
-            jeu_de_test_id = jeux_non_attribues_copie[cpt]
-            cpt += 1
+    # Tous les jeux de test existants pour cet exercice
+    tous_les_jeux: QuerySet[JeuDeTest] = JeuDeTest.objects.filter(exercice=exercice)
+    jeux_disponibles: list[JeuDeTest] = list(tous_les_jeux)
 
-            user_exercice.jeu_de_test_id = jeu_de_test_id
-            user_exercice.save()
+    if not jeux_disponibles:
+        return
+
+    # Jeux déjà attribués
+    jeux_attribues_ids: set[int] = set(
+        UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=False)
+        .values_list('jeu_de_test_id', flat=True)
+    )
+
+    # Jeux non encore attribués
+    jeux_non_attribues: list[JeuDeTest] = [
+        jeu for jeu in jeux_disponibles if jeu.id not in jeux_attribues_ids
+    ]
+
+    random.shuffle(jeux_non_attribues)
+    random.shuffle(jeux_disponibles)
+
+    iterator_non_attribues = iter(jeux_non_attribues)
+    iterator_reutilisables = iter(jeux_disponibles)
+
+    for participant in participants:
+        user_exercice: UserExercice = UserExercice.objects.get(participant=participant, exercice=exercice)
+
+        if user_exercice.jeu_de_test:  # On n'écrase pas une affectation existante
+            continue
+
+        try:
+            jeu = next(iterator_non_attribues)
+        except StopIteration:
+            jeu = next(iterator_reutilisables)
+
+        user_exercice.jeu_de_test = jeu
+        user_exercice.save()
 
 
 def redistribuer_jeux_de_test_exercice(exercice: Exercice):
