@@ -21,6 +21,13 @@ class Epreuve(models.Model):
     groupes_participants = models.ManyToManyField(GroupeParticipant, related_name='epreuves',
                                                   through='inscription.GroupeParticipeAEpreuve')
     comite = models.ManyToManyField(User, related_name='epreuves_comite', through='MembreComite')
+    annale = models.ForeignKey(
+        'self',  # auto-référence
+        on_delete=models.SET_NULL,  # si l’annale est supprimée, ne casse pas tout
+        null=True,
+        blank=True,
+        related_name='epreuves_associees'
+    )
 
     def get_exercices(self) -> QuerySet['Exercice']:
         """
@@ -95,13 +102,18 @@ class Epreuve(models.Model):
         return self.nom
 
     def save(self, *args, **kwargs):
-        if not self.id:  # L'objet n'a pas encore été enregistré dans la base de données
+        is_new: bool = self.pk is None
+
+        if is_new:
             self.clean()
-            super().save(*args, **kwargs)  # Sauvegarde préalable pour obtenir un ID
-        # Générer le code unique
-        nom_formatte = slugify(self.nom)[:50]  # Limite à 50 caractères et remplace les espaces par des tirets
-        self.code = f"{self.id:03d}_{nom_formatte}"
-        super().save(*args, **kwargs)  # Sauvegarde finale avec le code unique
+
+        super().save(*args, **kwargs)
+
+        # Une fois l'ID obtenu, on génère le code si on ne l’a pas encore
+        if is_new:
+            nom_formatte = slugify(self.nom)[:50]
+            self.code = f"{self.id:03d}_{nom_formatte}"
+            super().save(update_fields=["code"])
 
     class Meta:
         db_table = 'Epreuve'
@@ -158,7 +170,7 @@ class Exercice(models.Model):
             return self.separateur_reponse_jeudetest
         return '\n'
 
-    def pick_jeu_de_test(self):
+    def pick_jeu_de_test(self)->'JeuDeTest':
         """
         Sélectionne aléatoirement un jeu de test associé à cet exercice.
 
@@ -166,6 +178,15 @@ class Exercice(models.Model):
             JeuDeTest: Un objet JeuDeTest sélectionné aléatoirement, ou None si aucun jeu de test n'est disponible.
         """
         return self.jeudetest_set.order_by('?').first()
+
+    def get_jeux_de_test(self)->QuerySet['JeuDeTest']:
+        """
+        Renvoie tous les jeux de tests associés à cet exercice.
+
+        Returns:
+            QuerySet[JeuDeTest]: Les jeux de tests liés à cet exercice.
+        """
+        return self.jeudetest_set.all()
 
     def save(self, *args, **kwargs):
         # Si le numéro n'est pas déjà défini (nouvel exercice)
