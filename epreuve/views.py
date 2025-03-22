@@ -3,8 +3,6 @@ import logging
 import zipfile
 from collections import defaultdict
 from io import BytesIO, StringIO
-from random import choice
-
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import QuerySet, Count, Prefetch, Case, When, IntegerField, Value, Q, F, Max
@@ -63,7 +61,7 @@ def detail_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
         # Sauvegarde en base de données
         user_epreuve.set_anonymat(anonymats)
 
-        return redirect("detail_epreuve", epreuve_id=epreuve.id)
+        return redirect("afficher_epreuve", epreuve_id=epreuve.id)
 
     return render(request, "epreuve/detail_epreuve.html", {
         "epreuve": epreuve,
@@ -378,6 +376,8 @@ def inscrire_groupes_epreuve(request: HttpRequest, epreuve_id: int) -> HttpRespo
             for groupe_id in groupe_ids:
                 groupe: GroupeParticipant = get_object_or_404(GroupeParticipant, id=groupe_id)
                 inscrire_groupe_a_epreuve(groupe, epreuve)
+                if epreuve.annale:
+                    inscrire_groupe_a_epreuve(groupe, epreuve.annale)
 
             messages.success(request, "Les groupes et leurs membres ont été inscrits avec succès à l'épreuve.")
             return redirect('espace_organisateur')
@@ -882,3 +882,126 @@ def export_data(request, epreuve_id: int, by: str) -> HttpResponse:
     response = HttpResponse(zip_buffer, content_type='application/zip')
     response['Content-Disposition'] = f'attachment; filename={epreuve.nom[:30]}_{by}_data_export_{epreuve_id}.zip'
     return response
+
+
+@login_required
+@decorators.membre_comite_required
+@transaction.atomic
+def copier_epreuve(request: HttpRequest, epreuve_id: int):
+    epreuve_originale: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+    """
+    Vue pour copier une épreuve.
+    L'épreuve créée est identique à l'épreuve dont l'id est en paramètre, 
+    sauf le référent qui est l'utilisateur à l'origine de la copie, et le nom
+    qui commence par "copie de".
+    Les exercices associés à l'épreuve sont également copiés.
+    Les jeux de données associés aux exercices sont également copiés, dans la limite
+     de 5 par exercice.  
+    
+    Args:
+        request (HttpRequest): L'objet requête HTTP.
+        epreuve_id (int): L'identifiant de l'épreuve à copier
+
+    Returns:
+        HttpResponse: La réponse HTTP rendue.
+    """
+
+    # Création de la copie
+    nouvelle_epreuve: Epreuve = Epreuve(
+        nom=f"copie de {epreuve_originale.nom}",
+        date_debut=epreuve_originale.date_debut,
+        date_fin=epreuve_originale.date_fin,
+        duree=epreuve_originale.duree,
+        referent=epreuve_originale.referent,
+        exercices_un_par_un=epreuve_originale.exercices_un_par_un,
+        temps_limite=epreuve_originale.temps_limite,
+        inscription_externe=False,  # forcé à False
+    )
+    nouvelle_epreuve.save()  # génère l'ID et le code automatiquement via save()
+
+    # Ajout de request.user au comité de la nouvelle épreuve
+    MembreComite.objects.create(epreuve=nouvelle_epreuve, membre=request.user)
+    cinq_jeux_de_test: Optional[QuerySet[[JeuDeTest]]]
+    for exercice in epreuve_originale.get_exercices():
+        if exercice.avec_jeu_de_test:
+            cinq_jeux_de_test = exercice.get_jeux_de_test()[:5]
+        exercice.pk = None  # on crée un nouvel objet
+        exercice.epreuve = nouvelle_epreuve
+        exercice.auteur = request.user
+        exercice.save()
+
+        # Copie jusqu’à 5 jeux de tests, s’il y en a
+        if exercice.avec_jeu_de_test:
+            for jeu in cinq_jeux_de_test:
+                # Création d’un nouveau jeu de test lié à l’exercice copié
+                JeuDeTest.objects.create(
+                    exercice=exercice,  # le nouvel exercice
+                    instance=jeu.instance,
+                    reponse=jeu.reponse
+                )
+
+    messages.success(request, f"L'épreuve a été copiée avec succès.")
+    return redirect('espace_organisateur')
+
+
+@login_required
+@decorators.membre_comite_required
+def exporter_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
+    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+    """
+    Vue pour exporter une épreuve en json.
+
+    Args:
+        request (HttpRequest): L'objet requête HTTP.
+        epreuve_id (int): L'identifiant de l'épreuve à copier
+
+    Returns:
+        HttpResponse: La réponse HTTP rendue.
+    """
+
+    # Construction du dictionnaire exportable
+    data = {
+        "nom": epreuve.nom,
+        "date_debut": epreuve.date_debut.isoformat(),
+        "date_fin": epreuve.date_fin.isoformat(),
+        "duree": epreuve.duree,
+        "exercices_un_par_un": epreuve.exercices_un_par_un,
+        "temps_limite": epreuve.temps_limite,
+        "exercices": []
+    }
+
+    for exercice in epreuve.get_exercices():
+        exercice_data = {
+            "titre": exercice.titre,
+            "auteur_username": exercice.auteur.username if exercice.auteur else None,
+            "bareme": exercice.bareme,
+            "type_exercice": exercice.type_exercice,
+            "enonce": exercice.enonce,
+            "enonce_code": exercice.enonce_code,
+            "avec_jeu_de_test": exercice.avec_jeu_de_test,
+            "separateur_jeu_test": exercice.separateur_jeu_test,
+            "separateur_reponse_jeudetest": exercice.separateur_reponse_jeudetest,
+            "retour_en_direct": exercice.retour_en_direct,
+            "code_a_soumettre": exercice.code_a_soumettre,
+            "nombre_max_soumissions": exercice.nombre_max_soumissions,
+            "jeux_de_test": []
+        }
+
+        if exercice.avec_jeu_de_test:
+            for jeu in exercice.get_jeux_de_test():
+                exercice_data["jeux_de_test"].append({
+                    "instance": jeu.instance,
+                    "reponse": jeu.reponse
+                })
+
+        data["exercices"].append(exercice_data)
+
+    # Conversion en JSON
+    json_str = json.dumps(data, ensure_ascii=False, indent=2)
+
+    # Réponse avec en-tête de téléchargement
+    response = HttpResponse(json_str, content_type='application/json')
+    response['Content-Disposition'] = f'attachment; filename="epreuve_{epreuve.nom}.json"'
+    return response
+
+
