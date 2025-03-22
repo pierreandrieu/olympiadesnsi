@@ -16,6 +16,9 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span>Mes Épreuves</span>
+                        <a href="{% url 'importer_epreuve_json' %}" class="btn btn-outline-secondary btn-sm me-2">
+                            Importer Épreuve (JSON)
+                        </a>
                         <a href="{% url 'creer_epreuve' %}" class="btn btn-primary btn-sm">
                             Créer Épreuve
                         </a>
@@ -88,6 +91,12 @@
 
                                             <a href="{% url 'rendus_participants' epreuve.id %}">
                                                 <i class="fas fa-marker"></i>
+                                            </a>
+                                            <a href="{% url 'copier_epreuve' epreuve.id %}" title="Copier l’épreuve">
+                                                <i class="fas fa-clone"></i>
+                                            </a>
+                                            <a href="{% url 'exporter_epreuve' epreuve.id %}" title="Exporter en JSON">
+                                                <i class="fas fa-file-download"></i>
                                             </a>
                                         
                                             {% if request.user == epreuve.referent %}
