@@ -101,11 +101,12 @@
                                placeholder="Entrez votre numéro d'anonymat">
                     </div>
                 {% endfor %}
-
-
                 <button type="submit" class="btn btn-primary mt-3">Enregistrer</button>
             </form>
+        {% else %}
+            <a href="{% url 'afficher_epreuve' epreuve.id %}" class="btn btn-primary">Démarrer l'épreuve</a>
         {% endif %}
+
     </div>
 
     <script>
