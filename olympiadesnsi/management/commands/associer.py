@@ -20,9 +20,18 @@ class Command(BaseCommand):
             help="Associer une épreuve à une annale via leurs ID"
         )
 
+        parser.add_argument(
+            '--delier',
+            nargs=1,
+            type=int,
+            metavar=('EPREUVE_ID'),
+            help="Désassocier une épreuve de son annale via son ID"
+        )
+
     def handle(self, *args, **options):
         username = options.get('username')
         lier = options.get('lier')
+        delier = options.get('delier')
 
         if username:
             try:
@@ -57,5 +66,17 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"✔️ L'épreuve « {epreuve.nom} » (ID {epreuve.id}) pointe maintenant vers l’annale « {annale.nom} » (ID {annale.id})")
 
-        if not username and not lier:
-            self.stdout.write("Aucun argument fourni. Utilisez --username ou --lier.")
+        if delier:
+            epreuve_id, = delier
+            try:
+                epreuve = Epreuve.objects.get(id=epreuve_id)
+            except Epreuve.DoesNotExist as e:
+                self.stderr.write(f"Erreur : {e}")
+                return
+
+            epreuve.annale = None
+            epreuve.save()
+            self.stdout.write(
+                f"✔️ L'épreuve « {epreuve.nom} » (ID {epreuve.id}) ne pointe plus vers d'annale.")
+        if not username and not lier and not delier:
+            self.stdout.write("Aucun argument fourni. Utilisez --username, --lier ou --delier.")
