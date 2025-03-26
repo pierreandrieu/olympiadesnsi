@@ -1,4 +1,4 @@
-from typing import Callable, Any, Optional
+from typing import Callable, Any, Optional, Dict
 
 from django.http import HttpResponse, HttpRequest
 from functools import wraps
@@ -248,7 +248,7 @@ def resolve_hashid_param(
             hashid: Optional[str] = kwargs.get(param_name)
             resolved_id: Optional[int] = decode_id(hashid)
             if resolved_id is None:
-                context: dict = {'message': "PB entre les URLS et les hashids."}
+                context: Dict[str, str] = {'message': "Problème d'URL, veuillez contacter l'administrateur du site."}
                 return render(request, 'olympiadesnsi/erreur.html', context, status=403)
             # Injecte l'ID réel
             kwargs[target_name or f"{param_name}_id"] = resolved_id
