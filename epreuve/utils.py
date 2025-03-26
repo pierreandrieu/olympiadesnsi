@@ -2,8 +2,8 @@ import random
 import logging
 from datetime import timedelta
 from typing import Iterable, Optional
+
 from django.contrib.auth.models import User
-from django.db.models import QuerySet
 from django.utils import timezone
 from epreuve.models import Epreuve, Exercice, JeuDeTest, UserExercice, UserEpreuve
 
@@ -12,54 +12,39 @@ logger = logging.getLogger(__name__)
 
 def assigner_participants_jeux_de_test(participants: Iterable[User], exercice: Exercice) -> None:
     """
-    Attribue à chaque participant un jeu de test pour un exercice donné, si nécessaire.
+    Attribue à chaque participant un jeu de test pour un exercice donné.
 
-    - Si des jeux de test sont encore disponibles et non attribués, on les utilise.
-    - Sinon, on réutilise des jeux existants de façon aléatoire.
+    Tous les jeux de test disponibles pour cet exercice sont mélangés aléatoirement,
+    puis attribués aux participants en boucle (réutilisation possible si le nombre
+    de participants dépasse le nombre de jeux de test).
 
     Args:
-        participants (Iterable[User]): Les utilisateurs à qui on souhaite attribuer un jeu.
+        participants (Iterable[User]): Liste des utilisateurs à qui attribuer un jeu de test.
         exercice (Exercice): L’exercice concerné.
     """
     if not exercice.avec_jeu_de_test:
         return
 
-    # Tous les jeux de test existants pour cet exercice
-    tous_les_jeux: QuerySet[JeuDeTest] = JeuDeTest.objects.filter(exercice=exercice)
-    jeux_disponibles: list[JeuDeTest] = list(tous_les_jeux)
+    # Récupère tous les jeux de test liés à cet exercice
+    jeux_disponibles: list[JeuDeTest] = list(exercice.get_jeux_de_test())
 
     if not jeux_disponibles:
         return
 
-    # Jeux déjà attribués
-    jeux_attribues_ids: set[int] = set(
-        UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=False)
-        .values_list('jeu_de_test_id', flat=True)
-    )
-
-    # Jeux non encore attribués
-    jeux_non_attribues: list[JeuDeTest] = [
-        jeu for jeu in jeux_disponibles if jeu.id not in jeux_attribues_ids
-    ]
-
-    random.shuffle(jeux_non_attribues)
+    # Mélange aléatoire des jeux
     random.shuffle(jeux_disponibles)
+    nb_jeux = len(jeux_disponibles)
 
-    iterator_non_attribues = iter(jeux_non_attribues)
-    iterator_reutilisables = iter(jeux_disponibles)
-
-    for participant in participants:
+    for i, participant in enumerate(participants):
+        # Récupère ou crée l'entrée UserExercice pour ce participant
         user_exercice: UserExercice = UserExercice.objects.get(participant=participant, exercice=exercice)
 
-        if user_exercice.jeu_de_test:  # On n'écrase pas une affectation existante
+        # Ne pas écraser un jeu de test déjà attribué
+        if user_exercice.jeu_de_test:
             continue
 
-        try:
-            jeu = next(iterator_non_attribues)
-        except StopIteration:
-            jeu = next(iterator_reutilisables)
-
-        user_exercice.jeu_de_test = jeu
+        # Attribution en boucle (modulo)
+        user_exercice.jeu_de_test = jeux_disponibles[i % nb_jeux]
         user_exercice.save()
 
 
