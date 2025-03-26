@@ -235,7 +235,7 @@ def recuperation_compte(request: HttpRequest) -> HttpResponse:
                     uid = urlsafe_base64_encode(force_bytes(user.pk))
                     # Construction du lien de réinitialisation
                     reset_link = request.build_absolute_uri(
-                        reverse('nom_de_l_url_de_reinitialisation', kwargs={'uidb64': uid, 'token': token})
+                        reverse('reset_password_confirm', kwargs={'uidb64': uid, 'token': token})
                     )
 
                     # Préparation de l'email
@@ -267,5 +267,4 @@ def confirmation_modification_mot_de_passe(request):
 
 class CustomPasswordResetConfirmView(PasswordResetConfirmView):
     template_name = 'login/custom_password_reset_confirm.html'
-    success_url = reverse_lazy('confirmation_modification_mot_de_passe')
-
+    success_url = reverse_lazy('reset_password_done')

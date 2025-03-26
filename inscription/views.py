@@ -67,8 +67,9 @@ def inscription_demande(request: HttpRequest) -> HttpResponse:
             lien_inscription: str = request.build_absolute_uri(
                 reverse('inscription_par_token', args=[inscription.token]))
             sujet: str = f"Lien d'inscription pour l'épreuve {epreuve.nom}"
-            message: str = (f"Veuillez utiliser le lien suivant pour inscrire des participants à l'épreuve "
-                            f"{epreuve.nom}: {lien_inscription}")
+            message: str = (f"Bonjour,\nVeuillez utiliser le lien suivant pour inscrire des participants à l'épreuve "
+                            f"{epreuve.nom}: {lien_inscription}\n. Il vous sera demandé de renseigner"
+                            f"le nombre d'équipes à inscrire à l'épreve pratique.")
 
             # Envoi de l'email
             send_mail(sujet, message, settings.EMAIL_HOST_USER, [email])
@@ -89,6 +90,7 @@ def get_domaines_for_epreuve(request, epreuve_id: int):
         InscriptionDomaine.objects.filter(epreuve_id=epreuve_id).values_list('domaine', flat=True)
     )
     return JsonResponse(domaines, safe=False)
+
 
 @ratelimit(key='ip', rate='3/s', method='GET', block=True)
 @ratelimit(key='ip', rate='15/m', method='GET', block=True)
@@ -122,7 +124,6 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
         # Étape 1 : Trouver l'InscripteurExterne et l'Epreuve.
         epreuve: Epreuve = inscription_externe.epreuve
         referent: User = epreuve.referent
-
         nombre_deja_inscrits: int = calculer_nombre_inscrits(epreuve, inscription_externe.inscripteur)
         max_participants_encore_possibles: int = constantes.MAX_USERS_PAR_GROUPE - nombre_deja_inscrits
 
@@ -158,7 +159,6 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
                     nom=f"{prefix}{num:03}",
                     referent=referent,
                 )
-
             groupe_participant.inscription_externe = inscription_externe
             groupe_participant.save()
             # Génère et enregistre les informations des participants.
@@ -168,9 +168,8 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
             # Marque le token comme utilisé et sauvegarde l'inscription.
             inscription_externe.token_est_utilise = True
             inscription_externe.save()
-
             # Redirige vers une page de confirmation.
-            return redirect('confirmation_inscription_externe')
+            return render(request, 'inscription/confirmation_inscription_externe.html')
 
         # Affiche le formulaire d'inscription si GET ou POST non valide.
         return render(request, 'inscription/inscription_externe_equipes.html', {
@@ -182,13 +181,3 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
     except InscriptionExterne.DoesNotExist:
         # Gère le cas où le token ne correspond à aucune inscription existante.
         return render(request, 'inscription/erreur_lien_expire.html')
-
-    except InscripteurExterne.DoesNotExist:
-        return render(request, 'inscription/erreur_lien_expire.html')
-
-
-@ratelimit(key='ip', rate='3/s', method='GET', block=True)
-@ratelimit(key='ip', rate='15/m', method='GET', block=True)
-@ratelimit(key='ip', rate='50/h', method='GET', block=True)
-def confirmation_inscription_externe(request: HttpRequest) -> HttpResponse:
-    return render(request, 'inscription/confirmation_inscription_externe.html')

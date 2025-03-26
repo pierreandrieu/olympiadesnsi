@@ -1,12 +1,35 @@
 {% extends 'olympiadesnsi/base_extranet.html' %}
 
 {% block content %}
-    <div class="container">
-        <h2>Confirmation</h2>
-        <p>Merci pour votre demande d'inscription.
-            Un email va vous être envoyé. Cet email contient les noms d'utilisateur des équipes. </p>
-        
-        <p>Les participants choisissent leur mot de passe lors de la première connexion. </p>
-    
+    <div class="container my-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="bi bi-envelope-paper-fill" style="font-size: 3rem; color: #0d6efd;"></i>
+                        </div>
+                        <h3 class="card-title mb-3">Demande d'inscription confirmée</h3>
+
+                        <p class="card-text">
+                            Merci pour votre demande. Un email a été envoyé à l’adresse indiquée.
+                            <br>Il contient les identifiants des équipes à inscrire.
+                        </p>
+
+                        <p class="card-text">
+                            Chaque participant choisira son mot de passe lors de sa première connexion.
+                        </p>
+
+                        <p class="text-muted">
+                            Merci pour votre intérêt et votre participation aux Olympiades de NSI.
+                        </p>
+
+                        <a href="{% url 'inscription_demande' %}" class="btn btn-outline-primary mt-3">
+                            Revenir à la page d'inscription
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 {% endblock %}

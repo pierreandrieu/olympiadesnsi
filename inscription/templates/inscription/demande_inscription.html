@@ -25,7 +25,7 @@
                     {{ form.identifiant|as_crispy_field }}
                 </div>
                 <div class="col-md-auto mb-3 d-flex align-items-center">
-                    <span style="margin: 0 1px;">@</span>
+                    <span style="margin: 0 1px; margin-left:-15px">@</span>
                 </div>
                 <div class="col-md-5 mb-3">
                     <label for="id_domaine_academique" class="form-label select-with-scroll">Domaine Académique</label>
@@ -33,13 +33,11 @@
                         <option value="">Sélectionnez un domaine</option>
                     </select>
                 </div>
-                {% if messages %}
-                    {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                {% endif %}
+            </div>
+
+            <div class="alert alert-warning py-2 px-3 small mb-2">
+                Attention : nous avons observé des difficultés avec les alias.
+                Nous vous recommandons de renseigner votre adresse académique principale.
             </div>
             <div id="error-message" style="display: none; color: red; margin-bottom: 10px;"></div>
 

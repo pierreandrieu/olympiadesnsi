@@ -181,14 +181,19 @@ def save_users(groupe_id: int, usernames: List[str],
                 epreuve_nom = inscription_externe.epreuve.nom
                 mail = EmailMessage(
                     subject=f"Inscription à {inscription_externe.epreuve.nom}",
-                    body=f"Veuillez trouver ci-joint les identifiants "
-                         f"des {len(usernames)} équipes. "
-                         f"Les mots de passe devront être définis à la première connexion.\n"
-                         f"En cas de perte de mot de passe par une équipe, vous pourrez utiliser l'onglet de "
-                         f"récupération de compte sur la page principale des olympiades.\n\n"
-                         f"Pour rappel, l'épreuve pratique des olympiades de NSI se déroule sur une période de trois jours. "
-                         f"Chaque enseignant choisit le créneau pour faire concourir ses élèves. "
-                         f"Il est donc important de ne distribuer les identifiants qu'au moment approprié, afin d'éviter un accès anticipé à l'épreuve.",
+                    body=f"Bonjour,\n\n"
+                         f"Veuillez trouver ci-joint les identifiants des {len(usernames)} équipes que vous avez inscrites. "
+                         f"Chaque équipe devra choisir un mot de passe lors de sa première connexion.\n\n"
+                         f"En cas d’oubli, la page d'accueil propose une fonctionnalité de récupération de compte.\n\n"
+                         f"\n\nPour rappel, l’épreuve pratique des Olympiades de NSI se déroule sur trois jours. "
+                         f"Chaque enseignant est libre de choisir le créneau qui lui convient pour faire participer ses élèves. "
+                         f"Nous vous demandons donc de ne distribuer les identifiants qu’au moment choisi, "
+                         f"afin d’éviter tout accès anticipé à l’épreuve. L'épreuve d'entraînement n'est bien évidemment pas "
+                         f"concernée par cette exigence et reste ouverte aux élèves sans limite de temps pour soumettre leurs réponses.\n\n"
+                         f"Nous espérons que vos élèves prendront plaisir à participer à cette épreuve, "
+                         f"et vous remercions pour l’intérêt que vous portez aux Olympiades de NSI.\n\n"
+                         f"Bien cordialement,\n"
+                         f"L’équipe des Olympiades de NSI",
                     from_email=settings.EMAIL_HOST_USER,
                     to=[email],
                 )

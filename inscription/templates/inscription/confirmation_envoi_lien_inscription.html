@@ -1,11 +1,29 @@
 {% extends 'olympiadesnsi/base_extranet.html' %}
 
 {% block content %}
-    <div class="container">
-        <h2>Confirmation</h2>
-        <p>Un lien d'inscription a été envoyé à votre adresse email. Veuillez suivre ce lien pour procéder à
-            l'inscription des équipes.</p>
-        <p>Si vous ne recevez pas l'email dans quelques minutes, veuillez vérifier votre dossier de spam ou essayer de
-            soumettre à nouveau votre demande.</p>
+    <div class="container my-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="bi bi-envelope-check-fill" style="font-size: 3rem; color: #0d6efd;"></i>
+                        </div>
+                        <h3 class="card-title mb-3">Lien d'inscription envoyé</h3>
+                        <p class="card-text">
+                            Un lien d'inscription a été envoyé à votre adresse email.<br>
+                            Veuillez suivre ce lien pour inscrire les équipes.
+                        </p>
+                        <p class="text-muted">
+                            Si vous ne recevez pas l'email dans quelques minutes,<br>
+                            pensez à vérifier votre dossier de spam ou à soumettre une nouvelle demande.
+                        </p>
+                        <a href="{% url 'inscription_demande' %}" class="btn btn-outline-primary mt-3">
+                            Revenir à la page d'inscription
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 {% endblock %}

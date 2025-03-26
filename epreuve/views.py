@@ -567,6 +567,7 @@ def redistribuer_jeux_de_test(request: HttpRequest, epreuve_id: int, id_exercice
                     hash_epreuve_id=encode_id(epreuve_id),
                     exercice_hashid=encode_id(id_exercice))
 
+
 @login_required
 @decorators.resolve_hashid_param("hash_exercice_id", target_name="id_exercice")
 @decorators.membre_comite_required
