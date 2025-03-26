@@ -115,15 +115,19 @@ class Epreuve(models.Model):
     def save(self, *args, **kwargs):
         is_new: bool = self.pk is None
 
+        # Nettoyage lors de la création
         if is_new:
             self.clean()
 
         super().save(*args, **kwargs)
 
-        # Une fois l'ID obtenu, on génère le code si on ne l’a pas encore
-        if is_new:
-            nom_formatte = slugify(self.nom)[:50]
-            self.code = f"{self.id:03d}_{nom_formatte}"
+        # Génération (ou mise à jour) du code basé sur le nom et l'ID
+        nom_formatte = slugify(self.nom)[:50]
+        nouveau_code = f"{self.id:03d}_{nom_formatte}"
+
+        # On ne réécrit que si le code a changé
+        if self.code != nouveau_code:
+            self.code = nouveau_code
             super().save(update_fields=["code"])
 
     class Meta:
