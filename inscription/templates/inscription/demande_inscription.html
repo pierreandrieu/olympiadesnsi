@@ -9,14 +9,22 @@
             {% csrf_token %}
             <input type="hidden" id="id_epreuve_id" name="epreuve_id" value="">
             <div class="col-md-6 mb-3">
-                {{ form.epreuve|as_crispy_field }}
+                <div class="form-group">
+                    <label for="id_epreuve">Épreuve</label>
+                    <select name="epreuve" id="id_epreuve" class="form-control">
+                        <option value="">Sélectionnez une épreuve</option>
+                        {% for epreuve in form.fields.epreuve.queryset %}
+                            <option value="{{ epreuve.id }}"
+                                    data-hashid="{{ epreuve.hashid }}">{{ epreuve.code }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
             <div class="row">
                 <div class="col-md-3 mb-3">
                     {{ form.identifiant|as_crispy_field }}
                 </div>
                 <div class="col-md-auto mb-3 d-flex align-items-center">
-                    <!-- Utilisation de CSS pour ajuster la position si nécessaire -->
                     <span style="margin: 0 1px;">@</span>
                 </div>
                 <div class="col-md-5 mb-3">
@@ -55,12 +63,14 @@
             $errorMessage.hide();
 
             function updateDomaines() {
-                let epreuveId = $epreuveSelect.val();
-                if (epreuveId) {
-                    epreuveId = parseInt(epreuveId.split('_')[0], 10); // Extrait et nettoie l'ID
-                    $('#id_epreuve_id').val(epreuveId); // Met à jour le champ caché
+                let selectedOption = $epreuveSelect.find('option:selected');
+                let epreuveId = selectedOption.val();  // valeur brute, ID (pour POST)
+                let hashid = selectedOption.data('hashid');  // utilisé pour AJAX
+
+                if (hashid) {
+                    $('#id_epreuve_id').val(epreuveId);  // pour que le POST récupère l'ID
                     $.ajax({
-                        url: `/inscription/get-domaines/${epreuveId}/`,
+                        url: `/inscription/get_domaines/${hashid}/`,
                         type: "GET",
                         dataType: "json",
                         success: function (data) {
@@ -71,9 +81,16 @@
                             $.each(data, function (i, domaine) {
                                 $domaineSelect.append($('<option>', {
                                     value: domaine,
-                                    text: domaine.substring(1)
+                                    text: domaine.substring(1)  // ⚠️ enlevant le premier caractère ?
                                 }));
                             });
+                        },
+                        error: function (xhr) {
+                            console.error("Erreur AJAX :", xhr);
+                            $domaineSelect.empty().append($('<option>', {
+                                value: '',
+                                text: 'Erreur lors du chargement'
+                            }));
                         }
                     });
                 } else {
@@ -84,26 +101,18 @@
                 }
             }
 
-            $epreuveSelect.change(updateDomaines);
-
-            $('#monForm').submit(function (e) {
-                if (!$domaineSelect.val()) {
-                    e.preventDefault(); // Empêche la soumission
-                    $errorMessage.text('Veuillez sélectionner un domaine académique.').show();
-                    $('html, body').animate({
-                        scrollTop: $errorMessage.offset().top - 20
-                    }, 'slow');
-                }
+            // Met à jour les domaines à chaque changement de l'épreuve
+            $epreuveSelect.change(function () {
+                updateDomaines();
             });
 
-            // Cache le message d'erreur lorsque le domaine est modifié
+            // Cache le message d'erreur quand le domaine change
             $domaineSelect.change(function () {
                 $errorMessage.hide();
             });
 
-            // Initialisation
-            updateDomaines(); // Met à jour les domaines au chargement si nécessaire
+            // Mise à jour initiale au chargement
+            updateDomaines();
         });
     </script>
-
 {% endblock %}

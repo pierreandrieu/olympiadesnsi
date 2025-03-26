@@ -1,3 +1,5 @@
+from typing import cast
+
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Div, Submit
 from django import forms
@@ -11,7 +13,6 @@ class DemandeLienInscriptionForm(forms.Form):
         queryset=Epreuve.objects.filter(inscription_externe=True),
         label='Épreuve',
         empty_label="Sélectionnez une épreuve",
-        to_field_name="code"  # Utilisez `code` comme valeur à soumettre
     )
     identifiant = forms.CharField(
         label='Email',
@@ -26,7 +27,9 @@ class DemandeLienInscriptionForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['epreuve'].label_from_instance = self.label_from_instance
+
+        epreuve_field = cast(forms.ModelChoiceField, self.fields['epreuve'])
+        epreuve_field.label_from_instance = lambda obj: obj.code
 
     def label_from_instance(self, obj):
         # Utilise le champ `code` de l'objet Epreuve comme label pour le champ de formulaire

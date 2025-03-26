@@ -23,7 +23,6 @@ import olympiadesnsi.constants as constantes
 @ratelimit(key='ip', rate='3/s', method='GET', block=True)
 @ratelimit(key='ip', rate='15/m', method='GET', block=True)
 @ratelimit(key='ip', rate='50/h', method='GET', block=True)
-@decorators.resolve_hashid_param("epreuve_id")
 def inscription_demande(request: HttpRequest) -> HttpResponse:
     """
     Traite la demande d'inscription en générant un token unique pour chaque inscription,
@@ -84,11 +83,12 @@ def inscription_demande(request: HttpRequest) -> HttpResponse:
     return render(request, 'inscription/demande_inscription.html', {'form': form})
 
 
-def get_domaines_for_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
-    domaines: List[InscriptionDomaine] = list(
-        InscriptionDomaine.objects.filter(epreuve_id=epreuve_id).values_list('domaine', flat=True))
-    return JsonResponse(list(domaines), safe=False)
-
+@decorators.resolve_hashid_param("hash_epreuve_id", target_name="epreuve_id")
+def get_domaines_for_epreuve(request, epreuve_id: int):
+    domaines: List[str] = list(
+        InscriptionDomaine.objects.filter(epreuve_id=epreuve_id).values_list('domaine', flat=True)
+    )
+    return JsonResponse(domaines, safe=False)
 
 @ratelimit(key='ip', rate='3/s', method='GET', block=True)
 @ratelimit(key='ip', rate='15/m', method='GET', block=True)
