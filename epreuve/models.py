@@ -6,6 +6,7 @@ from django.contrib.auth.models import User, Group
 from django.db.models import CheckConstraint, Q, F, QuerySet
 from inscription.models import GroupeParticipant
 from olympiadesnsi.constants import MAX_TAILLE_NOM
+from olympiadesnsi.utils import encode_id
 
 
 class Epreuve(models.Model):
@@ -28,6 +29,16 @@ class Epreuve(models.Model):
         blank=True,
         related_name='epreuves_associees'
     )
+
+    @property
+    def hashid(self) -> str:
+        """
+        Renvoie l'identifiant hashé de l'épreuve à utiliser dans les URLs.
+
+        Returns:
+            str: identifiant encodé (ex: pour usage dans les URLs).
+        """
+        return encode_id(self.id)
 
     def get_exercices(self) -> QuerySet['Exercice']:
         """
@@ -155,6 +166,16 @@ class Exercice(models.Model):
     code_a_soumettre = models.BooleanField(default=False)
     nombre_max_soumissions = models.IntegerField(default=50)
     numero = models.IntegerField(null=True, blank=True)
+
+    @property
+    def hashid(self) -> str:
+        """
+        Renvoie l'identifiant hashé de l'épreuve à utiliser dans les URLs.
+
+        Returns:
+            str: identifiant encodé (ex: pour usage dans les URLs).
+        """
+        return encode_id(self.id)
 
     @property
     def separateur_jeu_test_effectif(self):

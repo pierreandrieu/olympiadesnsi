@@ -290,20 +290,49 @@ code {
     color: #ccc; /* Grise les flèches désactivées */
 }
 
-/* Style des boutons */
-.btn {
-    background-color: #3465a4; /*vert vif: #5cb85c; /* Couleur de fond des boutons */
-    color: white; /* Couleur de texte des boutons */
-    border: none; /* Enlève la bordure */
-    padding: 10px 20px; /* Espacement interne des boutons */
-    border-radius: 4px; /* Arrondit les coins des boutons */
-    cursor: pointer; /* Change le curseur en main */
-    margin: 5px; /* Espacement autour des boutons */
-}
-
 .btn:hover {
     background-color: #204a87;/*#4cae4c;*/ /* Assombrit le bouton au survol */
     color:white;
+}
+
+.btn-primary {
+    background-color: #3465a4;
+    border-color: #3465a4;
+    color: white;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: #204a87; /* Variante plus foncée au survol */
+    border-color: #204a87;
+    color: white;
+}
+
+.icon-action {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0 4px;
+    color: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    vertical-align: middle;
+    line-height: 1;
+}
+
+.icon-action i {
+    font-size: 1rem;
+    vertical-align: middle;
+    color: #3465a4;
+}
+
+/* Variante pour une icône de suppression */
+.icon-action.text-danger i {
+    color: #a94442;
+}
+
+.icon-action:hover i {
+    color: #204a87; /* Couleur au survol */
 }
 
 /* Style pour le titre de la section instance */
@@ -487,6 +516,13 @@ div#exercice-container div.exercice-row:last-child .move-down {
     color: #1a73e8; /* Couleur de survol pour les liens */
 }
 
+.nav-btn {
+    background-color: #3465a4; /* ou #333, ou ce que tu veux */
+    color: white;
+    border-radius: 4px;
+    padding: 10px 20px;
+    font-size: 1.5em;
+}
 /* Responsive nav-items */
 @media (max-width: 992px) {
     .navbar-nav .nav-item {
@@ -506,4 +542,8 @@ div#exercice-container div.exercice-row:last-child .move-down {
     max-width: 100px; /* Limite la largeur visible */
     overflow: auto; /* Active le défilement lorsque le contenu dépasse la largeur */
     white-space: pre-wrap; /* Conserve les sauts de ligne naturels et permet les césures */
+}
+
+.toggle-element {
+    display: none;
 }

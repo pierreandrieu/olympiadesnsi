@@ -12,7 +12,7 @@ from django_ratelimit.decorators import ratelimit
 
 from epreuve.models import Epreuve
 from login.utils import genere_participants_uniques
-from olympiadesnsi import settings
+from olympiadesnsi import settings, decorators
 from .forms import EquipeInscriptionForm, DemandeLienInscriptionForm
 from .models import InscripteurExterne, InscriptionExterne
 from inscription.utils import generate_unique_token, calculer_nombre_inscrits, save_users
@@ -23,6 +23,7 @@ import olympiadesnsi.constants as constantes
 @ratelimit(key='ip', rate='3/s', method='GET', block=True)
 @ratelimit(key='ip', rate='15/m', method='GET', block=True)
 @ratelimit(key='ip', rate='50/h', method='GET', block=True)
+@decorators.resolve_hashid_param("epreuve_id")
 def inscription_demande(request: HttpRequest) -> HttpResponse:
     """
     Traite la demande d'inscription en générant un token unique pour chaque inscription,

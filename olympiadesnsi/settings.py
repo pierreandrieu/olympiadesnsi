@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     "intranet",
     "inscription",
     "captcha",
+    "django_extensions",
 ]
 
 MIDDLEWARE = [
@@ -88,7 +89,11 @@ MIDDLEWARE = [
     'django_ratelimit.middleware.RatelimitMiddleware',
 ]
 
+# Dans settings.py
 RATELIMIT_VIEW = 'olympiadesnsi.views.ratelimited_error'
+
+RATELIMIT_USE_CACHE = 'default'
+RATELIMIT_ENABLE = True
 
 ROOT_URLCONF = "olympiadesnsi.urls"
 

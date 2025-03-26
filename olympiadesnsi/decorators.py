@@ -1,9 +1,12 @@
-from django.http import HttpResponseForbidden
+from typing import Callable, Any, Optional
+
+from django.http import HttpResponse, HttpRequest
 from functools import wraps
 from django.shortcuts import get_object_or_404, render
 from epreuve.models import Epreuve, Exercice, MembreComite
 from inscription.models import GroupeParticipant
 from .interrogations_bd import user_est_inscrit_a_epreuve
+from .utils import decode_id
 
 
 # Décorateur générique pour vérifier l'appartenance de l'utilisateur à un groupe spécifique.
@@ -24,7 +27,8 @@ def appartient_au_groupe(group_name):
             # Vérifier si l'utilisateur courant appartient au groupe donné.
             if not request.user.groups.filter(name=group_name).exists():
                 # Si l'utilisateur n'appartient pas au groupe, retourner une réponse HTTP "Forbidden".
-                return HttpResponseForbidden("Accès refusé.")
+                context: dict = {'message': "Vous n'avez pas les droits nécessaires pour exécuter cette action."}
+                return render(request, 'olympiadesnsi/erreur.html', context, status=403)
             # Si la vérification est passée, continuer à la vue originale.
             return view_func(request, *args, **kwargs)
 
@@ -52,28 +56,39 @@ def participant_required(view_func):
     return appartient_au_groupe('Participant')(view_func)
 
 
-def administrateur_epreuve_required(view_func):
+def administrateur_epreuve_required(view_func: Callable[..., Any]) -> Callable[..., Any]:
     """
     Décorateur pour vérifier si l'utilisateur est le référent (administrateur) de l'épreuve spécifiée.
 
     En plus de vérifier l'appartenance au groupe 'Organisateur', ce décorateur vérifie
     si l'utilisateur est le référent de l'épreuve passée en argument dans l'URL.
     """
-
     @wraps(view_func)
-    @organisateur_required  # Réutilise le décorateur 'est_organisateur' pour vérifier le rôle d'organisateur.
+    @organisateur_required
+    @resolve_hashid_param("hash_epreuve_id", target_name="epreuve_id")
     def _wrapped_view(request, *args, **kwargs):
-        # Récupérer l'ID de l'épreuve depuis les arguments de la vue.
-        epreuve_id = kwargs.get('epreuve_id')
-        if epreuve_id:
-            # Récupérer l'objet Epreuve correspondant ou retourner une erreur 404 si non trouvé.
-            epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-            # Vérifier si l'utilisateur est le référent de l'épreuve.
-            if request.user != epreuve.referent:
-                # Si non, retourner une réponse HTTP "Forbidden".
-                return HttpResponseForbidden("Cette action est réservée à l'administrateur de lrépreuve.")
-            # Attacher l'objet Epreuve à l'objet request pour éviter une nouvelle requête dans la vue.
-            request.epreuve = epreuve
+        epreuve_id = kwargs.get("epreuve_id")
+        id_exercice = kwargs.get("id_exercice", None)
+
+        # On suppose que resolve_hashid_param a déjà injecté epreuve_id
+        if epreuve_id is None:
+            context: dict = {'message': "ID de l'épreuve introuvable."}
+            return render(request, 'olympiadesnsi/erreur.html', context, status=403)
+
+        epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+
+        if id_exercice:
+            exercice: Exercice = get_object_or_404(Exercice, id=id_exercice)
+            if not (request.user == epreuve.referent or request.user == exercice.auteur):
+                context = {
+                    'message': "Vous n'avez pas les droits nécessaires pour cette action réservée à "
+                               "l'administrateur de l'épreuve ou au créateur de l'exercice."
+                }
+                return render(request, 'olympiadesnsi/erreur.html', context, status=403)
+            request.exercice = exercice
+
+        request.epreuve = epreuve  # Attache l'objet Epreuve à la requête pour la vue
+
         return view_func(request, *args, **kwargs)
 
     return _wrapped_view
@@ -93,6 +108,7 @@ def participant_inscrit_a_epreuve_required(view_func):
 
     @wraps(view_func)
     @participant_required  # Réutilise le décorateur 'est_participant' pour vérifier le rôle de participant.
+    @resolve_hashid_param("hash_epreuve_id", target_name="epreuve_id")
     def _wrapped_view(request, *args, **kwargs):
         epreuve_id = kwargs.get('epreuve_id')
         if epreuve_id:
@@ -119,6 +135,7 @@ def administrateur_exercice_required(view_func):
     """
     @wraps(view_func)
     @organisateur_required
+    @resolve_hashid_param("hash_epreuve_id", target_name="epreuve_id")
     def _wrapped_view(request, *args, **kwargs):
         epreuve_id = kwargs.get('epreuve_id')
         id_exercice = kwargs.get('id_exercice', None)  # Utilisez 'id_exercice' pour correspondre à la vue
@@ -146,13 +163,15 @@ def membre_comite_required(view_func):
     """
 
     @wraps(view_func)
+    @resolve_hashid_param("hash_epreuve_id", target_name="epreuve_id")
     def _wrapped_view(request, *args, **kwargs):
         # Récupère l'ID de l'épreuve à partir des arguments de la vue
         epreuve_id = kwargs.get('epreuve_id')
         id_exercice = kwargs.get('id_exercice', None)
         if epreuve_id is None:
             # Si l'ID de l'épreuve n'est pas fourni, renvoie une réponse Forbidden
-            return HttpResponseForbidden("ID de l'épreuve manquant.")
+            context: dict = {'message': "ID de l'épreuve introuvable."}
+            return render(request, 'olympiadesnsi/erreur.html', context, status=403)
 
         # Récupère l'épreuve correspondante ou renvoie une erreur 404 si non trouvée
         epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
@@ -204,3 +223,39 @@ def administrateur_groupe_required(view_func):
         return view_func(request, *args, **kwargs)
 
     return _wrapped_view
+
+
+def resolve_hashid_param(
+        param_name: str,
+        target_name: Optional[str] = None
+) -> Callable[[Callable[..., HttpResponse]], Callable[..., HttpResponse]]:
+    """
+    Décorateur pour résoudre un identifiant hashé passé en paramètre d'URL
+    et le convertir en entier utilisable dans la vue.
+
+    Args:
+        param_name (str): Nom du paramètre d'URL contenant le hashid.
+        target_name (Optional[str]): Nom de la clé dans kwargs à laquelle associer l'ID décodé.
+                                     Si None, ajoute "<param_name>_id".
+
+    Returns:
+        Callable: Une fonction décoratrice à appliquer sur une vue Django.
+    """
+
+    def decorator(view_func: Callable[..., HttpResponse]) -> Callable[..., HttpResponse]:
+        @wraps(view_func)
+        def wrapped_view(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+            hashid: Optional[str] = kwargs.get(param_name)
+            resolved_id: Optional[int] = decode_id(hashid)
+            if resolved_id is None:
+                context: dict = {'message': "PB entre les URLS et les hashids."}
+                return render(request, 'olympiadesnsi/erreur.html', context, status=403)
+            # Injecte l'ID réel
+            kwargs[target_name or f"{param_name}_id"] = resolved_id
+            # Supprime le hashid pour ne pas passer d’argument inattendu à la vue
+            del kwargs[param_name]
+            return view_func(request, *args, **kwargs)
+
+        return wrapped_view
+
+    return decorator

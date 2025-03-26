@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import List, Tuple, Optional, Set
+from typing import List, Tuple, Optional, Set, cast
 
 from django.core.mail import EmailMessage
 from django.db import transaction
@@ -21,6 +21,7 @@ from epreuve.forms import EpreuveForm
 from login.utils import genere_participants_uniques
 from olympiadesnsi import decorators, settings
 import olympiadesnsi.constants as constantes
+from olympiadesnsi.decorators import resolve_hashid_param
 from .classesdict import EpreuveDict, ExerciceDict, JeuDeTestDict
 import csv
 from django.conf import settings
@@ -236,7 +237,22 @@ def afficher_page_telechargement(request: HttpRequest) -> HttpResponse:
 
 @login_required
 @decorators.organisateur_required
-def creer_editer_epreuve(request: HttpRequest, epreuve_id: Optional[int] = None) -> HttpResponse:
+def creer_epreuve(request) -> HttpResponse:
+    return _creer_ou_editer_epreuve(request)
+
+
+@login_required
+@decorators.administrateur_epreuve_required
+def editer_epreuve(request, epreuve_id) -> HttpResponse:
+    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+    user = cast(User, request.user)
+    if not epreuve.a_pour_membre_comite(user):
+        return HttpResponseForbidden("Seuls les membres du comité d'organisation d'une épreuve sont "
+                                     "peuvent consulter cette page.")
+    return _creer_ou_editer_epreuve(request, epreuve=epreuve)
+
+
+def _creer_ou_editer_epreuve(request: HttpRequest, epreuve: Optional[Epreuve] = None) -> HttpResponse:
     """
     Crée ou édite une épreuve. Si un `epreuve_id` est fourni, l'épreuve correspondante est éditée.
     Sinon, une nouvelle épreuve est créée.
@@ -249,14 +265,10 @@ def creer_editer_epreuve(request: HttpRequest, epreuve_id: Optional[int] = None)
         HttpResponse: La réponse HTTP avec le formulaire de création/édition d'une épreuve.
     """
     domaines_autorises: str = ""
-    epreuve: Optional[Epreuve] = None
-
+    action: str = 'créée'
     # si l'épreuve existe déjà, on est en mode édition
-    if epreuve_id:
-        epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-        if not epreuve.a_pour_membre_comite(request.user):
-            return HttpResponseForbidden("Seuls les membres du comité d'organisation d'une épreuve sont "
-                                         "peuvent consulter cette page.")
+    if epreuve:
+        action = 'mise à jour'
 
         # Récupère les domaines autorisés associés à l'épreuve pour pré-remplir le formulaire.
         domaines_qs: QuerySet[InscriptionDomaine] = InscriptionDomaine.objects.filter(epreuve=epreuve)
@@ -276,7 +288,7 @@ def creer_editer_epreuve(request: HttpRequest, epreuve_id: Optional[int] = None)
                 Exercice.objects.filter(id=exercice_id).update(numero=index)
 
             # Ajoute l'utilisateur actuel comme membre du comité de l'épreuve si c'est une création.
-            if epreuve_id is None:
+            if action == "créée":
                 MembreComite.objects.create(epreuve=epreuve, membre=request.user)
 
             # Gère l'ajout/suppression des domaines autorisés pour les inscriptions externes.
@@ -287,15 +299,16 @@ def creer_editer_epreuve(request: HttpRequest, epreuve_id: Optional[int] = None)
                 for domaine in domaines_set:
                     InscriptionDomaine.objects.create(epreuve=epreuve, domaine=domaine)
 
-            action: str = 'créée' if not epreuve_id else 'mise à jour'
             messages.success(request, f"L'épreuve {epreuve.nom} a été {action} avec succès.")
             return redirect('espace_organisateur')
     else:
         form: EpreuveForm = EpreuveForm(instance=epreuve, initial={'domaines_autorises': domaines_autorises})
 
+    exercices = epreuve.exercices.order_by('numero') if epreuve else None
     return render(request, 'intranet/creer_epreuve.html', {
         'form': form,
         'epreuve': epreuve,
+        'exercices': exercices,
     })
 
 
@@ -464,6 +477,7 @@ def change_password_organisateur(request):
 
 @login_required
 @decorators.administrateur_groupe_required
+@decorators.resolve_hashid_param("groupe_id")
 def envoyer_email_participants(request: HttpRequest, groupe_id: int) -> HttpResponse:
     groupe: GroupeParticipant = getattr(request, 'groupe', None)
 
@@ -505,6 +519,7 @@ def envoyer_email_participants(request: HttpRequest, groupe_id: int) -> HttpResp
 
 @login_required
 @decorators.organisateur_required
+@decorators.resolve_hashid_param("user_id")
 def reset_password(request, user_id):
     try:
         user = User.objects.get(id=user_id)

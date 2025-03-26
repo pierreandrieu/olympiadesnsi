@@ -4,8 +4,8 @@ from django_ratelimit.decorators import ratelimit
 from epreuve.models import Epreuve
 
 
-@ratelimit(key='ip', rate='7/s', method='GET', block=True)
-@ratelimit(key='ip', rate='200/m', method='GET', block=True)
+@ratelimit(key='ip', rate='5/s', method='GET', block=True)
+@ratelimit(key='ip', rate='150/m', method='GET', block=True)
 @ratelimit(key='ip', rate='5000/h', method='GET', block=True)
 def home(request):
     epreuves_publiques = Epreuve.objects.filter(inscription_externe=True)

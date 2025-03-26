@@ -253,14 +253,14 @@ export function mettreAJourExercice(exercice) {
 }
 
 function soumettreReponse(exercice) {
-    const exerciseId = exercice.id
-    // Récupération des données de réponse
-    const codeSubmission = document.getElementById(`code-submission-${exerciseId}`) ?
-        document.getElementById(`code-submission-${exerciseId}`).value : '';
-    const instanceResponse = document.getElementById(`instance-response-${exerciseId}`) ?
-        document.getElementById(`instance-response-${exerciseId}`).value : '';
+    const urlSoumission = document.getElementById('url-soumission').textContent;
+    const exerciseId = exercice.id;
 
-    // Créer l'objet de données à envoyer
+    // Récupération des données saisies
+    const codeSubmission = document.getElementById(`code-submission-${exerciseId}`)?.value || '';
+    const instanceResponse = document.getElementById(`instance-response-${exerciseId}`)?.value || '';
+
+    // Préparation des données à envoyer
     const data = {
         exercice_id: exerciseId,
         code_soumis: codeSubmission,
@@ -269,7 +269,7 @@ function soumettreReponse(exercice) {
 
     desactiveBoutonSoumission(exerciseId);
 
-    fetch('/epreuve/soumettre_reponse/', {
+    fetch(urlSoumission, {
         method: 'POST',
         credentials: 'include',
         body: JSON.stringify(data),
@@ -278,22 +278,38 @@ function soumettreReponse(exercice) {
             'Content-Type': 'application/json'
         }
     })
-        .then(response => response.json())
-        .then(data => {
-            activeBoutonSoumission(exerciseId);
+        .then(async response => {
+            if (response.status === 429) {
+                // Rediriger vers la page d'erreur ou afficher un message
+                alert("Nous avons détecté un nombre élevé de soumissions en peu de temps." +
+                    "Veuillez attendre quelques instants avant de soumettre à nouveau.")
+                return;
+            }
+            const rawText = await response.text(); // on récupère le texte brut, qu’il soit JSON ou HTML
 
-            // Met à jour l'objet exercice avec les nouvelles données reçues
-            exercice.nb_soumissions_restantes = data.nb_soumissions_restantes;
-            exercice.code_enregistre = data.code_enregistre;
-            exercice.reponse_jeu_de_test_enregistree = data.reponse_jeu_de_test_enregistree;
+            try {
+                const data = JSON.parse(rawText); // essaie de parser le JSON
+                // Met à jour l'objet exercice avec les nouvelles données
+                exercice.nb_soumissions_restantes = data.nb_soumissions_restantes;
+                exercice.code_enregistre = data.code_enregistre;
+                exercice.reponse_jeu_de_test_enregistree = data.reponse_jeu_de_test_enregistree;
 
-            // Appelle mettreAJourValeursExercice avec l'objet exercice mis à jour
-            mettreAJourExercice(exercice);
-            if (exercice.retour_en_direct) {
-                const codeRempli = exercice.code_enregistre && exercice.code_enregistre.trim().length > 0;
-                mettreAJourIndicateurs(exerciseId, data.reponse_valide, codeRempli);            }
+                mettreAJourExercice(exercice);
+
+                if (exercice.retour_en_direct) {
+                    const codeRempli = exercice.code_enregistre && exercice.code_enregistre.trim().length > 0;
+                    mettreAJourIndicateurs(exerciseId, data.reponse_valide, codeRempli);
+                }
+
+            } catch (err) {
+                console.error("Erreur lors du parsing JSON :", err);
+                console.error("Contenu non JSON reçu :", rawText);
+            }
+
         })
         .catch(error => {
+            console.error("Erreur lors de la soumission :", error);
             activeBoutonSoumission(exerciseId);
-        });}
+        });
+}
 

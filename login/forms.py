@@ -1,6 +1,12 @@
+from typing import cast
+
 from django import forms
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from captcha.fields import CaptchaField
+
+from epreuve.models import Epreuve
 from olympiadesnsi.constants import NB_TENTATIVES_CONNEXIONS_AVANT_CAPTCHA, MAX_TAILLE_NOM
 
 
@@ -52,3 +58,71 @@ class RecoveryForm(forms.Form):
         required=True,
         error_messages={'required': _('Veuillez résoudre le captcha.')},
     )
+
+
+class AjoutOrganisateurForm(forms.Form):
+    """
+    Formulaire pour ajouter un nouvel organisateur à une épreuve.
+
+    Ce formulaire permet à un administrateur d'épreuve d'ajouter un utilisateur
+    existant en tant que membre du comité d'organisation. Il effectue les validations
+    suivantes :
+    - l'utilisateur existe,
+    - il n'est pas déjà membre du comité,
+    - il n'est pas le référent de l'épreuve.
+    """
+
+    username: forms.CharField = forms.CharField(
+        label="Nom d'utilisateur",
+        max_length=100,
+        help_text="Nom d'utilisateur de la personne à ajouter au comité."
+    )
+
+    # Attributs supplémentaires passés lors de l'initialisation
+    epreuve: Epreuve
+    request_user: User
+
+    def __init__(self, *args: tuple, **kwargs: dict) -> None:
+        """
+        Initialise le formulaire avec des paramètres contextuels.
+
+        Args:
+            epreuve (Epreuve): L'épreuve pour laquelle on souhaite ajouter un organisateur.
+            request_user (User): L'utilisateur actuellement connecté (admin de l'épreuve).
+        """
+        self.epreuve = cast(Epreuve, kwargs.pop("epreuve"))
+        self.request_user = cast(User, kwargs.pop("request_user"))
+        super().__init__(*args, **kwargs)
+
+    def clean_username(self) -> str:
+        """
+        Validation personnalisée du champ `username`.
+
+        Vérifie que :
+        - l'utilisateur existe,
+        - il n'est pas déjà membre du comité d'organisation de l'épreuve,
+        - il n'est pas le référent de l’épreuve.
+
+        Raises:
+            ValidationError: Si l’une des conditions ci-dessus échoue.
+
+        Returns:
+            str: Le nom d'utilisateur validé.
+        """
+        username: str = self.cleaned_data['username']
+
+        # Vérification de l'existence de l'utilisateur
+        try:
+            user: User = User.objects.get(username=username)
+        except User.DoesNotExist:
+            raise ValidationError("Aucun utilisateur avec ce nom n'existe.")
+
+        # L'utilisateur est-il déjà membre du comité ?
+        if self.epreuve.a_pour_membre_comite(user):
+            raise ValidationError("Cet utilisateur fait déjà partie du comité d'organisation.")
+
+        # Est-il déjà référent ?
+        if user == self.epreuve.referent:
+            raise ValidationError("Le référent est déjà responsable de cette épreuve.")
+
+        return username

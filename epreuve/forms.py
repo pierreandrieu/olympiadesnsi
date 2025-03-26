@@ -1,3 +1,5 @@
+from typing import Dict
+
 from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -251,9 +253,11 @@ class ExerciceForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super(ExerciceForm, self).__init__(*args, **kwargs)
+        self.initial: Dict = dict(self.initial)
         self.fields['titre'].required = True
         self.fields['nombre_max_soumissions'].required = True
-        self.initial['nombre_max_soumissions'] = DEFAULT_MAX_SOUMISSIONS_PAR_EXERCICE
+        if 'nombre_max_soumissions' not in self.initial and not self.instance.pk:
+            self.initial['nombre_max_soumissions'] = DEFAULT_MAX_SOUMISSIONS_PAR_EXERCICE
         for field_name, field in self.fields.items():
             if field.required:
                 field.label = f"{field.label} *"

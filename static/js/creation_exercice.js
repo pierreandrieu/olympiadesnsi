@@ -15,9 +15,6 @@ document.addEventListener('DOMContentLoaded', function () {
         separateurJeuxDeTest = escapeRegExp(separateurJeuxDeTest.replace(/\\n/g, '\n'));
         separateurResultats = escapeRegExp(separateurResultats.replace(/\\n/g, '\n'));
 
-        console.log(`Séparateur Jeux de Test: '${separateurJeuxDeTest}'`);
-        console.log(`Séparateur Résultats: '${separateurResultats}'`);
-
         const regexSeparateurJeux = new RegExp(separateurJeuxDeTest.replace(/\\n/g, '\n'), 'g');
         const regexSeparateurResultats = new RegExp(separateurResultats.replace(/\\n/g, '\n'), 'g');
 

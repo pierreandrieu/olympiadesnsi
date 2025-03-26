@@ -12,7 +12,7 @@
                     <ul class="list-group list-group-flush">
                         {% for epreuve in epreuves_en_cours %}
                             <li class="list-group-item">
-                                <a href="{% url 'detail_epreuve' epreuve.id %}">{{ epreuve.nom }}</a>
+                                <a href="{% url 'detail_epreuve' epreuve.hashid %}">{{ epreuve.nom }}</a>
                             </li>
                         {% endfor %}
                     </ul>

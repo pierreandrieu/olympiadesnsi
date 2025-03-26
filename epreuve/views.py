@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseRedirect, HttpRequest, HttpResponse
-from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.csrf import csrf_protect, csrf_exempt
 from django.utils import timezone
 from django_ratelimit.decorators import ratelimit
 from django.contrib import messages
@@ -22,10 +22,107 @@ from inscription.utils import assigner_participants_jeux_de_test, inscrire_group
 from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant
 import olympiadesnsi.decorators as decorators
 import json
-from typing import List, Optional, Dict, Set, Tuple
+from typing import List, Optional, Dict, Set, Tuple, cast, Any
 
+from olympiadesnsi.utils import encode_id
 
 logger = logging.getLogger(__name__)
+
+
+@csrf_protect
+@login_required
+@decorators.participant_inscrit_a_epreuve_required
+@ratelimit(key='user', rate='10/m', block=True)
+@ratelimit(key='user', rate='2/s', block=True)
+def soumettre(request: HttpRequest, epreuve_id=None) -> JsonResponse | HttpResponseRedirect:
+    """
+    Gère la soumission d'une réponse à un exercice par un participant.
+
+    Cette vue vérifie les conditions de soumission (méthode POST, limites de taux),
+    traite les données soumises, met à jour les enregistrements correspondants,
+    et renvoie une réponse JSON avec le statut de la soumission.
+
+    Args:
+        request (HttpRequest): La requête HTTP contenant les données de soumission.
+        epreuve_id (int): l'id de l'épreuve
+    Returns:
+        JsonResponse: Réponse JSON contenant le statut de la soumission et les données mises à jour.
+        HttpResponseRedirect: Redirection en cas d'erreur ou de fin d'épreuve.
+
+    Raises:
+        json.JSONDecodeError: Si les données POST ne sont pas un JSON valide.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Non autorisé'}, status=405)
+
+    try:
+        # Extraction et validation des données de la requête
+        data: Dict[str, Any] = json.loads(request.body)
+        exercice_id: int = data.get('exercice_id')
+        code_soumis: str = data.get('code_soumis', "")
+        solution_instance: str = data.get('solution_instance', "")
+
+        # Récupération de l'exercice
+        try:
+            exercice: Exercice = Exercice.objects.get(id=exercice_id)
+        except Exercice.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Exercice introuvable'}, status=404)
+
+        # Récupération de l'épreuve associée
+        epreuve: Epreuve = exercice.epreuve
+
+        # Vérification de l'état de l'épreuve
+        if epreuve.pas_commencee() or epreuve.est_close():
+            return redirect(reverse('afficher_epreuve', kwargs={'hash_epreuve_id': encode_id(epreuve.id)}))
+
+        # Gestion du temps limite de l'épreuve
+        if epreuve.temps_limite:
+            user_epreuve: UserEpreuve = UserEpreuve.objects.get(participant=request.user, epreuve=epreuve)
+            if not user_epreuve.debut_epreuve:
+                user_epreuve.debut_epreuve = timezone.now()
+                user_epreuve.save()
+
+            temps_restant: int = temps_restant_seconde(user_epreuve, epreuve)
+            if temps_restant < 1:
+                return redirect(reverse('afficher_epreuve', kwargs={'hash_epreuve_id': encode_id(epreuve.id)}))
+
+        # Récupération ou création de l'association UserExercice
+        user_exercice: UserExercice = UserExercice.objects.get(participant=request.user, exercice=exercice)
+
+        # Vérification du nombre de soumissions
+        if user_exercice.nb_soumissions >= exercice.nombre_max_soumissions:
+            return JsonResponse({'success': False, 'error': 'Nombre maximum de soumissions atteint'}, status=403)
+
+        # Mise à jour des données de soumission
+        user_exercice.code_participant = code_soumis
+        user_exercice.solution_instance_participant = solution_instance
+        user_exercice.nb_soumissions += 1
+        user_exercice.save()
+
+        # Traitement spécifique pour les exercices sans jeu de test
+        if not exercice.avec_jeu_de_test:
+            return JsonResponse({
+                'success': True,
+                'nb_soumissions_restantes': exercice.nombre_max_soumissions - user_exercice.nb_soumissions,
+                'code_enregistre': user_exercice.code_participant,
+                'reponse_jeu_de_test_enregistree': user_exercice.solution_instance_participant
+            })
+
+        # Vérification de la solution pour les exercices avec jeu de test
+        jeu_de_test: Optional[JeuDeTest] = user_exercice.jeu_de_test
+        reponse_valide: bool = jeu_de_test is not None and str(solution_instance).strip() == str(
+            jeu_de_test.reponse).strip()
+
+        return JsonResponse({
+            'success': True,
+            'reponse_valide': reponse_valide,
+            'nb_soumissions_restantes': exercice.nombre_max_soumissions - user_exercice.nb_soumissions,
+            'code_enregistre': user_exercice.code_participant,
+            'reponse_jeu_de_test_enregistree': user_exercice.solution_instance_participant
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Données invalides'}, status=400)
 
 
 @login_required
@@ -34,6 +131,7 @@ def detail_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     epreuve: Epreuve = getattr(request, 'epreuve', None)
     indication_utilisateurs_retour: int = 0
     anonymats = ["", "", ""]  # Valeurs par défaut
+    user_epreuve: Optional[UserEpreuve] = None
 
     if epreuve:
         exercices: QuerySet[Exercice] = epreuve.get_exercices()
@@ -55,14 +153,16 @@ def detail_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
                 anonymats.append(anonymat if anonymat else "?")
             elif choix == "2":  # Pas de numéro mais a participé
                 anonymats.append("?")
-            else:  # N'a pas participé
+            elif choix == "3":  # N'a pas participé
                 anonymats.append("-")
+            else:
+                anonymats.append(";")
 
         # Sauvegarde en base de données
-        user_epreuve.set_anonymat(anonymats)
+        if user_epreuve:
+            user_epreuve.set_anonymat(anonymats)
 
-        return redirect("afficher_epreuve", epreuve_id=epreuve.id)
-
+        return redirect('afficher_epreuve', hash_epreuve_id=encode_id(epreuve.id))
     return render(request, "epreuve/detail_epreuve.html", {
         "epreuve": epreuve,
         "indication_utilisateurs_retour": indication_utilisateurs_retour,
@@ -88,8 +188,10 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
         HttpResponse: La réponse HTTP avec le rendu du template `afficher_epreuve.html`.
     """
     # Récupération de l'utilisateur connecté et de l'épreuve depuis le décorateur.
-    user: User = request.user
+    user: User = cast(User, request.user)
+
     epreuve: Optional[Epreuve] = getattr(request, 'epreuve', None)
+    url_soumission = reverse("soumettre", kwargs={"hash_epreuve_id": encode_id(epreuve.id)})
 
     if epreuve.pas_commencee():
         return render(request, 'epreuve/erreurs/epreuve_pas_encore_ouverte.html')
@@ -148,7 +250,7 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
             'retour_en_direct': ex.retour_en_direct,
             'instance_de_test': jeu_de_test.instance if jeu_de_test else "",
             'reponse_valide': str(user_exercice.solution_instance_participant).split() == (
-                str(jeu_de_test.reponse).split() if jeu_de_test else "")
+                str(jeu_de_test.reponse).split() if jeu_de_test else ""),
         }
 
         exercices_json_list.append(exercice_dict)
@@ -158,94 +260,10 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     return render(request, 'epreuve/afficher_epreuve.html', {
         'epreuve': epreuve,
         'exercices_json': exercices_json,
-        'temps_restant': temps_restant
+        'temps_restant': temps_restant,
+        'url': url_soumission
     })
 
-
-@login_required
-@csrf_protect
-@ratelimit(key='user', rate='10/m', block=True)
-@ratelimit(key='user', rate='2/s', block=True)
-def soumettre(request):
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Non autorisé'}, status=405)
-    try:
-        data = json.loads(request.body)
-        exercice_id = data.get('exercice_id')
-        code_soumis = data.get('code_soumis', "")
-        solution_instance = data.get('solution_instance', "")
-
-        #  Exercice et le jeu de test associé
-        try:
-            exercice = Exercice.objects.get(id=exercice_id)
-        except Exercice.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Exercice introuvable'}, status=404)
-
-        # Epreuve
-        epreuve: Epreuve = Epreuve.objects.get(id=exercice.epreuve.id)
-
-        if epreuve.pas_commencee() or epreuve.est_close():
-            # Redirige vers 'afficher_epreuve' avec l'argument 'epreuve_id' requis
-            return redirect(reverse('afficher_epreuve', kwargs={'epreuve_id': epreuve.id}))
-
-        temps_restant: Optional[int] = None
-        if epreuve and epreuve.temps_limite:
-            # Association UserEpreuve
-            user_epreuve: UserEpreuve = UserEpreuve.objects.get(
-                participant=request.user,
-                epreuve=epreuve
-            )
-            if not user_epreuve.debut_epreuve:
-                # Convertit la durée de l'épreuve en minutes en un objet timedelta
-                user_epreuve.debut_epreuve = timezone.now()
-                user_epreuve.save()
-
-            # Calcul du temps restant
-            temps_restant = temps_restant_seconde(user_epreuve, epreuve)
-            if temps_restant < 1:
-                return redirect(reverse('afficher_epreuve', kwargs={'epreuve_id': epreuve.id}))
-
-        # Association UserExercice
-        user_exercice = UserExercice.objects.get(
-            participant=request.user,
-            exercice=exercice
-        )
-
-        jeu_de_test = user_exercice.jeu_de_test
-
-        if user_exercice.nb_soumissions >= exercice.nombre_max_soumissions:
-            return JsonResponse({'success': False, 'error': 'Nombre maximum de soumissions atteint'}, status=403)
-
-        # Mise à jour des champs
-        user_exercice.code_participant = code_soumis
-        user_exercice.solution_instance_participant = solution_instance
-        user_exercice.nb_soumissions += 1
-        user_exercice.save()
-
-        if not exercice.avec_jeu_de_test:
-            return JsonResponse({
-                'success': True,
-                'nb_soumissions_restantes': exercice.nombre_max_soumissions - user_exercice.nb_soumissions,
-                'code_enregistre': user_exercice.code_participant,
-                'reponse_jeu_de_test_enregistree': user_exercice.solution_instance_participant
-            })
-
-        # Vérification de la solution
-
-        reponse_valide: bool = False
-        if jeu_de_test and str(solution_instance).strip() == str(jeu_de_test.reponse).strip():
-            reponse_valide = True
-
-        return JsonResponse({
-            'success': True,
-            'reponse_valide': reponse_valide,
-            'nb_soumissions_restantes': exercice.nombre_max_soumissions - user_exercice.nb_soumissions,
-            'code_enregistre': user_exercice.code_participant,
-            'reponse_jeu_de_test_enregistree': user_exercice.solution_instance_participant
-        })
-
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'Données invalides'}, status=400)
 
 
 @login_required
@@ -256,6 +274,7 @@ def supprimer_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
         epreuve.delete()
         return redirect('espace_organisateur')
     return redirect('espace_organisateur')
+
 
 
 @login_required
@@ -306,49 +325,99 @@ def visualiser_epreuve_organisateur(request, epreuve_id):
     })
 
 
+
 @login_required
 @decorators.administrateur_epreuve_required
-def ajouter_organisateur(request: HttpRequest, epreuve_id: int):
+def ajouter_organisateur(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     """
     Vue pour ajouter un organisateur au comité d'organisation d'une épreuve.
 
-    Cette vue permet à un administrateur d'épreuve de rajouter un nouvel organisateur
-    au comité d'organisation de l'épreuve spécifiée. Elle effectue des vérifications pour
-    s'assurer que l'utilisateur à ajouter existe, est éligible pour devenir organisateur,
-    et n'est pas déjà membre du comité d'organisation.
+    Cette vue permet à un administrateur d'épreuve d'ajouter un nouvel utilisateur
+    au comité de l'épreuve spécifiée, si cet utilisateur :
+      - existe,
+      - n’est pas déjà dans le comité,
+      - n’est pas le référent de l’épreuve.
+
+    L'objet `epreuve` est injecté dynamiquement dans `request` par le décorateur
+    `@administrateur_epreuve_required`.
 
     Args:
-        request (HttpRequest): L'objet HttpRequest.
-        epreuve_id (int): L'identifiant de l'épreuve pour laquelle un organisateur est ajouté.
+        request (HttpRequest): Requête HTTP reçue.
+        epreuve_id (int): Identifiant de l'épreuve concernée (non utilisé ici car injecté par décorateur).
 
     Returns:
-        HttpResponseRedirect: Redirige vers l'espace organisateur si l'ajout est réussi.
-        HttpResponse: Rend le template de l'espace organisateur avec le formulaire d'ajout en cas d'erreurs.
+        HttpResponse: Redirection en cas de succès, ou rendu du template avec erreurs sinon.
     """
-    # L'objet épreuve est récupéré par le décorateur 'administrateur_epreuve_required'
-    epreuve: Epreuve = getattr(request, 'epreuve', None)
+    # L'objet épreuve est garanti par le décorateur, on l’extrait via `getattr`
+    epreuve: Epreuve = getattr(request, 'epreuve')
 
-    # Initialisation du formulaire avec les données POST et des informations supplémentaires
-    form: AjoutOrganisateurForm = AjoutOrganisateurForm(request.POST or None,
-                                                        epreuve=epreuve,
-                                                        request_user=request.user)
+    # Initialisation du formulaire (lié ou non à POST)
+    form: AjoutOrganisateurForm = AjoutOrganisateurForm(
+        data=request.POST or None,
+        epreuve=epreuve,
+        request_user=request.user
+    )
 
     if request.method == "POST" and form.is_valid():
-        # Si le formulaire est valide, procéder à l'ajout de l'organisateur
+        # Récupération du nom d'utilisateur validé (garanti existant et admissible)
         username: str = form.cleaned_data['username']
-        organisateur_a_ajouter: User = User.objects.get(username=username)
+        user_to_add: User = User.objects.get(username=username)
 
-        # Création de l'entrée MembreComite pour associer l'organisateur à l'épreuve
-        MembreComite.objects.create(epreuve=epreuve, membre=organisateur_a_ajouter)
+        # Ajout au comité
+        MembreComite.objects.create(epreuve=epreuve, membre=user_to_add)
 
-        # Envoi d'un message de succès à l'utilisateur
-        messages.success(request, f"{username} a bien été ajouté au comité d'organisation de l'épreuve {epreuve.nom}")
+        # Message de confirmation
+        messages.success(
+            request,
+            f"{username} a bien été ajouté au comité d'organisation de l'épreuve « {epreuve.nom} »."
+        )
 
-        # Redirection vers l'espace organisateur après l'ajout
+        # Redirection vers la page d’espace organisateur
         return HttpResponseRedirect(reverse('espace_organisateur'))
+    if not form.is_valid():
+        username_errors = form.errors.get('username')
+        if username_errors:
+            messages.error(request, username_errors[0])
+    return redirect('espace_organisateur')
 
-    # Si la méthode n'est pas POST ou que le formulaire n'est pas valide, rendre le template avec le formulaire
-    return render(request, 'intranet/espace_organisateur.html', {'form': form})
+
+@login_required
+@decorators.administrateur_epreuve_required
+def retirer_organisateur(request: HttpRequest, epreuve_id: int, user_id: int) -> HttpResponse:
+    """
+    Supprime un membre du comité d'organisation d'une épreuve.
+
+    Cette action est strictement réservée au référent de l'épreuve. Le référent
+    ne peut pas se retirer lui-même via cette vue.
+
+    Args:
+        request (HttpRequest): L'objet de la requête HTTP.
+        epreuve_id (int): L'identifiant entier de l'épreuve (décodé depuis le hash).
+        user_id (int): L'identifiant du membre à retirer.
+
+    Returns:
+        HttpResponse: Une redirection vers l'espace organisateur avec un message.
+    """
+    # Récupère l'objet Epreuve depuis le décorateur
+    epreuve: Epreuve = getattr(request, 'epreuve', None)  # Épreuve récupérée par le décorateur.
+
+    # Récupère l'utilisateur à supprimer
+    utilisateur: User = get_object_or_404(User, id=user_id)
+
+    # Interdit de retirer le référent lui-même
+    if utilisateur == epreuve.referent:
+        messages.error(request, "Le référent ne peut pas se retirer lui-même.")
+        return redirect("espace_organisateur")
+
+    # Vérifie s'il est bien membre du comité
+    membre = MembreComite.objects.filter(epreuve=epreuve, membre=utilisateur).first()
+    if membre:
+        membre.delete()
+        messages.success(request, f"{utilisateur.username} a été retiré du comité d'organisation.")
+    else:
+        messages.warning(request, f"{utilisateur.username} ne fait pas partie du comité.")
+
+    return redirect("espace_organisateur")
 
 
 @login_required
@@ -394,6 +463,7 @@ def inscrire_groupes_epreuve(request: HttpRequest, epreuve_id: int) -> HttpRespo
 
 @login_required
 @decorators.membre_comite_required
+@decorators.resolve_hashid_param("groupe_hashid", target_name="groupe_id")
 def desinscrire_groupe_epreuve(request: HttpRequest, epreuve_id: int, groupe_id: int) -> HttpResponse:
     """
     Désinscrit tous les participants d'un groupe spécifique d'une épreuve donnée.
@@ -444,8 +514,9 @@ def desinscrire_groupe_epreuve(request: HttpRequest, epreuve_id: int, groupe_id:
 
 
 @login_required
-@decorators.administrateur_exercice_required
-def supprimer_exercice(request: HttpRequest, id_exercice: int) -> HttpResponse:
+@decorators.resolve_hashid_param("hash_exercice_id", target_name="id_exercice")
+@decorators.membre_comite_required
+def supprimer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: int) -> HttpResponse:
     """
     Supprime un exercice spécifique et affiche un message de succès.
 
@@ -478,8 +549,9 @@ def supprimer_exercice(request: HttpRequest, id_exercice: int) -> HttpResponse:
 
 
 @login_required
-@decorators.administrateur_exercice_required
-def redistribuer_jeux_de_test(request: HttpRequest, id_exercice: int) -> HttpResponse:
+@decorators.resolve_hashid_param("hash_exercice_id", target_name="id_exercice")
+@decorators.membre_comite_required
+def redistribuer_jeux_de_test(request: HttpRequest, epreuve_id: int, id_exercice: int) -> HttpResponse:
     # L'objet exercice est récupéré par le décorateur 'administrateur_exercice_required'
     exercice: Exercice = getattr(request, 'exercice', None)
     # L'objet épreuve est récupéré par le décorateur 'administrateur_exercice_required'
@@ -491,12 +563,14 @@ def redistribuer_jeux_de_test(request: HttpRequest, id_exercice: int) -> HttpRes
     else:
         messages.error(request, f"L'exercice {exercice.titre} de l'épreuve {epreuve.nom} "
                                 f"n'est pas un exercice avec jeux de test.")
-    return redirect('editer_exercice', id_exercice=id_exercice)
-
+    return redirect('editer_exercice',
+                    hash_epreuve_id=encode_id(epreuve_id),
+                    exercice_hashid=encode_id(id_exercice))
 
 @login_required
-@decorators.administrateur_exercice_required
-def assigner_jeux_de_test(request: HttpRequest, id_exercice: int) -> HttpResponse:
+@decorators.resolve_hashid_param("hash_exercice_id", target_name="id_exercice")
+@decorators.membre_comite_required
+def assigner_jeux_de_test(request: HttpRequest, epreuve_id: int, id_exercice: int) -> HttpResponse:
     # L'objet exercice est récupéré par le décorateur 'administrateur_exercice_required'
     exercice: Exercice = getattr(request, 'exercice', None)
 
@@ -511,12 +585,14 @@ def assigner_jeux_de_test(request: HttpRequest, id_exercice: int) -> HttpRespons
     else:
         messages.error(request, f"L'exercice {exercice.titre} de l'épreuve {epreuve.nom} "
                                 f"n'est pas un exercice avec jeux de test.")
-    return redirect('editer_exercice', id_exercice=id_exercice)
-
+    return redirect('editer_exercice',
+                    hash_epreuve_id=encode_id(epreuve_id),
+                    exercice_hashid=encode_id(id_exercice))
 
 @login_required
-@decorators.administrateur_exercice_required
-def supprimer_jeux_de_test(request: HttpRequest, id_exercice: int) -> HttpResponse:
+@decorators.resolve_hashid_param("hash_exercice_id", target_name="id_exercice")
+@decorators.membre_comite_required
+def supprimer_jeux_de_test(request: HttpRequest, epreuve_id: int, id_exercice: int) -> HttpResponse:
     """
     Supprime tous les jeux de test associés à un exercice spécifique.
 
@@ -540,145 +616,135 @@ def supprimer_jeux_de_test(request: HttpRequest, id_exercice: int) -> HttpRespon
         jdt.delete()
 
     # Après la suppression, redirige vers la vue d'édition de l'exercice pour refléter les changements
-    return redirect('editer_exercice', id_exercice=id_exercice)
+    return redirect('editer_exercice',
+                    hash_epreuve_id=encode_id(epreuve_id),
+                    exercice_hashid=encode_id(id_exercice))
+
+@login_required
+@decorators.membre_comite_required
+def creer_exercice(request: HttpRequest, epreuve_id: int) -> HttpResponse:
+    return _creer_ou_editer_exercice(request, request.epreuve)
 
 
 @login_required
 @decorators.membre_comite_required
-def creer_editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: Optional[int] = None) -> HttpResponse:
-    """
-    Vue pour créer ou éditer un exercice dans une épreuve spécifique.
+@decorators.resolve_hashid_param("exercice_hashid", target_name="id_exercice")
+def editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: int) -> HttpResponse:
+    exercice = get_object_or_404(Exercice, id=id_exercice)
+    return _creer_ou_editer_exercice(request, request.epreuve, exercice)
 
-    Cette vue gère à la fois la création d'un nouvel exercice et l'édition d'un exercice existant
-    pour une épreuve donnée. Elle vérifie les permissions de l'utilisateur, traite le formulaire
-    d'exercice, et gère la logique d'affichage appropriée selon le contexte (création ou édition).
+
+def _creer_ou_editer_exercice(
+        request: HttpRequest,
+        epreuve: Epreuve,
+        exercice: Optional[Exercice] = None
+) -> HttpResponse:
+    """
+    Vue pour créer ou éditer un exercice dans une épreuve.
+
+    Si un exercice est fourni, on est en mode édition. Sinon, on crée un nouvel exercice.
 
     Args:
-        request (HttpRequest): L'objet requête HTTP.
-        epreuve_id (int): L'identifiant de l'épreuve de l'exercice à éditer
-        id_exercice (Union[int, None], optional): L'identifiant de l'exercice à éditer, si applicable. Defaults to None.
+        request (HttpRequest): L'objet requête.
+        epreuve (Epreuve): L'épreuve concernée.
+        exercice (Optional[Exercice]): L'exercice à éditer, ou None si création.
 
     Returns:
-        HttpResponse: La réponse HTTP rendue.
+        HttpResponse: La page de formulaire.
     """
-    epreuve: Epreuve = getattr(request, 'epreuve', None)
-    if id_exercice is None:
-        return creer_exercice(request, epreuve)
-    else:
-        return editer_exercice(request, epreuve, getattr(request, 'exercice', None))
 
-
-def creer_exercice(request: HttpRequest, epreuve: Epreuve) -> HttpResponse:
-    form = ExerciceForm(request.POST or None)
-    champs_invisibles = ['jeux_de_test', 'resultats_jeux_de_test', 'retour_en_direct']
-    champs_visibles = [field.name for field in form.visible_fields() if field.name not in champs_invisibles]
-    if request.method == 'POST':
-        if form.is_valid():
-            exercice = form.save(commit=False)
-            exercice.epreuve = epreuve
-            exercice.auteur = request.user
-            exercice.save()
-            messages.success(request, f"L'exercice {exercice.titre} a été créé avec succès pour l'épreuve {epreuve.nom}.")
-            return redirect('espace_organisateur')
-
-    return render(request, 'epreuve/creer_exercice.html', {
-        'form': form,
-        'champs_visibles': champs_visibles,
-        'champs_invisibles': champs_invisibles,
-        'epreuve': epreuve,
-        'exercice_id': None,
-        'separateur_jeux_de_test': "\\n",
-        'separateur_resultats_jeux_de_test': "\\n"
-    })
-
-
-def editer_exercice(request: HttpRequest, epreuve: Epreuve, exercice: Exercice) -> HttpResponse:
-
-    jdt_anciens: Set[Tuple[str, str]] = set()
-    jeux_de_test: QuerySet[JeuDeTest] = JeuDeTest.objects.filter(exercice=exercice)
-
-    modifications_jdt: bool = False
-    # Charger les données existantes des jeux de test si l'exercice les utilise
     jeux_de_test_str, resultats_jeux_de_test_str = "", ""
-    if exercice.avec_jeu_de_test:
+    jdt_anciens: Set[Tuple[str, str]] = set()
+    jeux_de_test = JeuDeTest.objects.none()
 
+    if exercice and exercice.avec_jeu_de_test:
+        jeux_de_test = JeuDeTest.objects.filter(exercice=exercice)
         jeux_de_test_str = exercice.separateur_jeu_test_effectif.join(jeu.instance for jeu in jeux_de_test)
         resultats_jeux_de_test_str = exercice.separateur_reponse_jeudetest_effectif.join(
             jeu.reponse for jeu in jeux_de_test)
 
     if request.method == 'POST':
         post_data = request.POST.copy()
-        # Remplacer les séparateurs spéciaux par leurs équivalents fonctionnels dans les données POST
-        post_data['separateur_jeux_de_test'] = post_data.get('separateur_jeux_de_test').replace('\\n', '\n')
-        post_data['separateur_resultats_jeux_de_test'] = post_data.get('separateur_resultats_jeux_de_test').replace('\\n', '\n')
+        # Normalisation des séparateurs
+        post_data['separateur_jeux_de_test'] = post_data.get('separateur_jeux_de_test', '').replace('\\n', '\n')
+        post_data['separateur_resultats_jeux_de_test'] = post_data.get('separateur_resultats_jeux_de_test', '').replace(
+            '\\n', '\n')
 
         form = ExerciceForm(post_data, instance=exercice, initial={
             'jeux_de_test': jeux_de_test_str,
             'resultats_jeux_de_test': resultats_jeux_de_test_str,
             'separateur_jeux_de_test': post_data['separateur_jeux_de_test'],
-            'separateur_resultats_jeux_de_test':  post_data['separateur_resultats_jeux_de_test'],
-
+            'separateur_resultats_jeux_de_test': post_data['separateur_resultats_jeux_de_test'],
         })
 
         if form.is_valid():
+            exercice = form.save(commit=False)
+            exercice.epreuve = epreuve
+            action = "mis à jour"
+
+            if not exercice.pk:  # cas création
+                exercice.auteur = request.user
+                action = "créé"
             exercice.separateur_jeu_test = post_data['separateur_jeux_de_test']
             exercice.separateur_reponse_jeudetest = post_data['separateur_resultats_jeux_de_test']
-            exercice = form.save()
-            # Gère les jeux de test si le champ 'avec_jeu_de_test' est coché
+            exercice.save()
+
+            # Traitement des jeux de test si activés
             if form.cleaned_data.get('avec_jeu_de_test'):
-                for jeu in jeux_de_test:
-                    jdt_anciens.add((jeu.instance, jeu.reponse))
+                modifications_jdt = False
                 nouveaux_jdt: Set[Tuple[str, str]] = set()
 
-                jeux_de_tests = form.cleaned_data.get('jeux_de_test', '').split(exercice.separateur_jeu_test_effectif)
-                resultats_jeux_de_tests = form.cleaned_data.get(
-                    'resultats_jeux_de_test', '').split(exercice.separateur_reponse_jeudetest_effectif)
+                jeux = form.cleaned_data.get('jeux_de_test', '').split(exercice.separateur_jeu_test_effectif)
+                resultats = form.cleaned_data.get('resultats_jeux_de_test', '').split(
+                    exercice.separateur_reponse_jeudetest_effectif)
 
-                # Crée de nouveaux jeux de test
-                for jeu, resultat in zip(jeux_de_tests, resultats_jeux_de_tests):
-                    nouveaux_jdt.add((jeu, resultat))
-                    if jeu.strip() and resultat.strip() and (jeu, resultat) not in jdt_anciens:
-                        JeuDeTest.objects.create(exercice=exercice, instance=jeu, reponse=resultat)
-                        modifications_jdt = True
-
-                # Supprime les jeux de test qui n'apparaissent plus
                 for jeu in jeux_de_test:
-                    if (jeu.instance, jeu.reponse) not in nouveaux_jdt:
+                    jdt_anciens.add((jeu.instance, jeu.reponse))
+
+                for jeu, res in zip(jeux, resultats):
+                    jeu_tuple = (jeu.strip(), res.strip())
+                    if all(jeu_tuple) and jeu_tuple not in jdt_anciens:
+                        JeuDeTest.objects.create(exercice=exercice, instance=jeu_tuple[0], reponse=jeu_tuple[1])
+                        modifications_jdt = True
+                    nouveaux_jdt.add(jeu_tuple)
+
+                for jeu in jeux_de_test:
+                    if (jeu.instance.strip(), jeu.reponse.strip()) not in nouveaux_jdt:
                         jeu.delete()
                         modifications_jdt = True
 
-                # Redistribue les jeux de test s'il y a une modification
                 if modifications_jdt:
                     redistribuer_jeux_de_test_exercice(exercice)
-
             else:
                 vider_jeux_test_exercice(exercice)
 
-            messages.success(request, f"L'exercice {exercice.titre} de l'épreuve {epreuve.nom}"
-                                      f" a été mis à jour avec succès.")
+            messages.success(request,
+                             f"L'exercice {exercice.titre} a été {action} avec succès pour l'épreuve {epreuve.nom}.")
             return redirect('espace_organisateur')
 
     else:
         form = ExerciceForm(instance=exercice, initial={
             'jeux_de_test': jeux_de_test_str,
             'resultats_jeux_de_test': resultats_jeux_de_test_str,
-            'separateur_jeux_de_test': exercice.separateur_jeu_test_effectif.replace("\n","\\n"),
-            'separateur_resultats_jeux_de_test': exercice.separateur_reponse_jeudetest_effectif.replace("\n", "\\n"),
-
+            'separateur_jeux_de_test': exercice.separateur_jeu_test_effectif.replace("\n",
+                                                                                     "\\n") if exercice else "\\n",
+            'separateur_resultats_jeux_de_test': exercice.separateur_reponse_jeudetest_effectif.replace("\n",
+                                                                                                        "\\n") if exercice else "\\n",
         })
 
     champs_invisibles = ['jeux_de_test', 'resultats_jeux_de_test', 'retour_en_direct']
     champs_visibles = [field.name for field in form.visible_fields() if field.name not in champs_invisibles]
+
     return render(request, 'epreuve/creer_exercice.html', {
         'form': form,
         'champs_visibles': champs_visibles,
         'champs_invisibles': champs_invisibles,
+        'epreuve': epreuve,
+        'exercice_id': exercice.id if exercice else None,
         'jeux_de_test': jeux_de_test_str,
         'resultats_jeux_de_test': resultats_jeux_de_test_str,
-        'epreuve': epreuve,
-        'exercice_id': exercice.id,
-        'separateur_jeux_de_test': exercice.separateur_jeu_test_effectif.replace("\n","\\n"),
-        'separateur_resultats_jeux_de_test': exercice.separateur_reponse_jeudetest_effectif.replace("\n", "\\n"),
+        'separateur_jeux_de_test': form.initial['separateur_jeux_de_test'],
+        'separateur_resultats_jeux_de_test': form.initial['separateur_resultats_jeux_de_test'],
     })
 
 
@@ -921,7 +987,7 @@ def copier_epreuve(request: HttpRequest, epreuve_id: int):
 
     # Ajout de request.user au comité de la nouvelle épreuve
     MembreComite.objects.create(epreuve=nouvelle_epreuve, membre=request.user)
-    cinq_jeux_de_test: Optional[QuerySet[[JeuDeTest]]]
+    cinq_jeux_de_test: Optional[QuerySet[JeuDeTest]] = None
     for exercice in epreuve_originale.get_exercices():
         if exercice.avec_jeu_de_test:
             cinq_jeux_de_test = exercice.get_jeux_de_test()[:5]
@@ -1003,5 +1069,3 @@ def exporter_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     response = HttpResponse(json_str, content_type='application/json')
     response['Content-Disposition'] = f'attachment; filename="epreuve_{epreuve.nom}.json"'
     return response
-
-

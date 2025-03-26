@@ -27,10 +27,10 @@
         <br>
         <h5 style="text-align:center">Exporter les données</h5>
 
-        <button onclick="window.location.href='{% url 'export_data' epreuve.id 'exercice' %}'">
+        <button onclick="window.location.href='{% url 'export_data' epreuve.hashid 'exercice' %}'">
             Exporter par exercice
         </button>
-        <button onclick="window.location.href='{% url 'export_data' epreuve.id 'participant' %}'">
+        <button onclick="window.location.href='{% url 'export_data' epreuve.hashid 'participant' %}'">
             Exporter par équipe
         </button>
         <br><br>
@@ -116,7 +116,6 @@
     $(document).ready(function () {
         // Charger les données initiales et les afficher dans la console pour vérification
         const originalData = {{ data_for_js|safe }};
-        console.log("Original Data Loaded:", originalData);
 
         // Fonction pour initialiser DataTables
         function initDataTable() {
@@ -167,7 +166,6 @@
 
         // Stocker l'instance de DataTable
         let table = initDataTable();
-        console.log("DataTable initialized");
 
         // Fonction pour filtrer les données
         function filterData() {
@@ -191,7 +189,6 @@
 
         // Attache l'événement change aux sélecteurs pour déclencher le filtrage
         $('#exercice-select, #participant-select').change(filterData);
-        console.log("Change handlers for select elements attached");
         filterData();
     });
 </script>

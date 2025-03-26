@@ -2,13 +2,16 @@
 {% load static %}
 
 {% block prescripts %}
+    <script id="url-soumission" type="text/plain">
+    {{ url|escapejs }}
+</script>
+
     <script src="{% static 'js/skulpt/skulpt.es5.min.js' %}"></script>
     <script src="{% static 'js/skulpt/skulpt-stdlib.js' %}"></script>
     <script src="{% static 'js/charger_mathjax.js' %}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js"
             crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>
-    <!-- Skulpt core -->
 
 {% endblock %}
 
@@ -25,12 +28,12 @@
         <div class="exercise-navigation">
             <button id="prev-exercise" class="btn nav-btn"
                     data-un-par-un="{{ epreuve.exercices_un_par_un }}">
-                <i class="fa-solid fa-arrow-left" style="color:white;"></i>
+                <i class="fa-solid fa-arrow-left"></i>
             </button>
 
             <div id="exercice-container" class="exercise-box"></div>
             <button
-                    id="next-exercise" class="btn nav-btn"><i class="fa-solid fa-arrow-right" style="color:white;"></i>
+                    id="next-exercise" class="btn nav-btn"><i class="fa-solid fa-arrow-right"></i>
             </button>
         </div>
             <div id="etat-exercices2"></div>

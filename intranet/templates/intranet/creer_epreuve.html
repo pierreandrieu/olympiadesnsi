@@ -52,7 +52,7 @@
                 {% if epreuve.id %}
                 <h2>Exercices</h2>
                 <ul>
-                    {% for exercice in epreuve.exercices.all %}
+                    {% for exercice in exercices %}
                         <div class="exercice-row" data-exercice-id="{{ exercice.id }}">
                             <input type="hidden" name="exercice_order" value="{{ exercice.id }}">
                             <button type="button" class="move-up"><i class="fa fa-chevron-up"></i></button>

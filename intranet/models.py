@@ -3,6 +3,7 @@ from django.contrib.auth.models import User, Group
 from django.core.cache import cache
 # from inscription.models import InscriptionExterne
 import olympiadesnsi.constants as constantes
+from olympiadesnsi.utils import encode_id
 
 
 class GroupeParticipant(models.Model):
@@ -62,6 +63,16 @@ class GroupeParticipant(models.Model):
                                             on_delete=models.CASCADE, null=True, blank=True,
                                             verbose_name="Inscription externe du groupe")
     statut = models.CharField(max_length=10, choices=STATUT_CHOICES, default='CREATION', verbose_name="Statut")
+
+    @property
+    def hashid(self) -> str:
+        """
+        Renvoie l'identifiant hashé de l'épreuve à utiliser dans les URLs.
+
+        Returns:
+            str: identifiant encodé (ex: pour usage dans les URLs).
+        """
+        return encode_id(self.id)
 
     def __str__(self):
         return f"{self.nom} (Référent : {self.referent.username})"

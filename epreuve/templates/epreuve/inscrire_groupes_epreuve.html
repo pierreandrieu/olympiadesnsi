@@ -4,7 +4,7 @@
     <div class="container mt-4">
         <h1 class="mb-4">Épreuve : {{ epreuve.nom }}</h1>
 
-        <form action="{% url 'inscrire_groupe_epreuves' epreuve_id=epreuve.id %}" method="post" class="card">
+        <form action="{% url 'inscrire_groupes_epreuve' epreuve.hashid %}" method="post" class="card">
             {% csrf_token %}
             <div class="card-header">
                 <h2>Inscrire les groupes suivants :</h2>

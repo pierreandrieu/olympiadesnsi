@@ -76,51 +76,110 @@
             <form method="POST">
                 {% csrf_token %}
                 {% for i in "123"|make_list %}
-                    <div class="form-group">
-                        <label>Participant {{ i }} :</label><br>
+                    <div class="card mb-3 p-3" id="participant_card_{{ i }}">
+                        <div class="form-group">
+                            <label class="form-label"><strong>Participant {{ i }} :</strong></label>
 
-                        <input type="radio" name="choix_{{ i }}" value="1" id="choix_{{ i }}_1"
-                               {% if anonymats|slice:i|last != "?" and anonymats|slice:i|last != "-" %}checked{% endif %}
-                               onchange="toggleInput({{ i }})">
-                        <label for="choix_{{ i }}_1">J'ai participé et j'ai mon numéro d'anonymat</label><br>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="choix_{{ i }}" value="1"
+                                       id="choix_{{ i }}_1"
+                                       {% if anonymats|slice:forloop.counter0|first not in "X-?" %}checked{% endif %}
+                                       onchange="toggleInput('{{ i }}'); cascadeDisable('{{ i }}', false);">
+                                <label class="form-check-label" for="choix_{{ i }}_1">
+                                    J'ai participé et j'ai mon numéro d'anonymat
+                                </label>
+                            </div>
 
-                        <input type="radio" name="choix_{{ i }}" value="2" id="choix_{{ i }}_2"
-                               {% if anonymats|slice:i|last == "?" %}checked{% endif %}
-                               onchange="toggleInput({{ i }})">
-                        <label for="choix_{{ i }}_2">J'ai participé mais je n'ai pas mon numéro</label><br>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="choix_{{ i }}" value="2"
+                                       id="choix_{{ i }}_2"
+                                       {% if anonymats|slice:forloop.counter0|first == "?" %}checked{% endif %}
+                                       onchange="toggleInput('{{ i }}'); cascadeDisable('{{ i }}', false);">
+                                <label class="form-check-label" for="choix_{{ i }}_2">
+                                    J'ai participé mais je n'ai pas mon numéro
+                                </label>
+                            </div>
 
-                        <input type="radio" name="choix_{{ i }}" value="3" id="choix_{{ i }}_3"
-                               {% if anonymats|slice:i|last == "-" %}checked{% endif %}
-                               onchange="toggleInput({{ i }})">
-                        <label for="choix_{{ i }}_3">Je n'ai pas participé</label><br>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="choix_{{ i }}" value="3"
+                                       id="choix_{{ i }}_3"
+                                       {% if anonymats|slice:forloop.counter0|first == "-" %}checked{% endif %}
+                                       onchange="toggleInput('{{ i }}'); cascadeDisable('{{ i }}', false);">
+                                <label class="form-check-label" for="choix_{{ i }}_3">
+                                    Je n'ai pas participé
+                                </label>
+                            </div>
 
-                        <input type="text" class="form-control anonymat" id="anonymat_{{ i }}" name="anonymat_{{ i }}"
-                               value="
-                                       {% if anonymats|slice:i|last != "?" and anonymats|slice:i|last != "-" %}{{ anonymats|slice:i|last }}{% endif %}"
-                               {% if anonymats|slice:i|last == "?" or anonymats|slice:i|last == "-" %}style="display:none;"{% endif %}
-                               placeholder="Entrez votre numéro d'anonymat">
+                            {% if forloop.counter > 1 %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="choix_{{ i }}" value="4"
+                                           id="choix_{{ i }}_4"
+                                           {% if anonymats|slice:forloop.counter0|first == "X" %}checked{% endif %}
+                                           onchange="toggleInput('{{ i }}'); cascadeDisable('{{ i }}', true);">
+                                    <label class="form-check-label text-danger" for="choix_{{ i }}_4">
+                                        L'équipe ne comporte pas autant de participants
+                                    </label>
+                                </div>
+                            {% endif %}
+
+                            <input type="text" class="form-control anonymat mt-2" id="anonymat_{{ i }}"
+                                   name="anonymat_{{ i }}"
+                                   value="
+                                           {% if anonymats|slice:forloop.counter0|first not in 'X-?' %}{{ anonymats|slice:forloop.counter0|first }}{% endif %}"
+                                   {% if anonymats|slice:forloop.counter0|first in 'X-?' %}style="display:none;"{% endif %}
+                                   placeholder="Entrez votre numéro d'anonymat">
+                        </div>
                     </div>
                 {% endfor %}
+
+
                 <button type="submit" class="btn btn-primary mt-3">Enregistrer</button>
             </form>
         {% else %}
-            <a href="{% url 'afficher_epreuve' epreuve.id %}" class="btn btn-primary">Démarrer l'épreuve</a>
+            <a href="{% url 'afficher_epreuve' epreuve.hashid %}" class="btn btn-primary">Démarrer l'épreuve</a>
         {% endif %}
 
     </div>
 
     <script>
-        function toggleInput(index) {
-            const choix1 = document.getElementById(`choix_${index}_1`);
-            const input = document.getElementById(`anonymat_${index}`);
-
+        function toggleInput(i) {
+            const choix1 = document.getElementById(`choix_${i}_1`);
+            const input = document.getElementById(`anonymat_${i}`);
             if (choix1.checked) {
-                input.style.display = "block"; // Afficher l'input si choix 1
+                input.style.display = '';
             } else {
-                input.style.display = "none";  // Masquer sinon
-                input.value = ""; // Réinitialiser l'input si masqué
+                input.style.display = 'none';
+                input.value = '';
+            }
+        }
+
+        function cascadeDisable(index, disableFollowing) {
+            const start = parseInt(index, 10);
+            const total = 3; // nombre total de participants
+
+            for (let i = start + 1; i <= total; i++) {
+                const inputs = document.getElementsByName(`choix_${i}`);
+                const anonymat = document.getElementById(`anonymat_${i}`);
+
+                if (disableFollowing) {
+                    // Cocher automatiquement l'option "pas autant de participants"
+                    const choix4 = document.getElementById(`choix_${i}_4`);
+                    if (choix4) {
+                        choix4.checked = true;
+                    }
+                    anonymat.style.display = 'none';
+                    anonymat.value = '';
+                }
+
+                // Activer ou désactiver toutes les options
+                inputs.forEach(input => {
+                    if (input.value !== "4") {
+                        input.disabled = disableFollowing;
+                    }
+                });
             }
         }
     </script>
+
 
 {% endblock %}

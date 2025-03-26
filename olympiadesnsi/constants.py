@@ -13,3 +13,7 @@ DEFAULT_MAX_SOUMISSIONS_PAR_EXERCICE = 50
 
 # Paramètres des Epreuves
 MAX_TAILLE_NOM = 100
+
+# Sel utilisé pour les hashids
+HASHID_SALT = "prevertcassin"
+HASHID_MIN_LENGTH = 8
