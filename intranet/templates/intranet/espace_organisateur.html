@@ -78,23 +78,35 @@
                                     </td>
 
                                     <td>
-                                            <a href="{% url 'visualiser_epreuve' epreuve.hashid %}">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
+                                        <button type="button" class="btn btn-link p-0"
+                                                onclick="location.href='{% url 'visualiser_epreuve' epreuve.hashid %}'"
+                                                title="Voir l'épreuve">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
 
-                                                <a href="{% url 'editer_epreuve' epreuve.hashid %}">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
+                                        <button type="button" class="btn btn-link p-0"
+                                                onclick="location.href='{% url 'editer_epreuve' epreuve.hashid %}'"
+                                                title="Éditer l'épreuve">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
 
-                                            <a href="{% url 'rendus_participants' epreuve.hashid %}">
-                                                <i class="fas fa-marker"></i>
-                                            </a>
-                                            <a href="{% url 'copier_epreuve' epreuve.hashid %}" title="Copier l’épreuve">
-                                                <i class="fas fa-clone"></i>
-                                            </a>
-                                            <a href="{% url 'exporter_epreuve' epreuve.hashid %}" title="Exporter en JSON">
-                                                <i class="fas fa-file-download"></i>
-                                            </a>
+                                        <button type="button" class="btn btn-link p-0"
+                                                onclick="location.href='{% url 'rendus_participants' epreuve.hashid %}'"
+                                                title="Corriger les rendus">
+                                            <i class="fas fa-marker"></i>
+                                        </button>
+
+                                        <button type="button" class="btn btn-link p-0"
+                                                onclick="location.href='{% url 'copier_epreuve' epreuve.hashid %}'"
+                                                title="Copier l’épreuve">
+                                            <i class="fas fa-clone"></i>
+                                        </button>
+
+                                        <button type="button" class="btn btn-link p-0"
+                                                onclick="location.href='{% url 'exporter_epreuve' epreuve.hashid %}'"
+                                                title="Exporter l’épreuve en JSON">
+                                            <i class="fas fa-file-download"></i>
+                                        </button>
 
                                         {% if request.user == epreuve.referent %}
                                             <button type="button" class="btn btn-link text-danger p-0"
@@ -234,6 +246,15 @@
                                                class="text-info">
                                                 <i class="fas fa-envelope"></i>
                                             </a>
+                                        {% else %}
+                                            <form method="post" action="{% url 'telecharger_csv' %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="groupe_id" value="{{ groupe.id }}">
+                                                <button type="submit" class="btn btn-link p-0 text-secondary"
+                                                        title="Re-télécharger le CSV des participants du groupe">
+                                                    <i class="fas fa-file-csv"></i>
+                                                </button>
+                                            </form>
                                         {% endif %}
                                     </td>
 

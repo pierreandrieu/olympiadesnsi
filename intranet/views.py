@@ -13,6 +13,8 @@ from django.utils import timezone
 from django.contrib import messages
 from django.http import HttpResponse
 from django.db.models import Count, Prefetch, QuerySet
+from django.views.decorators.http import require_http_methods
+
 from epreuve.models import User, Epreuve, MembreComite, Exercice, UserEpreuve, JeuDeTest
 from inscription.models import InscriptionDomaine, GroupeParticipant
 from intranet.models import ParticipantEstDansGroupe
@@ -187,44 +189,38 @@ def supprimer_groupe(request: HttpRequest, groupe_id: int) -> HttpResponse:
     return redirect('espace_organisateur')
 
 
+from django.shortcuts import get_object_or_404
+import csv
+from io import StringIO
+
+
 @login_required
-@decorators.organisateur_required
+@decorators.administrateur_groupe_required
+@require_http_methods(["POST"])
 def telecharger_csv(request: HttpRequest) -> HttpResponse:
-    """
-    Permet à un organisateur de télécharger un fichier CSV contenant les noms d'utilisateur
-    et mots de passe des participants récemment créés, à condition que l'organisateur soit
-    bien l'administrateur du groupe concerné.
+    groupe_id = request.POST.get('groupe_id')
 
-    Args:
-        request (HttpRequest): La requête HTTP.
+    if groupe_id is None:
+        return HttpResponseForbidden("Groupe non spécifié.")
 
-    Returns:
-        HttpResponse: Une réponse HTTP qui soit initie le téléchargement du fichier CSV
-        après vérification des droits de l'utilisateur, soit redirige vers l'espace organisateur,
-        soit renvoie une réponse interdite si l'utilisateur n'est pas administrateur du groupe.
-    """
-    # Récupère le nom du groupe de la session.
-    nom_groupe: str = request.session.get('nom_groupe', 'groupe_inconnu')
+    groupe = get_object_or_404(GroupeParticipant, id=groupe_id, referent=request.user)
 
-    # Tente de récupérer le groupe pour vérifier si l'utilisateur est bien l'administrateur.
-    try:
-        GroupeParticipant.objects.get(nom=nom_groupe, referent=request.user)
-    except GroupeParticipant.DoesNotExist:
-        # Si le groupe n'existe pas ou si l'utilisateur n'en est pas l'administrateur, interdit l'accès.
-        return HttpResponseForbidden("Vous n'avez pas les droits nécessaires pour télécharger ce fichier.")
-
-    # Procède au téléchargement si les vérifications sont passées.
-    csv_data: str = request.session.get('csv_data')
-    if csv_data is None:
+    # On recrée un CSV minimal à partir des utilisateurs du groupe
+    participants = groupe.participants()
+    if not participants.exists():
         return redirect('espace_organisateur')
 
-    nom_fichier: str = f"utilisateurs_{nom_groupe}.csv"
-    response: HttpResponse = HttpResponse(csv_data, content_type='text/csv')
-    response['Content-Disposition'] = f'attachment; filename="{nom_fichier}"'
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(['Username'])
 
-    # Nettoie les données CSV de la session après leur utilisation.
-    del request.session['csv_data']
-    del request.session['nom_groupe']
+    for user in participants:
+        writer.writerow([user.username])
+
+    buffer.seek(0)
+    nom_fichier = f'participants_{groupe.nom}.csv'
+    response = HttpResponse(buffer.getvalue(), content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{nom_fichier}"'
 
     return response
 
