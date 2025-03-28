@@ -85,12 +85,14 @@ def inscription_demande(request: HttpRequest) -> HttpResponse:
 
 
 @decorators.resolve_hashid_param("hash_epreuve_id", target_name="epreuve_id")
-def get_domaines_for_epreuve(request, epreuve_id: int):
+def get_domaines_for_epreuve(request: HttpRequest, epreuve_id: int)->HttpResponse:
     domaines: List[str] = list(
-        InscriptionDomaine.objects.filter(epreuve_id=epreuve_id).values_list('domaine', flat=True)
+        InscriptionDomaine.objects
+        .filter(epreuve_id=epreuve_id)
+        .order_by("domaine")  # tri alphabétique
+        .values_list('domaine', flat=True)
     )
     return JsonResponse(domaines, safe=False)
-
 
 @ratelimit(key='ip', rate='3/s', method='GET', block=True)
 @ratelimit(key='ip', rate='15/m', method='GET', block=True)
