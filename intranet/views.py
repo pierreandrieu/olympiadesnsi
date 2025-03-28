@@ -245,10 +245,10 @@ def editer_epreuve(request, epreuve_id) -> HttpResponse:
     if not epreuve.a_pour_membre_comite(user):
         return HttpResponseForbidden("Seuls les membres du comité d'organisation d'une épreuve sont "
                                      "peuvent consulter cette page.")
-    return _creer_ou_editer_epreuve(request, epreuve=epreuve)
+    return _creer_ou_editer_epreuve(request, False, epreuve=epreuve)
 
 
-def _creer_ou_editer_epreuve(request: HttpRequest, epreuve: Optional[Epreuve] = None) -> HttpResponse:
+def _creer_ou_editer_epreuve(request: HttpRequest, nouvelle: bool = True, epreuve: Optional[Epreuve] = None) -> HttpResponse:
     """
     Crée ou édite une épreuve. Si un `epreuve_id` est fourni, l'épreuve correspondante est éditée.
     Sinon, une nouvelle épreuve est créée.
@@ -261,11 +261,8 @@ def _creer_ou_editer_epreuve(request: HttpRequest, epreuve: Optional[Epreuve] = 
         HttpResponse: La réponse HTTP avec le formulaire de création/édition d'une épreuve.
     """
     domaines_autorises: str = ""
-    action: str = 'créée'
     # si l'épreuve existe déjà, on est en mode édition
     if epreuve:
-        action = 'mise à jour'
-
         # Récupère les domaines autorisés associés à l'épreuve pour pré-remplir le formulaire.
         domaines_qs: QuerySet[InscriptionDomaine] = InscriptionDomaine.objects.filter(epreuve=epreuve)
         domaines_autorises: str = "\n".join([str(domaine.domaine) for domaine in domaines_qs])
@@ -274,7 +271,8 @@ def _creer_ou_editer_epreuve(request: HttpRequest, epreuve: Optional[Epreuve] = 
         form: EpreuveForm = EpreuveForm(request.POST, instance=epreuve)
         if form.is_valid():
             epreuve: Epreuve = form.save(commit=False)
-            epreuve.referent = request.user
+            if nouvelle:
+                epreuve.referent = request.user
             epreuve.save()
             form.save_m2m()  # Sauvegarde les relations many-to-many spécifiées dans le formulaire.
 
@@ -284,7 +282,7 @@ def _creer_ou_editer_epreuve(request: HttpRequest, epreuve: Optional[Epreuve] = 
                 Exercice.objects.filter(id=exercice_id).update(numero=index)
 
             # Ajoute l'utilisateur actuel comme membre du comité de l'épreuve si c'est une création.
-            if action == "créée":
+            if nouvelle:
                 MembreComite.objects.create(epreuve=epreuve, membre=request.user)
 
             # Gère l'ajout/suppression des domaines autorisés pour les inscriptions externes.
@@ -295,7 +293,11 @@ def _creer_ou_editer_epreuve(request: HttpRequest, epreuve: Optional[Epreuve] = 
                 for domaine in domaines_set:
                     InscriptionDomaine.objects.create(epreuve=epreuve, domaine=domaine)
 
-            messages.success(request, f"L'épreuve {epreuve.nom} a été {action} avec succès.")
+            if nouvelle:
+                message = f"L'épreuve {epreuve.nom} a été créee avec succès."
+            else:
+                message = f"L'épreuve {epreuve.nom} a été mise à jour avec succès."
+            messages.success(request, message)
             return redirect('espace_organisateur')
     else:
         form: EpreuveForm = EpreuveForm(instance=epreuve, initial={'domaines_autorises': domaines_autorises})
