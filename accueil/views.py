@@ -22,3 +22,10 @@ def home(request):
     }
 
     return render(request, 'accueil/accueil.html', context)
+
+
+@ratelimit(key='ip', rate='5/s', method='GET', block=True)
+@ratelimit(key='ip', rate='150/m', method='GET', block=True)
+@ratelimit(key='ip', rate='5000/h', method='GET', block=True)
+def about(request):
+    return render(request, 'accueil/about.html')
