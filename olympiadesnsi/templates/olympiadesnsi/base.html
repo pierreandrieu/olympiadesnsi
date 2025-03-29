@@ -18,7 +18,7 @@
     {% block prescripts %}{% endblock %}
 </head>
 
-<body>
+<body {% block attributs_body %}{% endblock %}>
 {% block navbar %} {% endblock %}
 <div>
 <br>    
@@ -28,9 +28,9 @@
 <footer class="mt-auto py-4 bg-light">
   <div class="container text-center">
     <div class="logo-container my-3">
-        <img src="{% static 'images/logoAC_MONTPELLIER.jpg' %}" alt="Logo Académie de Montpellier" class="logo-academie ms-2">
-        <img src="{% static 'images/logoAC_TOULOUSE.jpg' %}" alt="Logo Académie de Toulouse" class="logo-academie ms-2">
-        <img src="{% static 'images/logoAC_VERSAILLES.png' %}" alt="Logo Académie de Versailles"
+        <img src="{% static 'images/montpellier.png' %}" alt="Logo Académie de Montpellier" class="logo-academie ms-2">
+        <img src="{% static 'images/toulouse.png' %}" alt="Logo Académie de Toulouse" class="logo-academie ms-2">
+        <img src="{% static 'images/versailles.png' %}" alt="Logo Académie de Versailles"
              class="logo-academie me-2">
 
     </div>
