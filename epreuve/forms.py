@@ -147,8 +147,7 @@ class ExerciceForm(forms.ModelForm):
             'titre': 'Titre',
             'enonce': 'Énoncé',
             'enonce_code': 'Code de l\'énoncé',
-            'code_a_soumettre': 'Code à soumettre',
-            'nombre_max_soumissions': 'Nombre maximum de soumissions',
+            'code_a_soumettre': 'Type de code à soumettre',            'nombre_max_soumissions': 'Nombre maximum de soumissions',
             'avec_jeu_de_test': 'Avec jeu de test',
             'retour_en_direct': 'Indicateur de réussite',
         }
@@ -168,9 +167,9 @@ class ExerciceForm(forms.ModelForm):
                 'rows': 3,
                 'title': "L'énoncé de l'exercice, version code. \nFacultatif si le champ précédent est rempli."
             }),
-            'code_a_soumettre': forms.CheckboxInput(attrs={
-                'class': 'form-check-input',
-                'title': "Si coché, les participants doivent soumettre leur code."
+            'code_a_soumettre': forms.Select(attrs={
+                'class': 'form-select',
+                'title': "Type de code à soumettre (Python, autre langage, ou aucun)."
             }),
             'nombre_max_soumissions': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -244,10 +243,10 @@ class ExerciceForm(forms.ModelForm):
                     ' un jeu de test avec sa réponse.')
 
         else:
-            if not code_a_soumettre:
-                raise ValidationError('Pour un exercice de programmation, il faut demander à ce que'
-                                      'le code soit soumis ou alors demander à résoudre un jeu de test. '
-                                      'Il faut donc cocher "code à soumettre" ou "avec jeu de test" (ou les deux).')
+            if code_a_soumettre == "aucun" and not avec_jeu_de_test:
+                raise ValidationError("Pour un exercice de programmation, il faut demander à ce que "
+                                      "le code soit soumis ou alors proposer un jeu de test. "
+                                      "Il faut donc choisir un type de code à soumettre ou cocher 'avec jeu de test' (ou les deux).")
 
         return cleaned_data
 

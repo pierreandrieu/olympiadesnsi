@@ -16,7 +16,7 @@ class ExerciceDict(TypedDict, total=False):
     separateur_jeu_test: Optional[str]
     separateur_reponse_jeudetest: Optional[str]
     retour_en_direct: bool
-    code_a_soumettre: bool
+    code_a_soumettre: str
     nombre_max_soumissions: int
     jeux_de_test: List[JeuDeTestDict]
 
