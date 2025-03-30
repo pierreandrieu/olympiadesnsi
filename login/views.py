@@ -248,7 +248,7 @@ def recuperation_compte(request: HttpRequest) -> HttpResponse:
                     email = EmailMessage(
                         subject=subject,
                         body=message,
-                        from_email=settings.EMAIL_HOST_USER,
+                        from_email=f"{settings.ADMIN_NAME} <{settings.EMAIL_HOST_USER}>",
                         to=[email_contact],
                     )
                     email.content_subtype = "html"
