@@ -19,7 +19,6 @@ from epreuve.models import Epreuve, Exercice, JeuDeTest, MembreComite, UserEpreu
 from epreuve.forms import ExerciceForm, AjoutOrganisateurForm
 from epreuve.utils import temps_restant_seconde, vider_jeux_test_exercice, \
     analyse_reponse_jeu_de_test
-from inscription.utils import assigner_participants_jeux_de_test
 from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant
 import olympiadesnsi.decorators as decorators
 import json
@@ -552,28 +551,6 @@ def supprimer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: int) 
     # Redirige vers l'espace organisateur après la suppression
     return redirect('espace_organisateur')
 
-
-@login_required
-@decorators.resolve_hashid_param("hash_exercice_id", target_name="id_exercice")
-@decorators.membre_comite_required
-def assigner_jeux_de_test(request: HttpRequest, epreuve_id: int, id_exercice: int) -> HttpResponse:
-    # L'objet exercice est récupéré par le décorateur 'administrateur_exercice_required'
-    exercice: Exercice = getattr(request, 'exercice', None)
-
-    # L'objet épreuve est récupéré par le décorateur 'administrateur_exercice_required'
-    epreuve: Epreuve = getattr(request, 'epreuve', None)
-
-    # Trouver les participants sans jeu de test attribué
-    if exercice.avec_jeu_de_test:
-        participants_sans_jeu = UserExercice.objects.filter(exercice=exercice, jeu_de_test__isnull=True)
-        assigner_participants_jeux_de_test(participants_sans_jeu, exercice)
-        messages.success(request, "Les jeux de test ont été assignés aux participants qui n'en n'avaient pas.")
-    else:
-        messages.error(request, f"L'exercice {exercice.titre} de l'épreuve {epreuve.nom} "
-                                f"n'est pas un exercice avec jeux de test.")
-    return redirect('editer_exercice',
-                    hash_epreuve_id=encode_id(epreuve_id),
-                    exercice_hashid=encode_id(id_exercice))
 
 @login_required
 @decorators.resolve_hashid_param("hash_exercice_id", target_name="id_exercice")
