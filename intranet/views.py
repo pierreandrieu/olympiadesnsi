@@ -471,11 +471,11 @@ def change_password_organisateur(request):
 
 @login_required
 @decorators.administrateur_groupe_required
-@decorators.resolve_hashid_param("groupe_id")
 def envoyer_email_participants(request: HttpRequest, groupe_id: int) -> HttpResponse:
     groupe: GroupeParticipant = getattr(request, 'groupe', None)
-
-    email_contact = groupe.email_contact()
+    print(groupe)
+    print(type(groupe))
+    email_contact = groupe.email_contact
 
     if email_contact:
         output = io.StringIO()
@@ -491,11 +491,18 @@ def envoyer_email_participants(request: HttpRequest, groupe_id: int) -> HttpResp
         # S'assurer que le pointeur est bien au début du fichier
         output.seek(0)
         nom_epreuve: str = groupe.inscription_externe.epreuve.nom
+        from django.core.mail import EmailMessage
+
         email = EmailMessage(
-            "Liste des comptes pour l'épreuve " + nom_epreuve,
-            "Vous trouverez en pièce jointe la liste de vos comptes inscrits à l'épreuve " + nom_epreuve + ".",
-            settings.EMAIL_HOST_USER,
-            [email_contact]
+            subject=f"Liste des comptes pour l’épreuve {nom_epreuve}",
+            body=(
+                f"Bonjour,\n\n"
+                f"Veuillez trouver en pièce jointe la liste des comptes associés à l’épreuve « {nom_epreuve} ».\n\n"
+                f"Bien cordialement,\n"
+                f"L'équipe des Olympiades de NSI"
+            ),
+            from_email=f"{settings.ADMIN_NAME} <{settings.EMAIL_HOST_USER}>",
+            to=[email_contact],
         )
 
         # Attacher le fichier CSV
