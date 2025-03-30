@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import List, Iterable, Optional
+from typing import List, Optional
 
 from django.contrib.auth.models import User, Group
 from django.core.mail import EmailMessage
@@ -8,11 +8,9 @@ from django.db import transaction
 from django.db.models import QuerySet
 from django.utils.crypto import get_random_string
 
-import epreuve
-from epreuve.models import Exercice, Epreuve, UserEpreuve, UserExercice
-from epreuve.utils import assigner_participants_jeux_de_test
+from epreuve.models import Epreuve
 
-from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant, InscriptionExterne, InscripteurExterne
+from inscription.models import GroupeParticipant, InscriptionExterne, InscripteurExterne
 from intranet.models import ParticipantEstDansGroupe
 from olympiadesnsi import settings
 from olympiadesnsi.constants import TOKEN_LENGTH
@@ -120,7 +118,7 @@ def save_users(groupe_id: int, usernames: List[str],
             if inscription_externe_id:
                 inscription_externe: InscriptionExterne = InscriptionExterne.objects.get(id=inscription_externe_id)
                 # Logique pour inscrire le groupe à l'épreuve et aux exercices associés
-
+                print(f"{settings.ADMIN_NAME} <{settings.EMAIL_HOST_USER}>")
                 inscription_externe.epreuve.inscrire_participants(users)
                 email = inscription_externe.inscripteur.email
                 epreuve_nom = inscription_externe.epreuve.nom
@@ -139,7 +137,7 @@ def save_users(groupe_id: int, usernames: List[str],
                          f"et vous remercions pour l’intérêt que vous portez aux Olympiades de NSI.\n\n"
                          f"Bien cordialement,\n"
                          f"L’équipe des Olympiades de NSI",
-                    from_email=settings.EMAIL_HOST_USER,
+                    from_email=f"{settings.ADMIN_NAME} <{settings.EMAIL_HOST_USER}>",
                     to=[email],
                 )
 

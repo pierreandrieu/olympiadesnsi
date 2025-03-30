@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMessage
 from django.conf import settings
 from django.utils import timezone
 from django.urls import reverse
@@ -65,14 +65,25 @@ def inscription_demande(request: HttpRequest) -> HttpResponse:
 
             # Génération du lien d'inscription et préparation de l'email
             lien_inscription: str = request.build_absolute_uri(
-                reverse('inscription_par_token', args=[inscription.token]))
+                reverse('inscription_par_token', args=[inscription.token])
+            )
             sujet: str = f"Lien d'inscription pour l'épreuve {epreuve.nom}"
-            message: str = (f"Bonjour,\nVeuillez utiliser le lien suivant pour inscrire des participants à l'épreuve "
-                            f"{epreuve.nom}: {lien_inscription}\n. Il vous sera demandé de renseigner"
-                            f"le nombre d'équipes à inscrire à l'épreve pratique.")
+            message: str = (
+                f"Bonjour,\n\n"
+                f"Veuillez utiliser le lien suivant pour inscrire des participants à l'épreuve "
+                f"{epreuve.nom} :\n\n{lien_inscription}\n\n"
+                f"Il vous sera demandé de renseigner le nombre d'équipes à inscrire à l'épreuve pratique.\n\n"
+                f"Bien cordialement,\n"
+                f"L’équipe des Olympiades de NSI"
+            )
 
-            # Envoi de l'email
-            send_mail(sujet, message, settings.EMAIL_HOST_USER, [email])
+            mail = EmailMessage(
+                subject=sujet,
+                body=message,
+                from_email=f"{settings.ADMIN_NAME} <{settings.EMAIL_HOST_USER}>",
+                to=[email]
+            )
+            mail.send()
 
             # Redirection vers la page de confirmation après l'envoi de l'email
             return redirect('confirmation_envoi_lien_email')
