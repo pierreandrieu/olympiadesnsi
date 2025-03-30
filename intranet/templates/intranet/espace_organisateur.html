@@ -31,7 +31,7 @@
                                 <th>Nom</th>
                                 <th>Référent</th>
                                 <th>Comité</th>
-                                <th>Participants</th>
+                                <th>Inscrits</th>
                                 <th>Exercices</th>
                                 <th>Actions</th>
                             </tr>
@@ -57,7 +57,7 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {{ nombre_groupes }}
+                                        {{ nombre_groupes}} ({{participants_uniques}})
                                         <button type="button" class="btn btn-link p-0"
                                                 onclick="toggleComite('groupes-{{ epreuve.hashid }}')">
                                             <i class="fas fa-users"></i>
