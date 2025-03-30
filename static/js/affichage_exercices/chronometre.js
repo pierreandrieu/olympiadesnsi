@@ -51,16 +51,19 @@ function initialiserChronometre(tempsRestantDataId) {
  * @param {number} tempsRestant - Temps restant en secondes.
  */
 function afficherTempsRestant(tempsRestant) {
-    const heures = Math.floor(tempsRestant / 3600); // Extrait le nombre d'heures
-    const minutes = Math.floor((tempsRestant % 3600) / 60); // Extrait les minutes restantes
-    const secondes = tempsRestant % 60; // Extrait les secondes restantes
+    const heures = Math.floor(tempsRestant / 3600);
+    const minutes = Math.floor((tempsRestant % 3600) / 60);
+    const secondes = tempsRestant % 60;
 
-    // Met à jour le texte de l'élément HTML avec l'ID "temps-restant"
-    document.getElementById('temps-restant').textContent =
-        heures.toString().padStart(2, '0') + ':' +  // Ajoute un zéro devant si besoin (ex: 09)
+    const elem = document.getElementById('temps-restant');
+    if (!elem) return;  // <-- ✅ protection !
+
+    elem.textContent =
+        heures.toString().padStart(2, '0') + ':' +
         minutes.toString().padStart(2, '0') + ':' +
         secondes.toString().padStart(2, '0');
 }
+
 
 // Vérifie si l'élément script contenant le temps restant est présent dans la page
 if (document.querySelector('script[type="application/json"]#temps-restant-data')) {
@@ -72,7 +75,9 @@ if (document.querySelector('script[type="application/json"]#temps-restant-data')
  * Cette fonction est exécutée lorsque l'utilisateur quitte la page.
  */
 window.addEventListener("beforeunload", function () {
-    if (document.getElementById('temps-restant').textContent === "00:00:00") {
-        localStorage.removeItem('heureFinChrono'); // Supprime l'heure de fin stockée
+    const elem = document.getElementById('temps-restant');
+    if (elem && elem.textContent === "00:00:00") {
+        localStorage.removeItem('heureFinChrono');
     }
 });
+

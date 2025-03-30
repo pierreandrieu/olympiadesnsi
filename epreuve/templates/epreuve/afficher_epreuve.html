@@ -1,4 +1,4 @@
-{% extends 'olympiadesnsi/base_participant.html' %}
+{% extends template_base %}
 {% load static %}
 
 {% block prescripts %}
@@ -15,31 +15,40 @@
 
 {% endblock %}
 
+{% block attributs_body %}
+    data-un-par-un="{{ epreuve.exercices_un_par_un|yesno:'true,false' }}"
+    data-lecture-seule="{{ lecture_seule|yesno:'true,false' }}"
+{% endblock %}
+
+
 {% block content %}
-    <div class="container mt-4">
-        <h1>{{ epreuve.nom }}</h1> <br/> <br/>
+        <div class="container mt-4">
+            <h1>{{ epreuve.nom }}</h1> <br/><br/>
 
-        <div id="etat-exercices"></div>
-        {% if epreuve.temps_limite %}
-            <div id="chronometre">Temps restant : <span id="temps-restant"></span></div>
-            {{ temps_restant|json_script:"temps-restant-data" }}
-        {% endif %}
+            <div id="etat-exercices"></div>
 
-        <div class="exercise-navigation">
-            <button id="prev-exercise" class="btn nav-btn"
-                    data-un-par-un="{{ epreuve.exercices_un_par_un }}">
-                <i class="fa-solid fa-arrow-left"></i>
-            </button>
+            {% if epreuve.temps_limite %}
+                <div id="chronometre">Temps restant : <span id="temps-restant"></span></div>
+                {{ temps_restant|json_script:"temps-restant-data" }}
+            {% endif %}
 
-            <div id="exercice-container" class="exercise-box"></div>
-            <button
-                    id="next-exercise" class="btn nav-btn"><i class="fa-solid fa-arrow-right"></i>
-            </button>
-        </div>
+            <div class="exercise-wrapper position-relative my-5">
+                <button id="btn-nav-left" class="floating-nav-btn left" title="Exercice précédent">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+
+                <div id="exercice-container" class="exercise-box px-2"></div>
+
+                <button id="btn-nav-right" class="floating-nav-btn right" title="Exercice suivant">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+
+
             <div id="etat-exercices2"></div>
+        </div>
 
-    </div>
-
+        <div id="etat-exercices2"></div>
 {% endblock %}
 
 {% block scripts %}

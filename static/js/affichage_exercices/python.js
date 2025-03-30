@@ -3,7 +3,8 @@ export function ajouterTesteurPython(container, codeParDefaut = "") {
     bloc.className = "testeur-python mt-3 p-2 border rounded bg-light";
 
     const titre = document.createElement("h5");
-    titre.textContent = "Console python pour tester vos codes localement (non enregistré)";
+    titre.textContent = "Console python (utilisation de print obligatoires pour afficher)";
+    titre.style.textAlign="center";
     bloc.appendChild(titre);
 
     const editorElement = document.createElement("textarea");
@@ -60,16 +61,20 @@ export function ajouterTesteurPython(container, codeParDefaut = "") {
         }
     });
 
-    editor.setValue(codeParDefaut);
+    // Supprime les caractères invisibles comme \u200B
+    const codeNettoye = codeParDefaut.replace(/\u200B/g, '');
+    editor.setValue(codeNettoye);
 
-    // Forcer un rafraîchissement après le rendu initial
     setTimeout(() => {
         editor.refresh();
     }, 100);
 
     const bouton = document.createElement("button");
-    bouton.textContent = "Exécuter";
+    bouton.textContent = "Exécutez votre code Python";
     bouton.className = "btn btn-secondary mb-2";
+    bouton.style.display = "block";
+    bouton.style.margin = "0 auto";
+    bouton.style.marginTop = "10px";
     bloc.appendChild(bouton);
 
     const resultat = document.createElement("pre");
@@ -79,9 +84,11 @@ export function ajouterTesteurPython(container, codeParDefaut = "") {
     bloc.appendChild(resultat);
 
     bouton.addEventListener("click", () => {
-        // Le reste du code reste inchangé...
-        const code = editor.getValue();
+        // Nettoyage de la sortie précédente
         resultat.textContent = "";
+
+        // Récupère et nettoie le code exécuté
+        const code = editor.getValue().replace(/\u200B/g, '');
 
         const outf = (text) => {
             resultat.textContent += text + "\n";

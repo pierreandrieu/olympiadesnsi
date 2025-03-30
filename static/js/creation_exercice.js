@@ -48,6 +48,18 @@ document.addEventListener('DOMContentLoaded', function () {
         retourEnDirect.disabled = true;
     }
 
+    document.querySelector('form').addEventListener('submit', function (event) {
+        // Si le champ séparateur jeux de test est vide, on met la valeur par défaut '\n'
+        if (separateurJeuxDeTestInput.value.trim() === '') {
+            separateurJeuxDeTestInput.value = '\\n';
+        }
+
+        // Pareil pour le champ séparateur résultats
+        if (separateurResultatsInput.value.trim() === '') {
+            separateurResultatsInput.value = '\\n';
+        }
+    });
+
     updateCounts(); // Initialiser les compteurs au chargement de la page
 
     // Initialisation des tooltips Bootstrap 5

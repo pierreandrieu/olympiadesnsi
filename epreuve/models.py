@@ -1,10 +1,11 @@
-from typing import List
-from django.db import models
+import random
+from typing import List, Iterable
+from django.db import models, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django.contrib.auth.models import User, Group
-from django.db.models import CheckConstraint, Q, F, QuerySet
-from inscription.models import GroupeParticipant
+from django.db.models import CheckConstraint, Q, F, QuerySet, Subquery
+from inscription.models import GroupeParticipant, GroupeParticipeAEpreuve
 from olympiadesnsi.constants import MAX_TAILLE_NOM
 from olympiadesnsi.utils import encode_id
 
@@ -40,6 +41,18 @@ class Epreuve(models.Model):
         """
         return encode_id(self.id)
 
+    @property
+    def inscrits(self) -> QuerySet[User]:
+        """
+        Retourne les utilisateurs qui sont membres des groupes inscrits à cette épreuve.
+
+        Returns:
+            QuerySet[User]: Tous les participants effectivement inscrits via des groupes.
+        """
+        groupes_ids = self.groupes_participants.values_list('id', flat=True)
+        participants = User.objects.filter(appartenances__groupe_id__in=Subquery(groupes_ids)).distinct()
+        return participants
+
     def get_exercices(self) -> QuerySet['Exercice']:
         """
         Renvoie tous les exercices associés à cette épreuve.
@@ -48,6 +61,76 @@ class Epreuve(models.Model):
             QuerySet[Exercice]: Un QuerySet contenant les exercices associés à l'épreuve.
         """
         return self.exercices.all()
+
+    # Dans la classe Epreuve :
+    def assigner_jeux_tests_exercices(self) -> None:
+        """
+        Attribue un jeu de test à chaque UserExercice pour tous les exercices de l’épreuve.
+
+        Ne fait l’attribution que pour les exercices configurés avec un jeu de test.
+        """
+        for exercice in self.get_exercices():
+            exercice.assigner_jeux_de_test()
+
+    def inscrire_participants(self, participants: Iterable[User]) -> None:
+        """
+        Inscrit une liste de participants à l'épreuve et à tous les exercices associés.
+        Si un exercice utilise des jeux de test, ceux-ci sont attribués de manière cyclique.
+
+        Args:
+            participants (Iterable[User]): Liste des utilisateurs à inscrire à l’épreuve.
+        """
+
+        exercices: List[Exercice] = list(self.get_exercices())
+        user_epreuves_to_create: List[UserEpreuve] = []
+        user_exercices_to_create: List[UserExercice] = []
+
+        with transaction.atomic():
+            # Étape 1 : création des UserEpreuve et UserExercice
+            for user in participants:
+                user_epreuves_to_create.append(UserEpreuve(participant=user, epreuve=self))
+                for exercice in exercices:
+                    user_exercices_to_create.append(UserExercice(participant=user, exercice=exercice))
+
+            # Insertion en masse
+            UserEpreuve.objects.bulk_create(user_epreuves_to_create, ignore_conflicts=True)
+            UserExercice.objects.bulk_create(user_exercices_to_create, ignore_conflicts=True)
+
+            # Étape 2 : attribution des jeux de test pour les exercices qui en ont
+            for exercice in exercices:
+                if not exercice.avec_jeu_de_test:
+                    continue
+
+                jeux: List[JeuDeTest] = list(exercice.get_jeux_de_test())
+                if not jeux:
+                    continue
+
+                user_exercices = UserExercice.objects.filter(exercice=exercice, participant__in=participants)
+                user_exercices_to_update: List[UserExercice] = []
+
+                i = 0
+                for ue in user_exercices:
+                    if ue.jeu_de_test:
+                        continue  # ne pas écraser un jeu déjà assigné
+                    ue.jeu_de_test = jeux[i % len(jeux)]
+                    i += 1
+                    user_exercices_to_update.append(ue)
+
+                UserExercice.objects.bulk_update(user_exercices_to_update, ['jeu_de_test'])
+
+    def inscrire_groupe(self, groupe: GroupeParticipant) -> None:
+        """
+        Inscrit tous les membres d’un groupe à cette épreuve et à ses exercices associés.
+
+        Cette méthode crée automatiquement les entrées `UserEpreuve` et `UserExercice`,
+        ainsi que les jeux de test si nécessaire, pour chaque participant du groupe.
+
+        Args:
+            groupe (GroupeParticipant): Le groupe à inscrire.
+        """
+        GroupeParticipeAEpreuve.objects.get_or_create(epreuve=self, groupe=groupe)
+
+        self.inscrire_participants(groupe.participants())
 
     def est_close(self) -> bool:
         """
@@ -156,6 +239,12 @@ class Exercice(models.Model):
         ('qcs', 'QCS')
     ]
 
+    CODE_A_SOUMETTRE_CHOIX = [
+        ("aucun", "Aucun code à soumettre"),
+        ("python", "Code Python à soumettre"),
+        ("autre", "Code dans un autre langage"),
+    ]
+
     epreuve = models.ForeignKey(Epreuve, on_delete=models.CASCADE, related_name='exercices')
     auteur = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     titre = models.CharField(max_length=MAX_TAILLE_NOM)
@@ -167,7 +256,12 @@ class Exercice(models.Model):
     separateur_jeu_test = models.CharField(null=True, blank=True)
     separateur_reponse_jeudetest = models.CharField(null=True, blank=True)
     retour_en_direct = models.BooleanField(default=False)
-    code_a_soumettre = models.BooleanField(default=False)
+    code_a_soumettre = models.CharField(
+        max_length=10,
+        choices=CODE_A_SOUMETTRE_CHOIX,
+        default="python",
+        null=True,
+    )
     nombre_max_soumissions = models.IntegerField(default=50)
     numero = models.IntegerField(null=True, blank=True)
 
@@ -194,6 +288,43 @@ class Exercice(models.Model):
         if self.separateur_reponse_jeudetest is not None:
             return self.separateur_reponse_jeudetest
         return '\n'
+
+    def inscrire_utilisateurs_de_epreuve(self):
+        """
+        Pour tous les UserEpreuve associés à l’épreuve de cet exercice,
+        crée un UserExercice si besoin pour ce participant et cet exercice.
+        """
+        user_epreuves = UserEpreuve.objects.filter(epreuve=self.epreuve)
+
+        for ue in user_epreuves:
+            UserExercice.objects.get_or_create(
+                exercice=self,
+                participant=ue.participant
+            )
+
+    def assigner_jeux_de_test(self) -> None:
+        """
+        Attribue un jeu de test à chaque UserExercice associé à cet exercice.
+
+        Les jeux de test sont attribués de manière cyclique et aléatoire.
+        Si un UserExercice a déjà un jeu de test attribué, il est ignoré.
+        """
+        if not self.avec_jeu_de_test:
+            return
+        jeux_disponibles: list[JeuDeTest] = list(self.get_jeux_de_test())
+        if not jeux_disponibles:
+            return
+
+        random.shuffle(jeux_disponibles)
+        nb_jeux: int = len(jeux_disponibles)
+
+        user_exercices: QuerySet[UserExercice] = self.user_exercices.all()
+
+        for i, ue in enumerate(user_exercices):
+            if ue.jeu_de_test:
+                continue
+            ue.jeu_de_test = jeux_disponibles[i % nb_jeux]
+            ue.save()
 
     def pick_jeu_de_test(self)->'JeuDeTest':
         """
