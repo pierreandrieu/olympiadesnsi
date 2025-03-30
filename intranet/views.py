@@ -3,7 +3,7 @@ from typing import List, Tuple, Optional, Set, cast
 
 from django.core.mail import EmailMessage
 from django.db import transaction
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, HttpRequest
 from django.shortcuts import render
@@ -23,9 +23,7 @@ from epreuve.forms import EpreuveForm
 from login.utils import genere_participants_uniques
 from olympiadesnsi import decorators, settings
 import olympiadesnsi.constants as constantes
-from olympiadesnsi.decorators import resolve_hashid_param
 from .classesdict import EpreuveDict, ExerciceDict, JeuDeTestDict
-import csv
 from django.conf import settings
 import io
 import json
@@ -366,7 +364,7 @@ def importer_epreuve_json(request: HttpRequest) -> HttpResponse:
                 separateur_jeu_test=exo_data.get('separateur_jeu_test'),
                 separateur_reponse_jeudetest=exo_data.get('separateur_reponse_jeudetest'),
                 retour_en_direct=exo_data.get('retour_en_direct', False),
-                code_a_soumettre=exo_data.get('code_a_soumettre', False),
+                code_a_soumettre=exo_data.get('code_a_soumettre', "python"),
                 nombre_max_soumissions=exo_data.get('nombre_max_soumissions', 50)
             )
 
@@ -398,7 +396,7 @@ def espace_organisateur(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: La réponse HTTP rendue avec le template de l'espace organisateur.
     """
-    user: User = request.user
+    user: User = cast(User, request.user)
 
     # Récupération des groupes créés par l'utilisateur avec le nombre de membres associés à chaque groupe.
     groupes_crees: QuerySet[GroupeParticipant] = GroupeParticipant.objects.filter(referent=user) \
@@ -415,23 +413,21 @@ def espace_organisateur(request: HttpRequest) -> HttpResponse:
     )
 
     # Compilation des informations à afficher pour chaque épreuve organisée.
-    epreuves_info: List[Tuple[Epreuve, int, QuerySet, int, int, int, List[User]]] = []
+    epreuves_info: List[Tuple[Epreuve, int, list, int, int, int, List[User]]] = []
     for epreuve in epreuves_organisees:
-        nombre_groupes: int = epreuve.groupes_participants.count()
-
-        groupes_participants_ids = epreuve.groupes_participants.values_list('id', flat=True)
-
-        # Utilisez ParticipantEstDansGroupe pour trouver tous les utilisateurs (participants)
-        # qui sont dans ces groupes.
-        participants_uniques_count = ParticipantEstDansGroupe.objects.filter(
-            groupe_id__in=groupes_participants_ids
-        ).distinct('utilisateur').count()
-
+        groupes_inscrits = list(epreuve.groupes_participants.all())
         nombre_exercices: int = epreuve.exercices.count()
         membres_comite: List[User] = list(User.objects.filter(membrecomite__epreuve=epreuve))
         nombre_organisateurs: int = len(membres_comite)
-        epreuves_info.append((epreuve, nombre_organisateurs, epreuve.groupes_participants.all(), nombre_groupes,
-                              participants_uniques_count, nombre_exercices, membres_comite))
+        epreuves_info.append((
+            epreuve,
+            nombre_organisateurs,
+            groupes_inscrits,
+            len(groupes_inscrits),
+            epreuve.compte_participants_inscrits(),
+            nombre_exercices,
+            membres_comite
+        ))
 
     epreuve_form: EpreuveForm = EpreuveForm()
 

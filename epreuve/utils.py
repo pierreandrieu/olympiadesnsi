@@ -1,5 +1,6 @@
 import random
 import logging
+import unicodedata
 from datetime import timedelta
 from typing import Iterable, Optional
 
@@ -48,26 +49,6 @@ def assigner_participants_jeux_de_test(participants: Iterable[User], exercice: E
         user_exercice.save()
 
 
-def redistribuer_jeux_de_test_exercice(exercice: Exercice):
-    # Récupérer tous les ID des Jeux de Test pour cet exercice
-    jeux_de_test_ids = JeuDeTest.objects.filter(exercice=exercice).values_list('id', flat=True)
-    jeux_de_test_list = list(jeux_de_test_ids)
-    random.shuffle(jeux_de_test_list)
-    # Trouver les participants sans jeu de test attribué
-    participants = UserExercice.objects.filter(exercice=exercice)
-    cpt = 0
-    for user_exercice in participants:
-        if cpt == len(jeux_de_test_list):
-            cpt = 0
-            random.shuffle(jeux_de_test_list)
-
-        jeu_de_test_id = jeux_de_test_list[cpt]
-        cpt += 1
-
-        user_exercice.jeu_de_test_id = jeu_de_test_id
-        user_exercice.save()
-
-
 def temps_restant_seconde(user_epreuve: UserEpreuve, epreuve: Epreuve) -> Optional[int]:
     """
     Calcule le temps restant en secondes pour un utilisateur participant à une épreuve,
@@ -104,3 +85,20 @@ def vider_jeux_test_exercice(exercice: Exercice):
     exercice.separateur_reponse_jeudetest = "\n"
     exercice.separateur_jeu_test = "\n"
     exercice.save()
+
+
+def normalize(text: str) -> str:
+    return unicodedata.normalize("NFC", text.replace('\r\n', '\n').replace('\r', '\n').strip())
+
+
+def analyse_reponse_jeu_de_test(rep1: str, rep2: str) -> bool:
+    lignes1 = normalize(str(rep1)).split('\n')
+    lignes2 = normalize(str(rep2)).split('\n')
+
+    if len(lignes1) != len(lignes2):
+        return False
+
+    for i, (l1, l2) in enumerate(zip(lignes1, lignes2)):
+        if normalize(l1) != normalize(l2):
+            return False
+    return True

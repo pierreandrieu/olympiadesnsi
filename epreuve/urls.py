@@ -28,10 +28,6 @@ urlpatterns = [
     path("<str:hash_epreuve_id>/exercice/<str:hash_exercice_id>/supprimer/", views.supprimer_exercice, name="supprimer_exercice"),
     path("<str:hash_epreuve_id>/exercice/<str:hash_exercice_id>/assigner-jeux-de-test/", views.assigner_jeux_de_test, name="assigner_jeux_de_test"),
     path("<str:hash_epreuve_id>/exercice/<str:hash_exercice_id>/supprimer-jeux-de-test/", views.supprimer_jeux_de_test, name="supprimer_jeux_de_test"),
-    path("<str:hash_epreuve_id>/exercice/<str:hash_exercice_id>/redistribuer-jeux-de-test/", views.redistribuer_jeux_de_test,
-         name="redistribuer_jeux_de_test"),
-
-    # Correction
     path("<str:hash_epreuve_id>/correction/", views.rendus_participants, name="rendus_participants"),
 
     # Export spécifique

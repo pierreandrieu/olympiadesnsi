@@ -163,6 +163,7 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
                 )
             groupe_participant.inscription_externe = inscription_externe
             groupe_participant.save()
+
             # Génère et enregistre les informations des participants.
             users_info: List[str] = genere_participants_uniques(referent, nombre_participants)
             save_users(groupe_participant.id, users_info, inscription_externe.id)
@@ -170,6 +171,8 @@ def inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
             # Marque le token comme utilisé et sauvegarde l'inscription.
             inscription_externe.token_est_utilise = True
             inscription_externe.save()
+
+            inscription_externe.epreuve.inscrire_groupe(groupe_participant)
             # Redirige vers une page de confirmation.
             return render(request, 'inscription/confirmation_inscription_externe.html')
 
