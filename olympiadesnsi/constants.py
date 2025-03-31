@@ -17,3 +17,8 @@ MAX_TAILLE_NOM = 100
 # Sel utilisé pour les hashids
 HASHID_SALT = "prevertcassin"
 HASHID_MIN_LENGTH = 8
+
+# taille max du code à récupérer pour les élèves
+MAX_REPONSE_LENGTH = 1000
+# taille max de la réponse à l'instance de test que l'on récupère
+MAX_CODE_LENGTH = 5000

@@ -22,8 +22,9 @@ from epreuve.utils import temps_restant_seconde, vider_jeux_test_exercice, \
 from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant
 import olympiadesnsi.decorators as decorators
 import json
-from typing import List, Optional, Dict, Set, Tuple, cast, Any
+from typing import List, Optional, Dict, Set, Tuple, cast, Any, Union
 
+from olympiadesnsi.constants import MAX_CODE_LENGTH, MAX_REPONSE_LENGTH
 from olympiadesnsi.utils import encode_id
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ logger = logging.getLogger(__name__)
 @decorators.participant_inscrit_a_epreuve_required
 @ratelimit(key='user', rate='10/m', block=True)
 @ratelimit(key='user', rate='2/s', block=True)
-def soumettre(request: HttpRequest, epreuve_id=None) -> JsonResponse | HttpResponseRedirect:
+def soumettre(request: HttpRequest, epreuve_id=None) -> Union[JsonResponse, HttpResponseRedirect, HttpResponse]:
     """
     Gère la soumission d'une réponse à un exercice par un participant.
 
@@ -56,12 +57,16 @@ def soumettre(request: HttpRequest, epreuve_id=None) -> JsonResponse | HttpRespo
         return JsonResponse({'success': False, 'error': 'Non autorisé'}, status=405)
 
     try:
+
         # Extraction et validation des données de la requête
         data: Dict[str, Any] = json.loads(request.body)
         exercice_id: int = data.get('exercice_id')
         code_soumis: str = data.get('code_soumis', "")
         solution_instance: str = data.get('solution_instance', "")
 
+        if len(code_soumis) > MAX_CODE_LENGTH or len(solution_instance) > MAX_REPONSE_LENGTH:
+            context = {'message': "La taille des données envoyées est trop importante."}
+            return render(request, 'olympiadesnsi/erreur.html', context, status=413)
         # Récupération de l'exercice
         try:
             exercice: Exercice = Exercice.objects.get(id=exercice_id)
