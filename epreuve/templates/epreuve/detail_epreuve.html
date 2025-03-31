@@ -62,6 +62,13 @@
             </div>
         {% endif %}
 
+        {% if "olympiades" in epreuve.nom|lower %}
+            <div class="alert alert-warning mt-3" role="alert">
+                ⚠️ <strong>Attention :</strong> pour les Olympiades de NSI, l'utilisation d'une intelligence
+                artificielle pendant l'épreuve est strictement interdite.
+            </div>
+        {% endif %}
+
         {% if epreuve.doit_demander_identifiants %}
             <p>Merci de renseigner votre situation concernant l'épreuve théorique :</p>
 

@@ -181,7 +181,7 @@ export function creerElementsExercice(exercice, container, lectureSeule = false)
         const btn = document.createElement('button');
         btn.id = `btn-submit-participant-${exercice.id}`;
         btn.className = 'btn nav-btn';
-        btn.textContent = `Tester et sauvegarder mes réponses (${exercice.nb_soumissions_restantes} restants)`;
+        btn.textContent = `Sauvegarder et tester mes réponses (${exercice.nb_soumissions_restantes} restants)`;
 
         if (lectureSeule) {
             btn.disabled = true;
@@ -236,17 +236,22 @@ function soumettreReponse(exercice) {
         }
     })
         .then(async response => {
-            if (response.status === 429) {
-                alert("Trop de soumissions. Veuillez patienter un peu.");
+            if (response.status === 413) {
+                alert("⚠️ Votre code ou votre réponse est trop long. Merci de raccourcir avant de soumettre.");
                 return;
             }
+            if (response.status === 429) {
+                alert("Trop de soumissions. Veuillez patienter un peu et réessayez.");
+                return;
+            }
+
             const rawText = await response.text();
             try {
                 const data = JSON.parse(rawText);
                 exercice.nb_soumissions_restantes = data.nb_soumissions_restantes;
                 const btn = document.getElementById(`btn-submit-participant-${exerciseId}`);
                 if (btn) {
-                    btn.textContent = `Tester et sauvegarder mes réponses (${data.nb_soumissions_restantes} restants)`;
+                    btn.textContent = `Sauvegarder et tester mes réponses (${data.nb_soumissions_restantes} restants)`;
                 }
                 exercice.code_enregistre = data.code_enregistre;
                 exercice.reponse_jeu_de_test_enregistree = data.reponse_jeu_de_test_enregistree;

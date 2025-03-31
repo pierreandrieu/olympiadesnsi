@@ -4,17 +4,26 @@ export function ajouterTesteurPython(container, codeParDefaut = "") {
 
     const titre = document.createElement("h5");
     titre.textContent = "Console python (utilisation de print obligatoires pour afficher)";
-    titre.style.textAlign="center";
+    titre.style.textAlign = "center";
     bloc.appendChild(titre);
+
+    const sousTitre = document.createElement("div");
+    sousTitre.className = "alert alert-info my-3 py-2 px-3";
+    sousTitre.style.fontSize = "0.95em";
+    sousTitre.innerHTML =
+        "💡 <strong>Important :</strong> lorsque vous enregistrez et testez votre solution, <strong>le code et la sortie affichée sous la console sont enregistrés</strong>.<br>" +
+        "La sortie affichée est comparée à la solution attendue.<br>" +
+        "Pour que votre réponse enregistrée soit considérée comme juste, <strong>seule la bonne réponse doit apparaître en sortie de la console.</strong><br>" +
+        "Vous pouvez faire autant de <code>print()</code> que vous voulez pour tester, mais assurez-vous de n’afficher que la réponse attendue au moment de soumettre.";
+    bloc.appendChild(sousTitre);
 
     const editorElement = document.createElement("textarea");
     bloc.appendChild(editorElement);
 
-    // Ajout d'un style personnalisé pour corriger l'overlap
     const style = document.createElement('style');
     style.textContent = `
         .testeur-python .CodeMirror-gutters {
-            width: 45px !important; 
+            width: 45px !important;
         }
         .testeur-python .CodeMirror-linenumber {
             padding: 0 5px 0 0 !important;
@@ -49,19 +58,53 @@ export function ajouterTesteurPython(container, codeParDefaut = "") {
                 }
             },
             "Shift-Tab": (cm) => {
-                if (cm.somethingSelected()) {
-                    cm.indentSelection("subtract");
-                } else {
-                    const cursor = cm.getCursor();
-                    const line = cm.getLine(cursor.line);
-                    const newLine = line.replace(/^ {1,4}/, "");
-                    cm.replaceRange(newLine, {line: cursor.line, ch: 0}, {line: cursor.line, ch: line.length});
-                }
+                cm.operation(() => {
+                    const ranges = cm.listSelections();
+
+                    for (const range of ranges) {
+                        const from = range.from();
+                        const to = range.to();
+
+                        // Si aucune sélection
+                        if (from.line === to.line && from.ch === to.ch) {
+                            const line = cm.getLine(from.line);
+                            const start = Math.max(0, from.ch - 4);
+                            const beforeCursor = line.substring(start, from.ch);
+
+                            // On retire jusqu'à 4 espaces ou une tab juste avant le curseur
+                            const match = beforeCursor.match(/( {1,4}|\t)$/);
+                            if (match) {
+                                const len = match[0].length;
+                                cm.replaceRange(
+                                    "",
+                                    {line: from.line, ch: from.ch - len},
+                                    from
+                                );
+                            }
+                        } else {
+                            // Sélection sur plusieurs lignes : on désindente chaque ligne
+                            const fromLine = from.line;
+                            const toLine = to.line;
+
+                            for (let i = fromLine; i <= toLine; i++) {
+                                const line = cm.getLine(i);
+                                const match = line.match(/^( {1,4}|\t)/);
+                                if (match) {
+                                    const len = match[0].length;
+                                    cm.replaceRange(
+                                        "",
+                                        {line: i, ch: 0},
+                                        {line: i, ch: len}
+                                    );
+                                }
+                            }
+                        }
+                    }
+                });
             }
         }
     });
 
-    // Supprime les caractères invisibles comme \u200B
     const codeNettoye = codeParDefaut.replace(/\u200B/g, '');
     editor.setValue(codeNettoye);
 
@@ -84,10 +127,7 @@ export function ajouterTesteurPython(container, codeParDefaut = "") {
     bloc.appendChild(resultat);
 
     bouton.addEventListener("click", () => {
-        // Nettoyage de la sortie précédente
         resultat.textContent = "";
-
-        // Récupère et nettoie le code exécuté
         const code = editor.getValue().replace(/\u200B/g, '');
 
         const outf = (text) => {
@@ -101,10 +141,7 @@ export function ajouterTesteurPython(container, codeParDefaut = "") {
             return Sk.builtinFiles["files"][x];
         };
 
-        Sk.configure({
-            output: outf,
-            read: builtinRead
-        });
+        Sk.configure({output: outf, read: builtinRead});
 
         Sk.misceval.asyncToPromise(() =>
             Sk.importMainWithBody("<stdin>", false, code, true)
