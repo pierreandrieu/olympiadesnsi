@@ -184,5 +184,12 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = ["bootstrap5"]
 
 CRISPY_TEMPLATE_PACK = 'bootstrap5'
 
-# version pour rechargement des pages du dossier STATIC si changement
-STATIC_VERSION = "001"
+
+def get_static_version():
+    try:
+        return (Path(__file__).resolve().parent / ".staticversion").read_text().strip()
+    except Exception:
+        return "dev"
+
+
+STATIC_VERSION = get_static_version()
