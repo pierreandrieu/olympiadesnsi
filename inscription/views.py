@@ -72,7 +72,8 @@ def inscription_demande(request: HttpRequest) -> HttpResponse:
                 f"Bonjour,\n\n"
                 f"Veuillez utiliser le lien suivant pour inscrire des participants à l'épreuve "
                 f"{epreuve.nom} :\n\n{lien_inscription}\n\n"
-                f"Il vous sera demandé de renseigner le nombre d'équipes à inscrire à l'épreuve pratique.\n\n"
+                f"Il vous sera demandé de renseigner le nombre d'équipes à inscrire à l'épreuve pratique.\n"
+                f"Le lien est valide pendant 24h.\n\n"
                 f"Bien cordialement,\n"
                 f"L’équipe des Olympiades de NSI"
             )

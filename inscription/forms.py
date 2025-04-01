@@ -15,9 +15,9 @@ class DemandeLienInscriptionForm(forms.Form):
         empty_label="Sélectionnez une épreuve",
     )
     identifiant = forms.CharField(
-        label='Email',
+        label='Nom d\'utilisateur de l\'email',
         max_length=constantes.MAX_USERNAME_TAILLE,
-        help_text='Entrez votre email'
+        help_text='Entrez le nom d\'utilisateur de votre email académique'
     )
     consentement = forms.BooleanField(
         required=True,
