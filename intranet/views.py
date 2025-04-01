@@ -226,8 +226,16 @@ def telecharger_csv(request: HttpRequest) -> HttpResponse:
 @login_required
 @decorators.organisateur_required
 def afficher_page_telechargement(request: HttpRequest) -> HttpResponse:
-    return render(request, 'intranet/telecharge_csv_users.html')
+    nom_groupe = request.session.get('nom_groupe')
 
+    if not nom_groupe:
+        return redirect('espace_organisateur')
+
+    groupe = get_object_or_404(GroupeParticipant, nom=nom_groupe, referent=request.user)
+
+    return render(request, 'intranet/telecharge_csv_users.html', {
+        'groupe': groupe
+    })
 
 @login_required
 @decorators.organisateur_required
