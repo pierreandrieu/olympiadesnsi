@@ -1,4 +1,5 @@
 {% extends 'olympiadesnsi/base_organisateur.html' %}
+{% load static %}
 
 {% block content %}
     <div class="container mt-4">
@@ -112,111 +113,11 @@
 {% endblock %}
 {% block scripts %}
 
-<script>
-    $(document).ready(function () {
-        // Charger les données initiales et les afficher dans la console pour vérification
-        const originalData = {{ data_for_js|safe }};
-
-        // Fonction pour initialiser DataTables
-        function initDataTable() {
-            return $('.data-table').DataTable({
-                scrollX: true,
-                data: transformDataForDataTable(originalData),
-                columns: [
-                    {data: 'username', width: '150px'},
-                    {data: 'exerciceId', width: '100px'},
-                    {data: 'exerciceTitre', width: '150px'},
-                    {data: 'solution', width: '100px'},
-                    {data: 'expected', width: '100px'}
-                    //{data: 'code', width: '100px'},
-                    //{data: 'test', width: '100px'}
-                ],
-                columnDefs: [
-                    {targets: "_all", className: "dt-head-center"} // Centre les entêtes
-                ],
-                language: {
-                    "lengthMenu": "Afficher _MENU_ éléments par page",
-                    "zeroRecords": "Aucun élément trouvé",
-                    "info": "Affichage de la page _PAGE_ sur _PAGES_",
-                    "infoEmpty": "Aucun enregistrement disponible",
-                    "infoFiltered": "(filtré de _MAX_ enregistrements au total)",
-                    "search": "Recherche:",
-                    "paginate": {
-                        "first": "Premier",
-                        "last": "Dernier",
-                        "next": "Suivant",
-                        "previous": "Précédent"
-                    }
-                }
-            });
-        }
-
-        // Transforme les données pour correspondre à la structure attendue par DataTables
-        function transformDataForDataTable(data) {
-            return data.map(item => ({
-                username: `<div class="scrollable-cell" style="width:100px;">${item.username}</div>`,
-                exerciceId: `<div class="scrollable-cell" style="width:100px;">${item.exerciceId}</div>`,
-                exerciceTitre: `<div class="scrollable-cell" style="width:100px;">${item.exerciceTitre}</div>`,
-                solution: `<div class="scrollable-cell" style="width:200px;">${item.solution}</div>`,
-                expected: `<div class="scrollable-cell" style="width:200px;">${item.expected}</div>`,
-              //  code: `<div class="scrollable-cell" style="width:100px;">${item.code}</div>`,
-              //  test: `<div class="scrollable-cell" style="width:100px;">${item.test}</div>`
-            }));
-        }
-
-        // Stocker l'instance de DataTable
-        let table = initDataTable();
-
-        // Fonction pour filtrer les données
-        function filterData() {
-            // Récupère les valeurs des sélecteurs
-            const exerciceId = $('#exercice-select').val();
-            const participantId = $('#participant-select').val();
-
-            // Filtre les données en fonction des valeurs sélectionnées
-            const filteredData = originalData.filter(item => {
-                const matchesExercice = exerciceId === "all" || item.exerciceId.toString() === exerciceId;
-                const matchesParticipant = participantId === "all" || item.participantId.toString() === participantId;
-                return matchesExercice && matchesParticipant;
-            });
-
-            // Mise à jour des données dans DataTables
-            table.clear(); // Effacez les données actuelles
-            table.rows.add(transformDataForDataTable(filteredData)); // Ajoutez les nouvelles données filtrées
-            table.draw(); // Redessinez le tableau
-        }
-
-
-        // Attache l'événement change aux sélecteurs pour déclencher le filtrage
-        $('#exercice-select, #participant-select').change(filterData);
-        filterData();
-    });
-</script>
-
     <script>
-        $(document).ready(function () {
-            // Initialise DataTable sur le tableau de participants
-            $('table.participants-table').DataTable({
-                "language": {
-                    "lengthMenu": "Afficher _MENU_ éléments par page",
-                    "zeroRecords": "Aucun élément trouvé",
-                    "info": "Affichage de la page _PAGE_ sur _PAGES_",
-                    "infoEmpty": "Aucun enregistrement disponible",
-                    "infoFiltered": "(filtré de _MAX_ enregistrements au total)",
-                    "search": "Recherche:",
-                    "paginate": {
-                        "first": "Premier",
-                        "last": "Dernier",
-                        "next": "Suivant",
-                        "previous": "Précédent"
-                    },
-                    "aria": {
-                        "sortAscending": ": activer pour trier la colonne par ordre croissant",
-                        "sortDescending": ": activer pour trier la colonne par ordre décroissant"
-                    }
-                }
-            });
-        });
+        // Injection de données JS depuis Django
+        const originalData = {{ data_for_js|safe }};
     </script>
+    <script src="{% static 'js/data_tables_custom.js' %}?v={{ STATIC_VERSION }}"></script>
+
 
 {% endblock %}

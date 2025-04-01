@@ -1,4 +1,5 @@
 {% extends 'olympiadesnsi/base_extranet.html' %}
+{% load static %}
 {% load crispy_forms_filters %}
 {% load crispy_forms_tags %}
 
@@ -50,67 +51,6 @@
 {% endblock %}
 {% block scripts %}
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script>
-        $(document).ready(function () {
-            // Sélecteurs
-            let $epreuveSelect = $('#id_epreuve');
-            let $domaineSelect = $('#id_domaine_academique');
-            let $errorMessage = $('#error-message');
+    <script src="{% static 'js/demande_inscription.js' %}?v={{ STATIC_VERSION }}"></script>
 
-            // Cache le message d'erreur au départ
-            $errorMessage.hide();
-
-            function updateDomaines() {
-                let selectedOption = $epreuveSelect.find('option:selected');
-                let epreuveId = selectedOption.val();  // valeur brute, ID (pour POST)
-                let hashid = selectedOption.data('hashid');  // utilisé pour AJAX
-
-                if (hashid) {
-                    $('#id_epreuve_id').val(epreuveId);  // pour que le POST récupère l'ID
-                    $.ajax({
-                        url: `/inscription/get_domaines/${hashid}/`,
-                        type: "GET",
-                        dataType: "json",
-                        success: function (data) {
-                            $domaineSelect.empty().append($('<option>', {
-                                value: '',
-                                text: 'Sélectionnez un domaine'
-                            }));
-                            $.each(data, function (i, domaine) {
-                                $domaineSelect.append($('<option>', {
-                                    value: domaine,
-                                    text: domaine.substring(1)  // ⚠️ enlevant le premier caractère ?
-                                }));
-                            });
-                        },
-                        error: function (xhr) {
-                            console.error("Erreur AJAX :", xhr);
-                            $domaineSelect.empty().append($('<option>', {
-                                value: '',
-                                text: 'Erreur lors du chargement'
-                            }));
-                        }
-                    });
-                } else {
-                    $domaineSelect.empty().append($('<option>', {
-                        value: '',
-                        text: 'Sélectionnez un domaine'
-                    }));
-                }
-            }
-
-            // Met à jour les domaines à chaque changement de l'épreuve
-            $epreuveSelect.change(function () {
-                updateDomaines();
-            });
-
-            // Cache le message d'erreur quand le domaine change
-            $domaineSelect.change(function () {
-                $errorMessage.hide();
-            });
-
-            // Mise à jour initiale au chargement
-            updateDomaines();
-        });
-    </script>
 {% endblock %}

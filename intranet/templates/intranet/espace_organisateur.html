@@ -358,6 +358,6 @@
 {% endblock %}
 
 {% block scripts %}
-    <script src="{% static 'js/modals_espace_participant.js' %}"></script>
-    <script src="{% static 'js/espace_orga.js' %}"> </script>
+    <script src="{% static 'js/modals_espace_participant.js' %}?v={{ STATIC_VERSION }}"></script>
+    <script src="{% static 'js/espace_orga.js' %}?v={{ STATIC_VERSION }}"> </script>
 {% endblock %}

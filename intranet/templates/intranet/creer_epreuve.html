@@ -72,7 +72,7 @@
 
 
 {% block scripts %}
-    <script src="{% static 'js/inscriptions_externes.js' %}"></script>
-    <script src="{% static 'js/ordre_exercices.js' %}"></script>
+    <script src="{% static 'js/inscriptions_externes.js' %}?v={{ STATIC_VERSION }}"></script>
+    <script src="{% static 'js/ordre_exercices.js' %}?v={{ STATIC_VERSION }}"></script>
 
 {% endblock %}

@@ -6,9 +6,9 @@
     {{ url|escapejs }}
 </script>
 
-    <script src="{% static 'js/skulpt/skulpt.es5.min.js' %}"></script>
-    <script src="{% static 'js/skulpt/skulpt-stdlib.js' %}"></script>
-    <script src="{% static 'js/charger_mathjax.js' %}"></script>
+    <script src="{% static 'js/skulpt/skulpt.es5.min.js' %}?v={{ STATIC_VERSION }}"></script>
+    <script src="{% static 'js/skulpt/skulpt-stdlib.js' %}?v={{ STATIC_VERSION }}"></script>
+    <script src="{% static 'js/charger_mathjax.js' %}?v={{ STATIC_VERSION }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js"
             crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>
@@ -55,8 +55,9 @@
     <script type="application/json" id="exercises-data">
     {{ exercices_json|safe }}
     </script>
-    <script src="{% static 'js/affichage_exercices/chronometre.js' %}"></script>
-    <script type="module" src="{% static 'js/affichage_exercices/python.js' %}"></script>    <script type="module" src="{% static 'js/affichage_exercices/main.js' %}"></script>
+    <script src="{% static 'js/affichage_exercices/chronometre.js' %}?v={{ STATIC_VERSION }}"></script>
+    <script type="module" src="{% static 'js/affichage_exercices/python.js' %}?v={{ STATIC_VERSION }}"></script>
+    <script type="module" src="{% static 'js/affichage_exercices/main.js' %}"></script>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
