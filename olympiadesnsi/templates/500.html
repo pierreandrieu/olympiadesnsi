@@ -1,0 +1,23 @@
+{% extends 'olympiadesnsi/base_extranet.html' %}
+{% load static %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h1 class="mb-4">😕 Une erreur interne est survenue</h1>
+        <p>Nous sommes désolés pour la gêne occasionnée.</p>
+
+        <p>Pour nous aider à résoudre ce problème, vous pouvez :</p>
+
+        <ul>
+            <li>Envoyer un message à l’adresse : <strong>pierre.andrieu[at]ac-versailles[dot]fr</strong>,</li>
+            <li>en précisant ce que vous étiez en train de faire lorsque l’erreur est survenue.</li>
+        </ul>
+
+        <p>Un grand merci pour votre aide.</p>
+
+        <p class="mt-4">
+            <a href="{% url 'home' %}" class="btn btn-primary">Retour à l'accueil</a>
+        </p>
+    </div>
+{% endblock %}
+

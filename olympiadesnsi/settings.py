@@ -15,6 +15,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 from decouple import Config, Csv
+from .logging_config import LOGGING
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
