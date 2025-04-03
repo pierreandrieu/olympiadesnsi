@@ -42,8 +42,13 @@ def inscription_demande(request: HttpRequest) -> HttpResponse:
             if "@" not in domaine:
                 messages.error(request, "Il faut sélectionner le domaine de l'adresse mail")
                 return redirect('inscription_demande')
+            if "@" in form.cleaned_data['identifiant']:
+                messages.error(request, "Le premier champ ne doit contenir que votre nom d'utilisateur "
+                                        "de messagerie académique.")
+                return redirect('inscription_demande')
 
             email: str = form.cleaned_data['identifiant'] + domaine
+
             epreuve_id: str = request.POST.get('epreuve_id')
             # Récupération ou création de l'InscripteurExterne basé sur l'email
             inscripteur, created = InscripteurExterne.objects.get_or_create(email=email)
