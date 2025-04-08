@@ -51,13 +51,17 @@ EMAIL_USE_SSL = config('EMAIL_USE_SSL', cast=bool)
 SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', cast=bool)
 CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', cast=bool)
 SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool)
+DEBUG = config("DEBUG", default=False, cast=bool)
 
-
+RATELIMIT_USE_X_FORWARDED_FOR = config(
+    'RATELIMIT_USE_X_FORWARDED_FOR',
+    default=not DEBUG,  # True en prod, False en local
+    cast=bool
+)
 # SECURITY WARNING: don't run with debug turned on in production!
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost', cast=Csv())
 
-DEBUG = config("DEBUG", default=False, cast=bool)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
