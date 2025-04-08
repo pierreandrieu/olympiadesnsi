@@ -34,7 +34,7 @@ def generic_login(request_generic: HttpRequest, user_group: str, redirect_url: s
         HttpResponse: Réponse HTTP générée pour la requête.
     """
 
-    @ratelimit(key='ip', rate='3/s', method='POST', block=True)
+    @ratelimit(key='ip', rate='8/s', method='POST', block=True)
     @ratelimit(key='ip', rate='120/m', method='POST', block=True)
     @ratelimit(key='ip', rate='5000/h', method='POST', block=True)
     @ratelimit(key='ip', rate='5/s', method='GET', block=True)
