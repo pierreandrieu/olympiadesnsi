@@ -1,4 +1,5 @@
 import csv
+import io
 import logging
 import zipfile
 from collections import defaultdict
@@ -10,6 +11,7 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseRedirect, HttpRequest, HttpResponse
+from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_protect
 from django.utils import timezone
 from django_ratelimit.decorators import ratelimit
@@ -976,59 +978,100 @@ def copier_epreuve(request: HttpRequest, epreuve_id: int):
 @login_required
 @decorators.membre_comite_required
 def exporter_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
     """
-    Vue pour exporter une épreuve en json.
+    Exporte une épreuve au format JSON dans une archive ZIP contenant :
+    - une version complète avec tous les jeux de test,
+    - une version allégée avec seulement les 5 premiers jeux de test par exercice.
+
+    Cette vue utilise une stratégie optimisée pour réduire les requêtes à la base de données,
+    en préchargeant tous les exercices et leurs jeux de test associés.
 
     Args:
-        request (HttpRequest): L'objet requête HTTP.
-        epreuve_id (int): L'identifiant de l'épreuve à copier
+        request (HttpRequest): La requête HTTP envoyée par l'utilisateur.
+        epreuve_id (int): Identifiant de l'épreuve à exporter.
 
     Returns:
-        HttpResponse: La réponse HTTP rendue.
+        HttpResponse: Une réponse contenant une archive ZIP prête à être téléchargée.
     """
 
-    # Construction du dictionnaire exportable
-    data = {
-        "nom": epreuve.nom,
-        "date_debut": epreuve.date_debut.isoformat(),
-        "date_fin": epreuve.date_fin.isoformat(),
-        "duree": epreuve.duree,
-        "exercices_un_par_un": epreuve.exercices_un_par_un,
-        "temps_limite": epreuve.temps_limite,
-        "exercices": []
-    }
+    # Récupération de l'épreuve ou 404 si elle n'existe pas
+    epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
 
-    for exercice in epreuve.get_exercices():
-        exercice_data = {
-            "titre": exercice.titre,
-            "auteur_username": exercice.auteur.username if exercice.auteur else None,
-            "bareme": exercice.bareme,
-            "type_exercice": exercice.type_exercice,
-            "enonce": exercice.enonce,
-            "enonce_code": exercice.enonce_code,
-            "avec_jeu_de_test": exercice.avec_jeu_de_test,
-            "separateur_jeu_test": exercice.separateur_jeu_test,
-            "separateur_reponse_jeudetest": exercice.separateur_reponse_jeudetest,
-            "retour_en_direct": exercice.retour_en_direct,
-            "code_a_soumettre": exercice.code_a_soumettre,
-            "nombre_max_soumissions": exercice.nombre_max_soumissions,
-            "jeux_de_test": []
+    # Préchargement de tous les exercices et jeux de test associés
+    exercices_qs: List[Exercice] = (
+        Epreuve.objects
+        .prefetch_related(
+            Prefetch("exercices", queryset=Exercice.objects.prefetch_related("jeudetest_set"))
+        )
+        .get(id=epreuve_id)
+        .exercices.all()  # .exercices grâce au related_name
+    )
+
+    def construire_dictionnaire_export(max_tests: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Construit un dictionnaire représentant l'épreuve et ses exercices,
+        avec une option pour limiter le nombre de jeux de test.
+
+        Args:
+            max_tests (Optional[int]): Nombre maximal de jeux de test par exercice.
+                Si None, inclut tous les jeux.
+
+        Returns:
+            Dict[str, Any]: Dictionnaire structuré pour export JSON.
+        """
+        dictionnaire_epreuve: Dict[str, Any] = {
+            "nom": epreuve.nom,
+            "date_debut": epreuve.date_debut.isoformat(),
+            "date_fin": epreuve.date_fin.isoformat(),
+            "duree": epreuve.duree,
+            "exercices_un_par_un": epreuve.exercices_un_par_un,
+            "temps_limite": epreuve.temps_limite,
+            "exercices": []
         }
 
-        if exercice.avec_jeu_de_test:
-            for jeu in exercice.get_jeux_de_test():
-                exercice_data["jeux_de_test"].append({
-                    "instance": jeu.instance,
-                    "reponse": jeu.reponse
-                })
+        for exercice in exercices_qs:
+            dictionnaire_exercice: Dict[str, Any] = {
+                "titre": exercice.titre,
+                "auteur_username": exercice.auteur.username if exercice.auteur else None,
+                "bareme": exercice.bareme,
+                "type_exercice": exercice.type_exercice,
+                "enonce": exercice.enonce,
+                "enonce_code": exercice.enonce_code,
+                "avec_jeu_de_test": exercice.avec_jeu_de_test,
+                "separateur_jeu_test": exercice.separateur_jeu_test,
+                "separateur_reponse_jeudetest": exercice.separateur_reponse_jeudetest,
+                "retour_en_direct": exercice.retour_en_direct,
+                "code_a_soumettre": exercice.code_a_soumettre,
+                "nombre_max_soumissions": exercice.nombre_max_soumissions,
+                "jeux_de_test": []
+            }
 
-        data["exercices"].append(exercice_data)
+            if exercice.avec_jeu_de_test:
+                jeux_de_test: List[JeuDeTest] = list(exercice.jeudetest_set.all())
+                if max_tests is not None:
+                    jeux_de_test = jeux_de_test[:max_tests]
+                dictionnaire_exercice["jeux_de_test"] = [
+                    {"instance": jeu.instance, "reponse": jeu.reponse}
+                    for jeu in jeux_de_test
+                ]
 
-    # Conversion en JSON
-    json_str = json.dumps(data, ensure_ascii=False, indent=2)
+            dictionnaire_epreuve["exercices"].append(dictionnaire_exercice)
 
-    # Réponse avec en-tête de téléchargement
-    response = HttpResponse(json_str, content_type='application/json')
-    response['Content-Disposition'] = f'attachment; filename="epreuve_{epreuve.nom}.json"'
+        return dictionnaire_epreuve
+
+    # Génération des deux versions JSON
+    nom_slugifie: str = slugify(epreuve.nom)
+    json_complet: str = json.dumps(construire_dictionnaire_export(), ensure_ascii=False, indent=2)
+    json_light: str = json.dumps(construire_dictionnaire_export(max_tests=5), ensure_ascii=False, indent=2)
+
+    # Création de l’archive ZIP en mémoire
+    buffer_zip: io.BytesIO = io.BytesIO()
+    with zipfile.ZipFile(buffer_zip, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(f"{nom_slugifie}_complete.json", json_complet)
+        archive.writestr(f"{nom_slugifie}_light.json", json_light)
+
+    # Préparation de la réponse HTTP
+    buffer_zip.seek(0)
+    response: HttpResponse = HttpResponse(buffer_zip, content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="epreuve_{nom_slugifie}.zip"'
     return response
