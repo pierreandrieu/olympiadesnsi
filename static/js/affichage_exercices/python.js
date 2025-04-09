@@ -13,7 +13,8 @@ export function ajouterTesteurPython(container, codeParDefaut = "") {
     sousTitre.innerHTML =
         "💡 <strong>Important :</strong> lorsque vous enregistrez et testez votre solution, <strong>le code et la sortie affichée sous la console sont enregistrés</strong>.<br>" +
         "Pour que votre réponse enregistrée soit considérée comme juste, <strong>seule la bonne réponse doit apparaître en sortie de la console.</strong> " +
-        "Vous pouvez donc faire autant de <code>print()</code> que vous voulez pour tester, mais assurez-vous de n’afficher que la réponse attendue au moment de soumettre.";
+        "Vous pouvez donc faire autant de <code>print()</code> que vous voulez pour vos tests, mais assurez-vous de n’afficher que la réponse attendue au moment de soumettre." +
+        "<br>Vous pouvez également sauvegarder votre travail non fini pour en conserver une sauvegarde et ne pas avoir à tout réécrire en cas de nécessité de recharger la page.";
     bloc.appendChild(sousTitre);
 
     const editorElement = document.createElement("textarea");

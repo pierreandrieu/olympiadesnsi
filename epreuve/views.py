@@ -64,6 +64,8 @@ def soumettre(request: HttpRequest, epreuve_id=None) -> Union[JsonResponse, Http
         data: Dict[str, Any] = json.loads(request.body)
         exercice_id: int = data.get('exercice_id')
         code_soumis: str = data.get('code_soumis', "")
+        code_soumis = code_soumis.replace('\u00A0', ' ').replace('\u200B', '').replace('\t', '    ')
+
         solution_instance: str = data.get('solution_instance', "")
 
         if len(code_soumis) > MAX_CODE_LENGTH or len(solution_instance) > MAX_REPONSE_LENGTH:
