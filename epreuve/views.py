@@ -739,7 +739,7 @@ def rendus_participants(request: HttpRequest, epreuve_id: int) -> HttpResponse:
         if ue.exercice.avec_jeu_de_test:
             au_moins_un_exo_avec_jeu_test = True
             if ue.solution_instance_participant:
-                if ue.solution_instance_participant.strip() == ue.jeu_de_test.reponse.strip():
+                if analyse_reponse_jeu_de_test(ue.solution_instance_participant, ue.jeu_de_test.reponse):
                     bonnes_reponses_par_participant[ue.participant_id] += 1
 
     # Ajout des informations de bonnes réponses aux participants
