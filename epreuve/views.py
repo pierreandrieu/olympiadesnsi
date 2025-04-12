@@ -825,7 +825,7 @@ def export_data(request, epreuve_id: int, by: str) -> HttpResponse:
     bonnes_reponses_dict = {}
     for ue in user_exercices:
         # Comparaison en tenant compte de strip()
-        is_correct = ue.solution_instance_participant.strip() == ue.jeu_de_test.reponse.strip() if ue.jeu_de_test and ue.solution_instance_participant else False
+        is_correct = analyse_reponse_jeu_de_test(ue.solution_instance_participant, ue.jeu_de_test.reponse) if ue.jeu_de_test and ue.solution_instance_participant else False
         bonnes_reponses_dict.setdefault(ue.participant.username, 0)
         if is_correct:
             bonnes_reponses_dict[ue.participant.username] += 1
@@ -849,7 +849,7 @@ def export_data(request, epreuve_id: int, by: str) -> HttpResponse:
         if ue.exercice.avec_jeu_de_test:
             au_moins_un_exo_avec_jeu_test = True
             if ue.solution_instance_participant:
-                if ue.solution_instance_participant.strip() == ue.jeu_de_test.reponse.strip():
+                if analyse_reponse_jeu_de_test(ue.solution_instance_participant, ue.jeu_de_test.reponse):
                     bonnes_reponses_par_participant[ue.participant_id] += 1
 
     # Ajout des informations de bonnes réponses aux participants
