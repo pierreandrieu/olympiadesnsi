@@ -244,7 +244,7 @@ def creer_epreuve(request: HttpRequest) -> HttpResponse:
 
 @login_required
 @decorators.administrateur_epreuve_required
-def editer_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
+def editer_epreuve(request: HttpRequest) -> HttpResponse:
     """
     Vue d'édition d'une épreuve existante.
 
@@ -257,7 +257,7 @@ def editer_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     Returns:
         HttpResponse: Redirection ou affichage du formulaire d’édition.
     """
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+    epreuve = request.epreuve  # Injecté par le décorateur
     user = cast("User", request.user)
 
     if not epreuve.a_pour_membre_comite(user):
@@ -272,29 +272,30 @@ def _creer_ou_editer_epreuve(
         epreuve: Optional[Epreuve] = None
 ) -> HttpResponse:
     """
-    Gère à la fois la création et la modification d’une épreuve via le même formulaire.
+    Gère la création ou la modification d'une épreuve via un formulaire unique.
 
-    Si une instance `epreuve` est fournie, on est en mode édition, sinon en création.
+    Si `epreuve` est fourni, on est en édition. Sinon, on est en création.
+
+    - Remplit le formulaire
+    - Valide et sauvegarde les données
+    - Gère les domaines autorisés et le cache
 
     Args:
-        request (HttpRequest): Requête HTTP.
-        nouvelle (bool): Indique s'il s'agit d'une création (`True`) ou d'une édition (`False`).
-        epreuve (Optional[Epreuve]): Instance d’épreuve à modifier, ou `None` si création.
+        request (HttpRequest): La requête HTTP entrante.
+        nouvelle (bool): True pour une création, False pour une édition.
+        epreuve (Optional[Epreuve]): L'épreuve à modifier, ou None pour une création.
 
     Returns:
-        HttpResponse: Formulaire HTML ou redirection vers l’espace organisateur.
+        HttpResponse: La page HTML contenant le formulaire ou une redirection après succès.
     """
     domaines_autorises: str = ""
     if epreuve:
-        domaines_qs: QuerySet[InscriptionDomaine] = InscriptionDomaine.objects.filter(epreuve=epreuve)
-        domaines_autorises = "\n".join([str(d.domaine) for d in domaines_qs])
+        domaines_autorises = epreuve.domaines_autorises_str()
 
     if request.method == 'POST':
         form: EpreuveForm = EpreuveForm(request.POST, instance=epreuve)
 
         if form.is_valid():
-            ancienne_valeur_publique: bool = epreuve.inscription_externe if epreuve else False
-
             epreuve = form.save(commit=False)
             if nouvelle:
                 epreuve.referent = request.user
@@ -303,31 +304,22 @@ def _creer_ou_editer_epreuve(
 
             # Réordonne les exercices si un ordre est fourni
             exercice_ids_order = request.POST.getlist('exercice_order')
-            for index, exercice_id in enumerate(exercice_ids_order, start=1):
-                Exercice.objects.filter(id=exercice_id).update(numero=index)
+            epreuve.reordonner_exercices(exercice_ids_order)
 
-            # Ajoute l'utilisateur au comité si nouvelle épreuve
+            # Ajout au comité si nouvelle épreuve
             if nouvelle:
-                MembreComite.objects.create(epreuve=epreuve, membre=request.user)
+                epreuve.ajouter_au_comite(request.user)
 
-            # Met à jour les domaines autorisés si inscription externe
+            # Met à jour les domaines autorisés si nécessaire
             if epreuve.inscription_externe:
-                InscriptionDomaine.objects.filter(epreuve=epreuve).delete()
                 domaines_str = form.cleaned_data.get('domaines_autorises', '')
-                domaines_set: Set[str] = {d.strip() for d in domaines_str.split('\n') if d.strip().startswith('@')}
-                for domaine in domaines_set:
-                    InscriptionDomaine.objects.create(epreuve=epreuve, domaine=domaine)
+                epreuve.mettre_a_jour_domaines(domaines_str)
 
-            # Invalidation éventuelle du cache si le statut public a changé
-            epreuve.invalider_cache_epreuves_publiques_si_necessaire(ancienne_valeur_publique)
-
-            # Message de confirmation
             messages.success(
                 request,
                 f"L'épreuve {epreuve.nom} a été {'créée' if nouvelle else 'mise à jour'} avec succès."
             )
             return redirect('espace_organisateur')
-
     else:
         form = EpreuveForm(instance=epreuve, initial={'domaines_autorises': domaines_autorises})
 
