@@ -139,7 +139,7 @@ def soumettre(request: HttpRequest, epreuve_id=None) -> Union[JsonResponse, Http
 def detail_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     epreuve: Epreuve = getattr(request, 'epreuve', None)
     indication_utilisateurs_retour: int = 0
-    anonymats = ["", "", ""]  # Valeurs par défaut
+    anonymats: List[str] = ["", "", ""]  # Valeurs par défaut
     user_epreuve: Optional[UserEpreuve] = None
 
     if epreuve:
@@ -479,51 +479,43 @@ def inscrire_groupes_epreuve(request: HttpRequest, epreuve_id: int) -> HttpRespo
 @decorators.resolve_hashid_param("groupe_hashid", target_name="groupe_id")
 def desinscrire_groupe_epreuve(request: HttpRequest, epreuve_id: int, groupe_id: int) -> HttpResponse:
     """
-    Désinscrit tous les participants d'un groupe spécifique d'une épreuve donnée.
+    Supprime l’inscription d’un groupe à une épreuve, en retirant tous les liens associés.
 
-    Cette fonction supprime toutes les entrées liées dans `UserExercice` pour chaque participant
-    et chaque exercice associé à l'épreuve, puis supprime les entrées `UserEpreuve` qui lient
-    les participants à l'épreuve.
+    Cette opération :
+    - supprime le lien entre le groupe et l’épreuve (`GroupeParticipeAEpreuve`) ;
+    - supprime tous les exercices liés à cette épreuve pour chaque membre du groupe (`UserExercice`) ;
+    - supprime également les liens entre chaque membre et l’épreuve (`UserEpreuve`) ;
+    - met à jour le cache du nombre de participants.
+
+    Elle est effectuée de manière atomique pour garantir l'intégrité des données.
 
     Args:
-        request (HttpRequest): L'objet requête HTTP.
-        groupe_id (int): L'ID du groupe à désinscrire.
-        epreuve_id (int): L'ID de l'épreuve de laquelle les participants seront désinscrits.
+        request (HttpRequest): La requête HTTP Django.
+        epreuve_id (int): Identifiant de l’épreuve concernée.
+        groupe_id (int): Identifiant du groupe à désinscrire.
 
     Returns:
-        HttpResponse: Redirige vers l'espace organisateur avec un message de succès.
+        HttpResponse: Redirection vers l’espace organisateur avec un message de confirmation.
     """
 
-    # Récupération de l'épreuve à partir de son ID
+    # Récupère l’épreuve depuis la base de données (ou 404 si non trouvée)
     epreuve: Epreuve = get_object_or_404(Epreuve, pk=epreuve_id)
-    # Récupération du groupe à désinscrire à partir de son ID
+
+    # Récupère le groupe concerné (ou 404 si non trouvé)
     groupe: GroupeParticipant = get_object_or_404(GroupeParticipant, pk=groupe_id)
-    # Récupération de l'association entre groupe et épreuve
-    groupe_participe_a_epreuve: GroupeParticipeAEpreuve = get_object_or_404(GroupeParticipeAEpreuve,
-                                                                            groupe=groupe,
-                                                                            epreuve=epreuve)
+
+    # L’ensemble de la désinscription est encapsulé dans une transaction unique
     with transaction.atomic():
-        participants: QuerySet[User] = groupe.participants()
+        epreuve.desinscrire_groupe(groupe)
 
-        # Récupérer tous les UserEpreuve pour l'épreuve et le groupe spécifiés
-        user_epreuves = UserEpreuve.objects.filter(epreuve=epreuve, participant__in=participants)
+    # Message de confirmation à l’utilisateur
+    messages.success(
+        request,
+        f"Les membres du groupe {groupe.nom} ont été désinscrits de l'épreuve {epreuve.nom}."
+    )
 
-        # Récupérer les IDs de tous les exercices associés à l'épreuve
-        exercices_ids: List[int] = list(epreuve.exercices.values_list('id', flat=True))
-
-        # Supprimer tous les UserExercice associés aux participants de l'épreuve et du groupe
-        UserExercice.objects.filter(exercice_id__in=exercices_ids,
-                                    participant__in=user_epreuves.values_list('participant', flat=True)).delete()
-
-        # Suppression des entrées UserEpreuve pour finaliser la désinscription
-        user_epreuves.delete()
-
-        groupe_participe_a_epreuve.delete()
-
-        # Affichage d'un message de succès et redirection
-        messages.success(request,
-                         f"Les membres du groupe {groupe.nom} ont été désinscrits de l'épreuve {epreuve.nom}.")
-        return redirect('espace_organisateur')
+    # Redirige vers l’espace organisateur
+    return redirect('espace_organisateur')
 
 
 @login_required
@@ -963,7 +955,7 @@ def copier_epreuve(request: HttpRequest, epreuve_id: int):
         exercice.auteur = request.user
         exercice.save()
 
-        # Copie jusqu’à 5 jeux de tests, s’il y en a
+        # Copie jusqu’à 5 jeux de tests_epreuve, s’il y en a
         if exercice.avec_jeu_de_test:
             for jeu in cinq_jeux_de_test:
                 # Création d’un nouveau jeu de test lié à l’exercice copié
