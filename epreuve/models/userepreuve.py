@@ -1,10 +1,7 @@
-from typing import List, TYPE_CHECKING
+from typing import List
 
 from django.contrib.auth.models import User
 from django.db import models
-
-if TYPE_CHECKING:
-    from epreuve.models.epreuve import Epreuve
 
 
 class UserEpreuve(models.Model):

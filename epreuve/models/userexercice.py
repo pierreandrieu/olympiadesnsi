@@ -1,10 +1,5 @@
-from typing import TYPE_CHECKING
-
 from django.contrib.auth.models import User
 from django.db import models
-
-if TYPE_CHECKING:
-    from epreuve.models.exercice import Exercice
 from epreuve.models.jeudetest import JeuDeTest
 
 
