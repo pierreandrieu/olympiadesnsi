@@ -1,21 +1,16 @@
-from typing import List, Iterable, Optional
-
+from typing import List, Iterable, Optional, Set, TYPE_CHECKING, cast
 from django.core.cache import cache
 from django.db import models, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django.contrib.auth.models import User
-from django.db.models import CheckConstraint, Q, F, QuerySet, Subquery, Count, Sum
-
-from typing import TYPE_CHECKING
-
+from django.db.models import CheckConstraint, Q, F, QuerySet, Subquery
 from epreuve.utils import get_cache_key_liste_epreuves_publiques
-
-if TYPE_CHECKING:
-    from epreuve.models import Exercice, UserExercice, UserEpreuve, JeuDeTest
-from inscription.models import GroupeParticipant, GroupeParticipeAEpreuve
+from inscription.models import GroupeParticipant, GroupeParticipeAEpreuve, InscriptionDomaine
 from olympiadesnsi.constants import MAX_TAILLE_NOM
 from olympiadesnsi.utils import encode_id
+if TYPE_CHECKING:
+    from epreuve.models import Exercice, UserExercice, UserEpreuve, JeuDeTest
 
 
 class Epreuve(models.Model):
@@ -57,9 +52,7 @@ class Epreuve(models.Model):
         Returns:
             QuerySet[User]: Tous les participants effectivement inscrits via des groupes.
         """
-        groupes_ids = self.groupes_participants.values_list('id', flat=True)
-        participants = User.objects.filter(appartenances__groupe_id__in=Subquery(groupes_ids)).distinct()
-        return participants
+        return User.objects.filter(appartenances__groupe__epreuves=self).distinct()
 
     def get_exercices(self) -> QuerySet['Exercice']:
         """
@@ -225,7 +218,7 @@ class Epreuve(models.Model):
           - le lien dans GroupeParticipeAEpreuve
         Et met à jour le cache du nombre de participants.
         """
-        participants = groupe.participants()
+        participants: QuerySet[User] = groupe.participants()
 
         user_epreuves = UserEpreuve.objects.filter(epreuve=self, participant__in=participants)
 
@@ -240,7 +233,7 @@ class Epreuve(models.Model):
 
         GroupeParticipeAEpreuve.objects.filter(epreuve=self, groupe=groupe).delete()
 
-        self.maj_cache_nb_participants_epreuve(-groupe.get_nombre_participants())
+        self._maj_cache_nb_participants_epreuve(-groupe.get_nombre_participants())
 
     def _maj_cache_nb_participants_epreuve(self, delta: int) -> None:
         """
@@ -310,6 +303,43 @@ class Epreuve(models.Model):
             cache_key = get_cache_key_liste_epreuves_publiques()
             cache.delete(cache_key)
 
+    def domaines_autorises_str(self) -> str:
+        """
+        Retourne les domaines autorisés sous forme de chaîne multilignes.
+        """
+        domaines = InscriptionDomaine.objects.filter(epreuve=self)
+        return "\n".join([str(d.domaine) for d in domaines])
+
+    def mettre_a_jour_domaines(self, domaines_str: str) -> None:
+        """
+        Supprime les anciens domaines et ajoute ceux fournis.
+
+        Args:
+            domaines_str (str): Chaîne multilignes contenant les domaines.
+        """
+        InscriptionDomaine.objects.filter(epreuve=self).delete()
+        domaines_set: Set[str] = {
+            d.strip() for d in domaines_str.split('\n') if d.strip().startswith('@')
+        }
+        for domaine in domaines_set:
+            InscriptionDomaine.objects.create(epreuve=self, domaine=domaine)
+
+    def ajouter_au_comite(self, user: "User") -> None:
+        """
+        Ajoute l'utilisateur au comité de cette épreuve (sans vérifier s'il y est déjà).
+        """
+        MembreComite.objects.create(epreuve=self, membre=user)
+
+    def reordonner_exercices(self, liste_ids: list[str]) -> None:
+        """
+        Met à jour le champ `numero` des exercices dans l'ordre fourni.
+
+        Args:
+            liste_ids (list[str]): Liste des IDs d'exercice dans l'ordre souhaité.
+        """
+        for index, exercice_id in enumerate(liste_ids, start=1):
+            Exercice.objects.filter(id=exercice_id, epreuve=self).update(numero=index)
+
     class Meta:
         db_table = 'Epreuve'
         unique_together = ['nom', 'referent']
@@ -325,4 +355,17 @@ class Epreuve(models.Model):
         ]
         indexes = [
             models.Index(fields=['referent']),
+        ]
+
+
+class MembreComite(models.Model):
+    epreuve = models.ForeignKey(Epreuve, on_delete=models.CASCADE)
+    membre = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = 'MembreComite'
+        unique_together = ['epreuve', 'membre']
+        indexes = [
+            models.Index(fields=['epreuve', 'membre']),
+            models.Index(fields=['membre', 'epreuve']),
         ]
