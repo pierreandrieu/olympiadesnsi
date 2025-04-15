@@ -19,8 +19,7 @@ from django.contrib import messages
 from django.urls import reverse
 from epreuve.models import Epreuve, Exercice, JeuDeTest, MembreComite, UserEpreuve, UserExercice
 from epreuve.forms import ExerciceForm, AjoutOrganisateurForm
-from epreuve.utils import temps_restant_seconde, vider_jeux_test_exercice, \
-    analyse_reponse_jeu_de_test
+from epreuve.utils import est_valide_reponse_jeu_de_test
 from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant
 import olympiadesnsi.decorators as decorators
 import json
@@ -91,7 +90,7 @@ def soumettre(request: HttpRequest, epreuve_id=None) -> Union[JsonResponse, Http
                 user_epreuve.debut_epreuve = timezone.now()
                 user_epreuve.save()
 
-            temps_restant: int = temps_restant_seconde(user_epreuve, epreuve)
+            temps_restant: int = user_epreuve.temps_restant()
             if temps_restant < 1:
                 return redirect(reverse('afficher_epreuve', kwargs={'hash_epreuve_id': encode_id(epreuve.id)}))
 
@@ -119,7 +118,7 @@ def soumettre(request: HttpRequest, epreuve_id=None) -> Union[JsonResponse, Http
 
         # Vérification de la solution pour les exercices avec jeu de test
         jeu_de_test: Optional[JeuDeTest] = user_exercice.jeu_de_test
-        reponse_valide: bool = (jeu_de_test is not None and analyse_reponse_jeu_de_test(solution_instance, jeu_de_test.reponse))
+        reponse_valide: bool = (jeu_de_test is not None and est_valide_reponse_jeu_de_test(solution_instance, jeu_de_test.reponse))
 
         return JsonResponse({
             'success': True,
@@ -218,7 +217,7 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
             user_epreuve.save()
 
         # Calcul du temps restant
-        temps_restant = temps_restant_seconde(user_epreuve, epreuve)
+        temps_restant = user_epreuve.temps_restant()
         if temps_restant < 1:
             return render(request, 'epreuve/erreurs/temps_ecoule.html')
 
@@ -675,7 +674,7 @@ def _creer_ou_editer_exercice(
                     if (jeu.instance.strip(), jeu.reponse.strip()) not in nouveaux_jdt:
                         jeu.delete()
             else:
-                vider_jeux_test_exercice(exercice)
+                exercice.vider_jeux_de_test()
             exercice.assigner_jeux_de_test()
             messages.success(request,
                              f"L'exercice {exercice.titre} a été {action} avec succès pour l'épreuve {epreuve.nom}.")
@@ -731,7 +730,7 @@ def rendus_participants(request: HttpRequest, epreuve_id: int) -> HttpResponse:
         if ue.exercice.avec_jeu_de_test:
             au_moins_un_exo_avec_jeu_test = True
             if ue.solution_instance_participant:
-                if analyse_reponse_jeu_de_test(ue.solution_instance_participant, ue.jeu_de_test.reponse):
+                if est_valide_reponse_jeu_de_test(ue.solution_instance_participant, ue.jeu_de_test.reponse):
                     bonnes_reponses_par_participant[ue.participant_id] += 1
 
     # Ajout des informations de bonnes réponses aux participants
@@ -817,7 +816,7 @@ def export_data(request, epreuve_id: int, by: str) -> HttpResponse:
     bonnes_reponses_dict = {}
     for ue in user_exercices:
         # Comparaison en tenant compte de strip()
-        is_correct = analyse_reponse_jeu_de_test(ue.solution_instance_participant, ue.jeu_de_test.reponse) if ue.jeu_de_test and ue.solution_instance_participant else False
+        is_correct = est_valide_reponse_jeu_de_test(ue.solution_instance_participant, ue.jeu_de_test.reponse) if ue.jeu_de_test and ue.solution_instance_participant else False
         bonnes_reponses_dict.setdefault(ue.participant.username, 0)
         if is_correct:
             bonnes_reponses_dict[ue.participant.username] += 1
@@ -841,7 +840,7 @@ def export_data(request, epreuve_id: int, by: str) -> HttpResponse:
         if ue.exercice.avec_jeu_de_test:
             au_moins_un_exo_avec_jeu_test = True
             if ue.solution_instance_participant:
-                if analyse_reponse_jeu_de_test(ue.solution_instance_participant, ue.jeu_de_test.reponse):
+                if est_valide_reponse_jeu_de_test(ue.solution_instance_participant, ue.jeu_de_test.reponse):
                     bonnes_reponses_par_participant[ue.participant_id] += 1
 
     # Ajout des informations de bonnes réponses aux participants
