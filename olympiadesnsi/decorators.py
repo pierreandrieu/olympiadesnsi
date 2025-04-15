@@ -58,27 +58,24 @@ def participant_required(view_func):
 
 def administrateur_epreuve_required(view_func: Callable[..., Any]) -> Callable[..., Any]:
     """
-    Décorateur pour vérifier si l'utilisateur est le référent (administrateur) de l'épreuve spécifiée.
-
-    En plus de vérifier l'appartenance au groupe 'Organisateur', ce décorateur vérifie
-    si l'utilisateur est le référent de l'épreuve passée en argument dans l'URL.
+    Vérifie que l'utilisateur est organisateur et référent de l'épreuve (administrateur).
+    L'objet Epreuve est injecté dans `request.epreuve` par `resolve_hashid_param`.
     """
+
     @wraps(view_func)
     @organisateur_required
-    @resolve_hashid_param("hash_epreuve_id", target_name="epreuve_id")
-    def _wrapped_view(request, *args, **kwargs):
-        epreuve_id = kwargs.get("epreuve_id")
-        id_exercice = kwargs.get("id_exercice", None)
+    @resolve_hashid_param("hash_epreuve_id", target_name="epreuve_id")  # Injecte dans request.epreuve
+    def _wrapped_view(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        # L'objet Epreuve est censé avoir été injecté ici par le décorateur précédent
+        epreuve: Optional[Epreuve] = getattr(request, "epreuve", None)
 
-        # On suppose que resolve_hashid_param a déjà injecté epreuve_id
-        if epreuve_id is None:
-            context: dict = {'message': "ID de l'épreuve introuvable."}
+        if epreuve is None:
+            context = {'message': "ID de l'épreuve introuvable."}
             return render(request, 'olympiadesnsi/erreur.html', context, status=403)
 
-        epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-
+        id_exercice = kwargs.get("id_exercice", None)
         if id_exercice:
-            exercice: Exercice = get_object_or_404(Exercice, id=id_exercice)
+            exercice = get_object_or_404(Exercice, id=id_exercice)
             if not (request.user == epreuve.referent or request.user == exercice.auteur):
                 context = {
                     'message': "Vous n'avez pas les droits nécessaires pour cette action réservée à "
@@ -86,8 +83,6 @@ def administrateur_epreuve_required(view_func: Callable[..., Any]) -> Callable[.
                 }
                 return render(request, 'olympiadesnsi/erreur.html', context, status=403)
             request.exercice = exercice
-
-        request.epreuve = epreuve  # Attache l'objet Epreuve à la requête pour la vue
 
         return view_func(request, *args, **kwargs)
 
@@ -107,19 +102,19 @@ def participant_inscrit_a_epreuve_required(view_func):
     """
 
     @wraps(view_func)
-    @participant_required  # Réutilise le décorateur 'est_participant' pour vérifier le rôle de participant.
+    @participant_required
     @resolve_hashid_param("hash_epreuve_id", target_name="epreuve_id")
     def _wrapped_view(request, *args, **kwargs):
-        epreuve_id = kwargs.get('epreuve_id')
-        if epreuve_id:
-            epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-            if not user_est_inscrit_a_epreuve(request.user, epreuve):
-                context: dict = {'message': f"Accès refusé car vous n'ếtes pas inscrit à l'épreuve concernée"}
-                return render(request, 'olympiadesnsi/erreur.html', context, status=403)
-            request.epreuve = epreuve
-        return view_func(request, *args, **kwargs)
+        epreuve = getattr(request, "epreuve", None)
+        if epreuve is None:
+            return render(request, "olympiadesnsi/erreur.html", {"message": "ID de l'épreuve introuvable."}, status=403)
 
-    return _wrapped_view
+        if not user_est_inscrit_a_epreuve(request.user, epreuve):
+            return render(request, "olympiadesnsi/erreur.html", {
+                "message": "Accès refusé car vous n'êtes pas inscrit à l'épreuve concernée."
+            }, status=403)
+
+        return view_func(request, *args, **kwargs)
 
 
 def administrateur_exercice_required(view_func):
@@ -155,39 +150,48 @@ def administrateur_exercice_required(view_func):
     return _wrapped_view
 
 
-def membre_comite_required(view_func):
+def membre_comite_required(view_func: Callable[..., HttpResponse]) -> Callable[..., HttpResponse]:
     """
-    Décorateur pour les vues qui vérifie si l'utilisateur courant est membre du comité
-    d'organisation de l'épreuve spécifiée par l'argument 'epreuve_id' de la vue.
-    Redirige vers une réponse HTTP Forbidden si la condition n'est pas remplie.
+    Décorateur qui vérifie si l'utilisateur est membre du comité d'organisation
+    de l'épreuve référencée par son hashid.
+
+    Le décorateur :
+    - décode le hashid via `resolve_hashid_param`,
+    - injecte l’objet `Epreuve` dans `request.epreuve`,
+    - vérifie que l'utilisateur est bien membre du comité de cette épreuve.
+
+    Si l'utilisateur n'est pas membre du comité, une page d'erreur est renvoyée.
+
+    Args:
+        view_func: La vue Django à protéger.
+
+    Returns:
+        Callable: La vue encapsulée avec les vérifications nécessaires.
     """
 
     @wraps(view_func)
     @resolve_hashid_param("hash_epreuve_id", target_name="epreuve_id")
-    def _wrapped_view(request, *args, **kwargs):
-        # Récupère l'ID de l'épreuve à partir des arguments de la vue
-        epreuve_id = kwargs.get('epreuve_id')
-        id_exercice = kwargs.get('id_exercice', None)
-        if epreuve_id is None:
-            # Si l'ID de l'épreuve n'est pas fourni, renvoie une réponse Forbidden
-            context: dict = {'message': "ID de l'épreuve introuvable."}
-            return render(request, 'olympiadesnsi/erreur.html', context, status=403)
-
-        # Récupère l'épreuve correspondante ou renvoie une erreur 404 si non trouvée
-        epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+    def _wrapped_view(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        epreuve: Optional[Epreuve] = getattr(request, "epreuve", None)
+        if epreuve is None:
+            return render(request, 'olympiadesnsi/erreur.html',
+                          {'message': "ID de l'épreuve introuvable."},
+                          status=403)
 
         # Vérifie si l'utilisateur courant est membre du comité de cette épreuve
         if not MembreComite.objects.filter(membre=request.user, epreuve=epreuve).exists():
-            # Si l'utilisateur n'est pas membre du comité, renvoie une réponse Forbidden
-            context: dict = {'message': "Vous n'avez pas les droits nécessaires pour cette action réservée aux membres "
-                                        "du comité d'organisation de l'épreuve."}
-            return render(request, 'olympiadesnsi/erreur.html', context, status=403)
-        if id_exercice is not None:
+            return render(request, 'olympiadesnsi/erreur.html',
+                          {'message': "Vous n'avez pas les droits nécessaires pour cette action réservée "
+                                      "aux membres du comité d'organisation de l'épreuve."},
+                          status=403)
+
+        # Si un id_exercice est présent dans l'URL, on injecte aussi l'exercice dans la requête
+        id_exercice = kwargs.get('id_exercice')
+        if id_exercice:
             exercice: Exercice = get_object_or_404(Exercice, id=id_exercice)
             request.exercice = exercice
-        # Attacher l'objet Epreuve à l'objet request pour éviter une nouvelle requête dans la vue
-        request.epreuve = epreuve
-        # Si toutes les vérifications sont passées, exécute la vue originale
+
+        # Tout est bon, on exécute la vue
         return view_func(request, *args, **kwargs)
 
     return _wrapped_view
@@ -230,30 +234,53 @@ def resolve_hashid_param(
         target_name: Optional[str] = None
 ) -> Callable[[Callable[..., HttpResponse]], Callable[..., HttpResponse]]:
     """
-    Décorateur pour résoudre un identifiant hashé passé en paramètre d'URL
-    et le convertir en entier utilisable dans la vue.
+    Décorateur qui décode un identifiant hashé contenu dans les paramètres d'URL
+    et injecte l'objet correspondant dans `request`.
 
+    Par exemple, si l'URL contient <str:hash_epreuve_id>, ce décorateur va :
+    - décoder ce hashid en entier
+    - charger l'objet Epreuve correspondant
+    - l'injecter dans `request.epreuve`
+    - supprimer le paramètre `hash_epreuve_id` des kwargs
     Args:
         param_name (str): Nom du paramètre d'URL contenant le hashid.
-        target_name (Optional[str]): Nom de la clé dans kwargs à laquelle associer l'ID décodé.
-                                     Si None, ajoute "<param_name>_id".
+        target_name (Optional[str]): Nom de l'objet injecté, ex: "epreuve_id".
+                                     Si "epreuve_id" est utilisé, l'objet Epreuve est injecté dans `request.epreuve`.
 
     Returns:
-        Callable: Une fonction décoratrice à appliquer sur une vue Django.
+        Callable: Vue modifiée avec injection de l’objet décodé dans `request`.
     """
 
     def decorator(view_func: Callable[..., HttpResponse]) -> Callable[..., HttpResponse]:
+
         @wraps(view_func)
         def wrapped_view(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+            # Récupère le hashid dans les paramètres d’URL
             hashid: Optional[str] = kwargs.get(param_name)
+            if hashid is None:
+                context: Dict[str, str] = {
+                    'message': f"Le paramètre '{param_name}' est manquant dans l'URL."
+                }
+                return render(request, 'olympiadesnsi/erreur.html', context, status=403)
+
+            # Décode le hashid en entier
             resolved_id: Optional[int] = decode_id(hashid)
             if resolved_id is None:
-                context: Dict[str, str] = {'message': "Problème d'URL, veuillez contacter l'administrateur du site."}
+                context: Dict[str, str] = {
+                    'message': "Identifiant invalide dans l'URL. Veuillez contacter l’administrateur."
+                }
                 return render(request, 'olympiadesnsi/erreur.html', context, status=403)
-            # Injecte l'ID réel
-            kwargs[target_name or f"{param_name}_id"] = resolved_id
-            # Supprime le hashid pour ne pas passer d’argument inattendu à la vue
+
+            # Supprime le hashid des kwargs
             del kwargs[param_name]
+
+            # Si on cible un identifiant d’épreuve, injecte directement l’objet Epreuve dans la requête
+            if target_name == "epreuve_id":
+                epreuve = get_object_or_404(Epreuve, id=resolved_id)
+                request.epreuve = epreuve
+
+                # Sinon, possibilité future d’ajouter d’autres objets ici en fonction de `target_name`
+
             return view_func(request, *args, **kwargs)
 
         return wrapped_view
