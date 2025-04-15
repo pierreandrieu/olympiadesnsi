@@ -126,6 +126,16 @@ class Exercice(models.Model):
         """
         return self.jeudetest_set.all()
 
+    def vider_jeux_de_test(self) -> None:
+        """
+        Supprime tous les jeux de test associés à cet exercice,
+        puis réinitialise les séparateurs à leur valeur par défaut.
+        """
+        self.jeux_de_test.all().delete()
+        self.separateur_reponse_jeudetest = "\n"
+        self.separateur_jeu_test = "\n"
+        self.save(update_fields=["separateur_reponse_jeudetest", "separateur_jeu_test"])
+
     def save(self, *args, **kwargs):
         # Si le numéro n'est pas déjà défini (nouvel exercice)
         if self.numero is None:
