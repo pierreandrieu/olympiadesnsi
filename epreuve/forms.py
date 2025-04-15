@@ -1,8 +1,10 @@
+from datetime import timedelta
 from typing import Dict
 
 from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.utils.timezone import now
 
 from epreuve.models import Epreuve, Exercice, MembreComite
 import re
@@ -92,10 +94,19 @@ class EpreuveForm(forms.ModelForm):
         optional_fields = ['exercices_un_par_un', 'temps_limite', 'inscription_externe', 'domaines_autorises']
 
     def __init__(self, *args, **kwargs):
-        super(EpreuveForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+
+        # Applique les labels obligatoires avec un astérisque
         for field_name, field in self.fields.items():
             if field.required:
                 field.label = f"{field.label} *"
+
+        instance = kwargs.get("instance", None)
+        if not instance or not getattr(instance, "pk", None):
+            # Si l'épreuve est en création, on applique les valeurs par défaut :
+            self.fields["date_debut"].initial = now()
+            self.fields["date_fin"].initial = now() + timedelta(days=365)
+            self.fields["duree"].initial = 120
 
     def clean(self):
         cleaned_data = super().clean()
