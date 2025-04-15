@@ -1,25 +1,23 @@
 from datetime import timedelta
-from typing import List, Tuple, Optional, Set, cast
-
-from django.core.mail import EmailMessage
-from django.db import transaction
-from django.shortcuts import redirect
+from typing import List, Tuple, cast, Optional, Set
+from django.contrib import messages
+from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden, HttpRequest
-from django.shortcuts import render
+from django.db import transaction
+from django.http import HttpRequest, HttpResponseForbidden
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.contrib import messages
 from django.http import HttpResponse
 from django.db.models import Count, Prefetch, QuerySet
 from django.views.decorators.http import require_http_methods
 
-from epreuve.models import User, Epreuve, MembreComite, Exercice, UserEpreuve, JeuDeTest
-from inscription.models import InscriptionDomaine, GroupeParticipant
-from intranet.models import ParticipantEstDansGroupe
-from inscription.utils import save_users
 from epreuve.forms import EpreuveForm
+from epreuve.models import UserEpreuve, JeuDeTest, Epreuve, MembreComite, Exercice
+from inscription.models import InscriptionDomaine
+from intranet.models import ParticipantEstDansGroupe, GroupeParticipant
+from inscription.utils import save_users
 from login.utils import genere_participants_uniques
 from olympiadesnsi import decorators, settings
 import olympiadesnsi.constants as constantes
@@ -27,6 +25,7 @@ from .classesdict import EpreuveDict, ExerciceDict, JeuDeTestDict
 from django.conf import settings
 import io
 import json
+import csv
 
 
 @login_required
@@ -44,7 +43,7 @@ def espace_participant(request: HttpRequest) -> HttpResponse:
                       contenant les informations des épreuves.
     """
     today: timezone.datetime = timezone.now()
-    user: User = request.user
+    user: User = cast(User, request.user)
 
     epreuves_ids: QuerySet[int] = UserEpreuve.objects.filter(participant=user).values_list('epreuve_id', flat=True)
     # Récupération des associations UserEpreuve pour l'utilisateur
@@ -122,7 +121,7 @@ def creer_groupe(request: HttpRequest) -> HttpResponse:
                                     f'{constantes.MAX_USERS_PAR_GROUPE}.')
             return redirect('creer_groupe')
 
-        referent: User = request.user
+        referent: User = cast(User, request.user)
 
         # Création ou récupération du groupe
         nouveau_groupe, created = GroupeParticipant.objects.get_or_create(
@@ -186,12 +185,6 @@ def supprimer_groupe(request: HttpRequest, groupe_id: int) -> HttpResponse:
     messages.error(request, "Méthode non supportée pour cette action.")
     return redirect('espace_organisateur')
 
-
-from django.shortcuts import get_object_or_404
-import csv
-from io import StringIO
-
-
 @login_required
 @decorators.administrateur_groupe_required
 @require_http_methods(["POST"])
@@ -208,7 +201,7 @@ def telecharger_csv(request: HttpRequest) -> HttpResponse:
     if not participants.exists():
         return redirect('espace_organisateur')
 
-    buffer = StringIO()
+    buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(['Username'])
 
@@ -226,87 +219,117 @@ def telecharger_csv(request: HttpRequest) -> HttpResponse:
 @login_required
 @decorators.organisateur_required
 def afficher_page_telechargement(request: HttpRequest) -> HttpResponse:
-    nom_groupe = request.session.get('nom_groupe')
+    nom_groupe: str = request.session.get('nom_groupe')
 
     if not nom_groupe:
         return redirect('espace_organisateur')
 
-    groupe = get_object_or_404(GroupeParticipant, nom=nom_groupe, referent=request.user)
+    groupe: GroupeParticipant = get_object_or_404(GroupeParticipant, nom=nom_groupe, referent=request.user)
 
     return render(request, 'intranet/telecharge_csv_users.html', {
         'groupe': groupe
     })
 
+
 @login_required
 @decorators.organisateur_required
-def creer_epreuve(request) -> HttpResponse:
+def creer_epreuve(request: HttpRequest) -> HttpResponse:
+    """
+    Vue responsable de la création d'une nouvelle épreuve.
+
+    L'utilisateur doit être connecté et membre du groupe "Organisateur".
+    """
     return _creer_ou_editer_epreuve(request)
 
 
 @login_required
 @decorators.administrateur_epreuve_required
-def editer_epreuve(request, epreuve_id) -> HttpResponse:
-    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
-    user = cast(User, request.user)
-    if not epreuve.a_pour_membre_comite(user):
-        return HttpResponseForbidden("Seuls les membres du comité d'organisation d'une épreuve sont "
-                                     "peuvent consulter cette page.")
-    return _creer_ou_editer_epreuve(request, False, epreuve=epreuve)
-
-
-def _creer_ou_editer_epreuve(request: HttpRequest, nouvelle: bool = True, epreuve: Optional[Epreuve] = None) -> HttpResponse:
+def editer_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     """
-    Crée ou édite une épreuve. Si un `epreuve_id` est fourni, l'épreuve correspondante est éditée.
-    Sinon, une nouvelle épreuve est créée.
+    Vue d'édition d'une épreuve existante.
+
+    L'utilisateur doit être membre du comité de l'épreuve pour accéder à cette page.
 
     Args:
-        request (HttpRequest): La requête HTTP.
-        epreuve_id (Optional[int]): L'identifiant de l'épreuve à éditer, si aucun, crée une nouvelle épreuve.
+        request: La requête HTTP.
+        epreuve_id: Identifiant de l'épreuve à éditer.
 
     Returns:
-        HttpResponse: La réponse HTTP avec le formulaire de création/édition d'une épreuve.
+        HttpResponse: Redirection ou affichage du formulaire d’édition.
+    """
+    epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+    user = cast("User", request.user)
+
+    if not epreuve.a_pour_membre_comite(user):
+        return HttpResponseForbidden("Seuls les membres du comité d'organisation peuvent consulter cette page.")
+
+    return _creer_ou_editer_epreuve(request, nouvelle=False, epreuve=epreuve)
+
+
+def _creer_ou_editer_epreuve(
+        request: HttpRequest,
+        nouvelle: bool = True,
+        epreuve: Optional[Epreuve] = None
+) -> HttpResponse:
+    """
+    Gère à la fois la création et la modification d’une épreuve via le même formulaire.
+
+    Si une instance `epreuve` est fournie, on est en mode édition, sinon en création.
+
+    Args:
+        request (HttpRequest): Requête HTTP.
+        nouvelle (bool): Indique s'il s'agit d'une création (`True`) ou d'une édition (`False`).
+        epreuve (Optional[Epreuve]): Instance d’épreuve à modifier, ou `None` si création.
+
+    Returns:
+        HttpResponse: Formulaire HTML ou redirection vers l’espace organisateur.
     """
     domaines_autorises: str = ""
-    # si l'épreuve existe déjà, on est en mode édition
     if epreuve:
-        # Récupère les domaines autorisés associés à l'épreuve pour pré-remplir le formulaire.
         domaines_qs: QuerySet[InscriptionDomaine] = InscriptionDomaine.objects.filter(epreuve=epreuve)
-        domaines_autorises: str = "\n".join([str(domaine.domaine) for domaine in domaines_qs])
+        domaines_autorises = "\n".join([str(d.domaine) for d in domaines_qs])
 
     if request.method == 'POST':
         form: EpreuveForm = EpreuveForm(request.POST, instance=epreuve)
+
         if form.is_valid():
-            epreuve: Epreuve = form.save(commit=False)
+            ancienne_valeur_publique: bool = epreuve.inscription_externe if epreuve else False
+
+            epreuve = form.save(commit=False)
             if nouvelle:
                 epreuve.referent = request.user
             epreuve.save()
-            form.save_m2m()  # Sauvegarde les relations many-to-many spécifiées dans le formulaire.
+            form.save_m2m()
 
-            # Met à jour l'ordre des exercices si fourni.
+            # Réordonne les exercices si un ordre est fourni
             exercice_ids_order = request.POST.getlist('exercice_order')
             for index, exercice_id in enumerate(exercice_ids_order, start=1):
                 Exercice.objects.filter(id=exercice_id).update(numero=index)
 
-            # Ajoute l'utilisateur actuel comme membre du comité de l'épreuve si c'est une création.
+            # Ajoute l'utilisateur au comité si nouvelle épreuve
             if nouvelle:
                 MembreComite.objects.create(epreuve=epreuve, membre=request.user)
 
-            # Gère l'ajout/suppression des domaines autorisés pour les inscriptions externes.
+            # Met à jour les domaines autorisés si inscription externe
             if epreuve.inscription_externe:
                 InscriptionDomaine.objects.filter(epreuve=epreuve).delete()
-                domaines_str: str = form.cleaned_data['domaines_autorises']
+                domaines_str = form.cleaned_data.get('domaines_autorises', '')
                 domaines_set: Set[str] = {d.strip() for d in domaines_str.split('\n') if d.strip().startswith('@')}
                 for domaine in domaines_set:
                     InscriptionDomaine.objects.create(epreuve=epreuve, domaine=domaine)
 
-            if nouvelle:
-                message = f"L'épreuve {epreuve.nom} a été créee avec succès."
-            else:
-                message = f"L'épreuve {epreuve.nom} a été mise à jour avec succès."
-            messages.success(request, message)
+            # Invalidation éventuelle du cache si le statut public a changé
+            epreuve.invalider_cache_epreuves_publiques_si_necessaire(ancienne_valeur_publique)
+
+            # Message de confirmation
+            messages.success(
+                request,
+                f"L'épreuve {epreuve.nom} a été {'créée' if nouvelle else 'mise à jour'} avec succès."
+            )
             return redirect('espace_organisateur')
+
     else:
-        form: EpreuveForm = EpreuveForm(instance=epreuve, initial={'domaines_autorises': domaines_autorises})
+        form = EpreuveForm(instance=epreuve, initial={'domaines_autorises': domaines_autorises})
 
     exercices = epreuve.exercices.order_by('numero') if epreuve else None
     return render(request, 'intranet/creer_epreuve.html', {
