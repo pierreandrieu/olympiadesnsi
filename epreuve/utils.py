@@ -2,54 +2,19 @@ import random
 import logging
 import unicodedata
 from datetime import timedelta
-from typing import Iterable, Optional
+from typing import Iterable, Optional, TYPE_CHECKING
 
 from django.contrib.auth.models import User
 from django.utils import timezone
-from epreuve.models import Epreuve, Exercice, JeuDeTest, UserExercice, UserEpreuve
+
+if TYPE_CHECKING:
+    from epreuve.models import Epreuve, Exercice, JeuDeTest, UserExercice, UserEpreuve
 
 logger = logging.getLogger(__name__)
 
 
-def assigner_participants_jeux_de_test(participants: Iterable[User], exercice: Exercice) -> None:
-    """
-    Attribue à chaque participant un jeu de test pour un exercice donné.
 
-    Tous les jeux de test disponibles pour cet exercice sont mélangés aléatoirement,
-    puis attribués aux participants en boucle (réutilisation possible si le nombre
-    de participants dépasse le nombre de jeux de test).
-
-    Args:
-        participants (Iterable[User]): Liste des utilisateurs à qui attribuer un jeu de test.
-        exercice (Exercice): L’exercice concerné.
-    """
-    if not exercice.avec_jeu_de_test:
-        return
-
-    # Récupère tous les jeux de test liés à cet exercice
-    jeux_disponibles: list[JeuDeTest] = list(exercice.get_jeux_de_test())
-
-    if not jeux_disponibles:
-        return
-
-    # Mélange aléatoire des jeux
-    random.shuffle(jeux_disponibles)
-    nb_jeux = len(jeux_disponibles)
-
-    for i, participant in enumerate(participants):
-        # Récupère ou crée l'entrée UserExercice pour ce participant
-        user_exercice: UserExercice = UserExercice.objects.get(participant=participant, exercice=exercice)
-
-        # Ne pas écraser un jeu de test déjà attribué
-        if user_exercice.jeu_de_test:
-            continue
-
-        # Attribution en boucle (modulo)
-        user_exercice.jeu_de_test = jeux_disponibles[i % nb_jeux]
-        user_exercice.save()
-
-
-def temps_restant_seconde(user_epreuve: UserEpreuve, epreuve: Epreuve) -> Optional[int]:
+def temps_restant_seconde(user_epreuve: 'UserEpreuve', epreuve: 'Epreuve') -> Optional[int]:
     """
     Calcule le temps restant en secondes pour un utilisateur participant à une épreuve,
     en tenant compte de l'heure de début de l'utilisateur et de la durée globale de l'épreuve.
@@ -79,7 +44,7 @@ def temps_restant_seconde(user_epreuve: UserEpreuve, epreuve: Epreuve) -> Option
     return int(temps_restant_sec)
 
 
-def vider_jeux_test_exercice(exercice: Exercice):
+def vider_jeux_test_exercice(exercice: 'Exercice') -> None:
     for jeu in JeuDeTest.objects.filter(exercice=exercice):
         jeu.delete()
     exercice.separateur_reponse_jeudetest = "\n"
@@ -102,3 +67,10 @@ def analyse_reponse_jeu_de_test(rep1: str, rep2: str) -> bool:
         if normalize(l1) != normalize(l2):
             return False
     return True
+
+
+def get_cache_key_liste_epreuves_publiques() -> str:
+    """
+    Renvoie la clé de cache utilisée pour la liste des épreuves publiques.
+    """
+    return "cache_liste_epreuves_publiques"
