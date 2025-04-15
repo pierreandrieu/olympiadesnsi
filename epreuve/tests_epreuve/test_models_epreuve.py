@@ -2,9 +2,11 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
 from django.core.cache import cache
-from datetime import timedelta
-from django.contrib.auth.models import User
-from epreuve.models import Epreuve
+from datetime import timedelta, datetime
+from django.contrib.auth.models import User, Group
+from django.utils.timezone import make_aware
+
+from epreuve.models import Epreuve, MembreComite
 from epreuve.utils import get_cache_key_liste_epreuves_publiques
 
 
@@ -146,21 +148,45 @@ class EpreuveCacheTest(TestCase):
     def tearDown(self):
         cache.clear()
 
-    from django.urls import reverse
 
 class EpreuveModificationTests(TestCase):
     def setUp(self):
-        cache.clear()
-        self.user = User.objects.create_user(username="owner", password="test1234")
-        self.autre_user = User.objects.create_user(username="intrus", password="test1234")
+        self.user = User.objects.create_user(username="referent", password="pass1234")
+        self.client.login(username="referent", password="pass1234")
+        self.autre_user = User.objects.create_user(username="intrus", password="pass4567")
+        organisateur_group, _ = Group.objects.get_or_create(name="Organisateur")
+        self.user.groups.add(organisateur_group)
+
         self.epreuve = Epreuve.objects.create(
-            nom="À modifier",
-            code="",
-            date_debut=timezone.now(),
-            date_fin=timezone.now() + timedelta(hours=1),
-            referent=self.user,
-            inscription_externe=False
+            nom="Epreuve Test",
+            code="test-code",
+            date_debut=make_aware(datetime.now() - timedelta(days=1)),
+            date_fin=make_aware(datetime.now() + timedelta(days=1)),
+            referent=self.user
         )
+        # On ajoute l'utilisateur au comité
+        MembreComite.objects.create(epreuve=self.epreuve, membre=self.user)
+
+    def test_vue_editer_epreuve_get_accessible_par_referent(self):
+        url = reverse("editer_epreuve", args=[self.epreuve.hashid])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_vue_editer_epreuve_post_modifie_nom(self):
+        url = reverse("editer_epreuve", args=[self.epreuve.hashid])
+        response = self.client.post(url, {
+            "nom": "Epreuve Modifiée",
+            "code": self.epreuve.code,
+            "date_debut": self.epreuve.date_debut,
+            "date_fin": self.epreuve.date_fin,
+            "temps_limite": False,
+            "duree": 100,
+            "exercices_un_par_un": False,
+            "inscription_externe": False,
+        })
+        self.assertRedirects(response, reverse("espace_organisateur"))
+        self.epreuve.refresh_from_db()
+        self.assertEqual(self.epreuve.nom, "Epreuve Modifiée")
 
     def test_modification_nom_met_a_jour_code(self):
         self.epreuve.nom = "Nom changé"
@@ -168,32 +194,9 @@ class EpreuveModificationTests(TestCase):
         self.epreuve.refresh_from_db()
         self.assertTrue(self.epreuve.code.startswith(f"{self.epreuve.id:03d}_nom-change"))
 
-    def test_vue_editer_epreuve_get_accessible_par_referent(self):
-        client = Client()
-        client.force_login(self.user)
-        url = reverse("editer_epreuve", args=[self.epreuve.id])
-        response = client.get(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "À modifier")
-
-    def test_vue_editer_epreuve_post_modifie_nom(self):
-        client = Client()
-        client.force_login(self.user)
-        url = reverse("editer_epreuve", args=[self.epreuve.id])
-        response = client.post(url, {
-            "nom": "Nom mis à jour",
-            "date_debut": self.epreuve.date_debut,
-            "date_fin": self.epreuve.date_fin,
-            "referent": self.user.id,
-            "inscription_externe": self.epreuve.inscription_externe,
-        })
-        self.assertRedirects(response, reverse("afficher_epreuve", args=[self.epreuve.id]))
-        self.epreuve.refresh_from_db()
-        self.assertEqual(self.epreuve.nom, "Nom mis à jour")
-
     def test_vue_editer_epreuve_interdite_pour_non_referent(self):
         client = Client()
         client.force_login(self.autre_user)
-        url = reverse("editer_epreuve", args=[self.epreuve.id])
+        url = reverse("editer_epreuve", args=[self.epreuve.hashid])
         response = client.get(url)
         self.assertIn(response.status_code, [302, 403])  # selon ton décorateur ou mixin utilisé
