@@ -1,31 +1,22 @@
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django_ratelimit.decorators import ratelimit
 
-from epreuve.models import Epreuve
+from accueil.utils import get_epreuves_publiques_info
 
 
 @ratelimit(key='ip', rate='5/s', method='GET', block=True)
 @ratelimit(key='ip', rate='150/m', method='GET', block=True)
 @ratelimit(key='ip', rate='5000/h', method='GET', block=True)
-def home(request):
-    epreuves_publiques = Epreuve.objects.filter(inscription_externe=True)
-
-    epreuves_info = [
-        {"nom": epreuve.nom, "nombre_participants": epreuve.compte_participants_inscrits()}
-        for epreuve in epreuves_publiques
-    ]
-
+def home(request: HttpRequest) -> HttpResponse:
     context = {
-        'utilisateur_est_organisateur': request.user.groups.filter(name="Organisateur").exists(),
-        'utilisateur_est_participant': request.user.groups.filter(name="Participant").exists(),
-        'epreuves_info': epreuves_info,  # Passer la liste des noms d'épreuves et du nombre de participants
+        'epreuves_info': get_epreuves_publiques_info(),
     }
-
     return render(request, 'accueil/accueil.html', context)
 
 
 @ratelimit(key='ip', rate='5/s', method='GET', block=True)
 @ratelimit(key='ip', rate='150/m', method='GET', block=True)
 @ratelimit(key='ip', rate='5000/h', method='GET', block=True)
-def about(request):
+def about(request: HttpRequest) -> HttpResponse:
     return render(request, 'accueil/about.html')
