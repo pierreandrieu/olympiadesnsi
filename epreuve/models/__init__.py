@@ -1,6 +1,5 @@
-from .epreuve import Epreuve
+from .epreuve import Epreuve, MembreComite
 from .exercice import Exercice
-from .membrecomite import MembreComite
 from .userepreuve import UserEpreuve
 from .userexercice import UserExercice
 from .jeudetest import JeuDeTest
