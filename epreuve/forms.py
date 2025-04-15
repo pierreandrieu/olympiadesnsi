@@ -126,14 +126,14 @@ class EpreuveForm(forms.ModelForm):
 class ExerciceForm(forms.ModelForm):
     jeux_de_test = forms.CharField(
         widget=forms.Textarea(attrs={
-            'class': 'form-control jeux-de-tests hiddenjdt',
+            'class': 'form-control jeux-de-tests_epreuve hiddenjdt',
             'rows': 5,
         }),
         required=False
     )
     resultats_jeux_de_test = forms.CharField(
         widget=forms.Textarea(attrs={
-            'class': 'form-control resultats-jeux-de-tests hiddenjdt',
+            'class': 'form-control resultats-jeux-de-tests_epreuve hiddenjdt',
             'rows': 5,
         }),
         required=False
@@ -209,7 +209,7 @@ class ExerciceForm(forms.ModelForm):
 
         # Vérifier la présence des jeux de test si nécessaire
         if avec_jeu_de_test:
-            # Obtenir et filtrer les jeux de tests et les résultats
+            # Obtenir et filtrer les jeux de tests_epreuve et les résultats
             separateur_jeux_de_test = self.data.get('separateur_jeux_de_test', '\\n').replace('\\n', '\n')
             separateur_resultats_jeux_de_test = self.data.get('separateur_resultats_jeux_de_test', '\\n').replace('\\n',
                                                                                                                   '\n')
