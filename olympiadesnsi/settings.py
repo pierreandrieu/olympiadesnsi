@@ -155,6 +155,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": os.path.join(BASE_DIR, "cache_django"),
+        "TIMEOUT": None,  # persistant tant qu'on ne l'efface pas manuellement
+        "OPTIONS": {
+            "MAX_ENTRIES": 20000
+        }
+    }
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
