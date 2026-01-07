@@ -35,7 +35,7 @@ config = Config(env_path)
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY')
-
+CAPTCHA = config('CAPTCHA', default=True, cast=bool)
 EMAIL_HOST = config('EMAIL_HOST')
 EMAIL_PORT = config('EMAIL_PORT')
 ADMIN_NAME = config('ADMIN_NAME')
