@@ -245,8 +245,7 @@ class ExerciceForm(forms.ModelForm):
                     'Le nombre de jeux de test inséré doit être le même que le nombre de résultats à ces jeux de test.')
 
             if nb_jeux_test == 0:
-                if self.instance.pk and self.instance.jeudetest_set.exists():
-                    # L'exercice est en cours de modification et a déjà des jeux de test
+                if self.instance.pk and self.instance.jeux_de_test.exists():                    # L'exercice est en cours de modification et a déjà des jeux de test
                     return cleaned_data
 
                 raise ValidationError(
