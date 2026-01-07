@@ -115,7 +115,7 @@ class Exercice(models.Model):
         Returns:
             JeuDeTest: Un objet JeuDeTest sélectionné aléatoirement, ou None si aucun jeu de test n'est disponible.
         """
-        return self.jeudetest_set.order_by('?').first()
+        return self.jeux_de_test.order_by('?').first()
 
     def get_jeux_de_test(self) -> QuerySet['JeuDeTest']:
         """
@@ -124,7 +124,7 @@ class Exercice(models.Model):
         Returns:
             QuerySet[JeuDeTest]: Les jeux de tests_epreuve liés à cet exercice.
         """
-        return self.jeudetest_set.all()
+        return self.jeux_de_test.all()
 
     def vider_jeux_de_test(self) -> None:
         """

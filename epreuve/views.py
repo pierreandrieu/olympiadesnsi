@@ -289,7 +289,7 @@ def supprimer_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
 
 @login_required
 @decorators.membre_comite_required
-def visualiser_epreuve_organisateur(request, epreuve_id):
+def visualiser_epreuve_organisateur(request):
     epreuve: Epreuve = getattr(request, 'epreuve', None)
     # Calcul du temps restant pour compléter l'épreuve, si applicable.
     temps_restant_secondes: Optional[int] = None
@@ -708,11 +708,11 @@ def _creer_ou_editer_exercice(
 
 @login_required
 @decorators.membre_comite_required
-def rendus_participants(request: HttpRequest, epreuve_id: int) -> HttpResponse:
+def rendus_participants(request: HttpRequest) -> HttpResponse:
     epreuve: Epreuve = getattr(request, 'epreuve', None)  # Épreuve récupérée par le décorateur.
 
     exercices = epreuve.exercices.prefetch_related(
-        'jeudetest_set',
+        'jeux_de_test',
         Prefetch('user_exercices', queryset=UserExercice.objects.select_related('participant', 'jeu_de_test'))
     ).all()
 
@@ -911,8 +911,7 @@ def export_data(request, epreuve_id: int, by: str) -> HttpResponse:
 @login_required
 @decorators.membre_comite_required
 @transaction.atomic
-def copier_epreuve(request: HttpRequest, epreuve_id: int):
-    epreuve_originale: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+def copier_epreuve(request: HttpRequest):
     """
     Vue pour copier une épreuve.
     L'épreuve créée est identique à l'épreuve dont l'id est en paramètre, 
@@ -929,6 +928,7 @@ def copier_epreuve(request: HttpRequest, epreuve_id: int):
     Returns:
         HttpResponse: La réponse HTTP rendue.
     """
+    epreuve_originale: Epreuve = request.epreuve
 
     # Création de la copie
     nouvelle_epreuve: Epreuve = Epreuve(
@@ -970,7 +970,7 @@ def copier_epreuve(request: HttpRequest, epreuve_id: int):
 
 @login_required
 @decorators.membre_comite_required
-def exporter_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
+def exporter_epreuve(request: HttpRequest) -> HttpResponse:
     """
     Exporte une épreuve au format JSON dans une archive ZIP contenant :
     - une version complète avec tous les jeux de test,
@@ -988,15 +988,16 @@ def exporter_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     """
 
     # Récupération de l'épreuve ou 404 si elle n'existe pas
-    epreuve: Epreuve = get_object_or_404(Epreuve, id=epreuve_id)
+    epreuve: Epreuve = request.epreuve
+    epreuve_id: int = epreuve.id
 
     # Préchargement de tous les exercices et jeux de test associés
     exercices_qs: List[Exercice] = (
         Epreuve.objects
         .prefetch_related(
-            Prefetch("exercices", queryset=Exercice.objects.prefetch_related("jeudetest_set"))
+            Prefetch("exercices", queryset=Exercice.objects.prefetch_related("jeux_de_test"))
         )
-        .get(id=epreuve_id)
+        .get(id=epreuve.id)
         .exercices.all()  # .exercices grâce au related_name
     )
 
@@ -1040,7 +1041,7 @@ def exporter_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
             }
 
             if exercice.avec_jeu_de_test:
-                jeux_de_test: List[JeuDeTest] = list(exercice.jeudetest_set.all())
+                jeux_de_test: List[JeuDeTest] = list(exercice.get_jeux_de_test())
                 if max_tests is not None:
                     jeux_de_test = jeux_de_test[:max_tests]
                 dictionnaire_exercice["jeux_de_test"] = [
