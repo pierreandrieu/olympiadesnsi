@@ -9,16 +9,36 @@
                         <h4 class="card-title">Connexion</h4>
                     </div>
                     <div class="card-body">
+
                         <form method="post" action="{% url 'prelogin' %}">
                             {% csrf_token %}
+
+                            {% if form.non_field_errors %}
+                                <div class="alert alert-danger">
+                                    {{ form.non_field_errors }}
+                                </div>
+                            {% endif %}
+
                             <div class="mb-3">
                                 {{ form.username.label_tag }}
                                 {{ form.username }}
-                                <small class="form-text text-muted">Entrez votre nom d’utilisateur pour
-                                    continuer.</small>
+
+                                {% if form.username.errors %}
+                                    <div class="text-danger small">
+                                        {{ form.username.errors }}
+                                    </div>
+                                {% endif %}
+
+                                <small class="form-text text-muted">
+                                    Entrez votre nom d’utilisateur pour continuer.
+                                </small>
                             </div>
-                            <button type="submit" class="btn btn-primary w-100">Continuer</button>
+
+                            <button type="submit" class="btn btn-primary w-100">
+                                Continuer
+                            </button>
                         </form>
+
                     </div>
                 </div>
             </div>

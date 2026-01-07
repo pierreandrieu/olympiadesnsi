@@ -21,6 +21,7 @@
                     {{ form.captcha|as_crispy_field }}
                 </div>
             </div>
+
             {% if form.non_field_errors %}
                 {% for error in form.non_field_errors %}
                     <div class="alert alert-danger" role="alert">
