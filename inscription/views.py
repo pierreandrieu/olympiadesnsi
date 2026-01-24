@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
-from django.core.mail import send_mail, EmailMessage
+from django.core.mail import EmailMessage
 from django.conf import settings
 from django.utils import timezone
 from django.urls import reverse
@@ -12,7 +12,7 @@ from django_ratelimit.decorators import ratelimit
 
 from epreuve.models import Epreuve
 from login.utils import genere_participants_uniques
-from olympiadesnsi import settings, decorators
+from olympiadesnsi import decorators
 from .forms import EquipeInscriptionForm, DemandeLienInscriptionForm
 from .models import InscripteurExterne, InscriptionExterne
 from inscription.utils import generate_unique_token, calculer_nombre_inscrits, save_users
@@ -110,6 +110,7 @@ def get_domaines_for_epreuve(request: HttpRequest, epreuve_id: int)->HttpRespons
         .values_list('domaine', flat=True)
     )
     return JsonResponse(domaines, safe=False)
+
 
 @ratelimit(key='ip', rate='3/s', method='GET', block=True)
 @ratelimit(key='ip', rate='15/m', method='GET', block=True)

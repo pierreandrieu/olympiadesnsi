@@ -9,10 +9,7 @@ from accueil.utils import get_epreuves_publiques_info
 @ratelimit(key='ip', rate='150/m', method='GET', block=True)
 @ratelimit(key='ip', rate='5000/h', method='GET', block=True)
 def home(request: HttpRequest) -> HttpResponse:
-    context = {
-        'epreuves_info': get_epreuves_publiques_info(),
-    }
-    return render(request, 'accueil/accueil.html', context)
+    return render(request, 'accueil/accueil.html')
 
 
 @ratelimit(key='ip', rate='5/s', method='GET', block=True)

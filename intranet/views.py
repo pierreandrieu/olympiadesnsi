@@ -244,7 +244,7 @@ def creer_epreuve(request: HttpRequest) -> HttpResponse:
 
 @login_required
 @decorators.administrateur_epreuve_required
-def editer_epreuve(request: HttpRequest) -> HttpResponse:
+def editer_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     """
     Vue d'édition d'une épreuve existante.
 
@@ -496,8 +496,6 @@ def change_password_organisateur(request):
 @decorators.administrateur_groupe_required
 def envoyer_email_participants(request: HttpRequest, groupe_id: int) -> HttpResponse:
     groupe: GroupeParticipant = getattr(request, 'groupe', None)
-    print(groupe)
-    print(type(groupe))
     email_contact = groupe.email_contact
 
     if email_contact:

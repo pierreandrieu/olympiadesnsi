@@ -1,0 +1,147 @@
+{% extends 'olympiadesnsi/base_extranet.html' %}
+{% load static %}
+{% load crispy_forms_filters %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <div class="container my-4">
+        <h1 class="mb-3">Ajouter un établissement – {{ epreuve.nom }}</h1>
+
+        <div class="alert alert-info">
+            Email de contact : <strong>{{ email_enseignant }}</strong>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" id="form-inscription">
+            {% csrf_token %}
+
+            <div class="row align-items-end">
+                <div class="col-md-4 mb-3">
+                    {{ form.code_uai|as_crispy_field }}
+                </div>
+                <div class="col-md-3 mb-3">
+                    <button type="button" class="btn btn-outline-primary" id="btn-valider-uai">
+                        Valider l’UAI
+                    </button>
+                </div>
+            </div>
+
+            <div id="message-uai" class="mb-3"></div>
+
+            <div id="bloc-details" style="display:none;">
+                <hr class="my-3"/>
+
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        {{ form.nom_etablissement|as_crispy_field }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        {{ form.commune|as_crispy_field }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.email_etablissement|as_crispy_field }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.nom_enseignant|as_crispy_field }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        {{ form.nb_candidats_ecrit|as_crispy_field }}
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        {{ form.nb_equipes_pratique|as_crispy_field }}
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    <a class="btn btn-outline-secondary" href="{% url 'olympiades_portail' token=token %}">Retour</a>
+                </div>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        (function () {
+            const btn = document.getElementById("btn-valider-uai");
+            const bloc = document.getElementById("bloc-details");
+            const msg = document.getElementById("message-uai");
+
+            const inputUai = document.getElementById("id_code_uai");
+            const inputNom = document.getElementById("id_nom_etablissement");
+            const inputCommune = document.getElementById("id_commune");
+            const inputEmail = document.getElementById("id_email_etablissement");
+
+            function setMessage(html, cls) {
+                msg.innerHTML = '<div class="alert ' + cls + '">' + html + '</div>';
+            }
+
+            async function chargerInfos() {
+                const code = (inputUai.value || "").trim().toUpperCase();
+                inputUai.value = code;
+
+                if (!code) {
+                    setMessage("Veuillez renseigner un code UAI.", "alert-warning");
+                    return;
+                }
+
+                setMessage("Vérification de l’UAI…", "alert-info");
+                const baseUrl = "{% url 'olympiades_infos_etablissement' %}";
+                const url = baseUrl
+                    + "?code_uai=" + encodeURIComponent(code)
+                    + "&token=" + encodeURIComponent("{{ token }}");
+
+                const resp = await fetch(url, {headers: {"X-Requested-With": "XMLHttpRequest"}});
+                const data = await resp.json();
+
+                if (data.deja_inscrit_par_ce_prof) {
+                    bloc.style.display = "none";
+                    setMessage("Cet établissement est déjà inscrit pour cette épreuve avec cet email enseignant.", "alert-danger");
+                    return;
+                }
+
+
+                if (!data.ok) {
+                    setMessage("Erreur : " + (data.error || "inconnue"), "alert-danger");
+                    return;
+                }
+
+                bloc.style.display = "block";
+
+                if (!data.existe) {
+                    inputNom.value = "";
+                    inputCommune.value = "";
+                    inputEmail.value = "";
+                    setMessage("UAI inconnu : merci de compléter les informations de l’établissement.", "alert-warning");
+                    return;
+                }
+
+                inputNom.value = data.etablissement.nom_etablissement || "";
+                inputCommune.value = data.etablissement.commune || "";
+                inputEmail.value = data.etablissement.email_etablissement || "";
+                setMessage("UAI reconnu : informations préremplies (modifiables).", "alert-success");
+            }
+
+            btn.addEventListener("click", chargerInfos);
+
+            inputUai.addEventListener("keydown", function (e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    chargerInfos();
+                }
+            });
+        })();
+    </script>
+{% endblock %}

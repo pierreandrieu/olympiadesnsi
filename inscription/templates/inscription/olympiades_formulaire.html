@@ -1,0 +1,28 @@
+{% extends 'olympiadesnsi/base_extranet.html' %}
+{% load crispy_forms_filters %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <div class="container my-4">
+        <h1 class="mb-3">Inscription à l'épreuve {{ epreuve.nom }}</h1>
+
+        <div class="alert alert-info">
+            Email de contact (issu du lien) : <strong>{{ email_enseignant }}</strong>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {# Affiche les erreurs globales si besoin #}
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        {% crispy form %}
+    </div>
+{% endblock %}

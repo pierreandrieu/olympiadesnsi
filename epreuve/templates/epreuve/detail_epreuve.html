@@ -65,79 +65,11 @@
 
         {% if "olympiades" in epreuve.nom|lower %}
             <div class="alert alert-warning mt-3" role="alert">
-                ⚠️ <strong>Attention :</strong> pour les Olympiades de NSI, l'utilisation d'une intelligence
-                artificielle pendant l'épreuve est strictement interdite.
+                ⚠️ <strong>Attention :</strong> pour l'épreuve des Olympiades de NSI, l'utilisation d'une intelligence
+                artificielle est strictement interdite.
             </div>
         {% endif %}
-
-        {% if epreuve.doit_demander_identifiants %}
-            <p>Merci de renseigner votre situation concernant l'épreuve théorique :</p>
-
-            <form method="POST">
-                {% csrf_token %}
-                {% for i in "123"|make_list %}
-                    <div class="card mb-3 p-3" id="participant_card_{{ i }}">
-                        <div class="form-group">
-                            <label class="form-label"><strong>Participant {{ i }} :</strong></label>
-
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="choix_{{ i }}" value="1"
-                                       id="choix_{{ i }}_1"
-                                       {% if anonymats|slice:forloop.counter0|first not in "X-?" %}checked{% endif %}
-                                       onchange="toggleInput('{{ i }}'); cascadeDisable('{{ i }}', false);">
-                                <label class="form-check-label" for="choix_{{ i }}_1">
-                                    J'ai participé et j'ai mon numéro d'anonymat
-                                </label>
-                            </div>
-
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="choix_{{ i }}" value="2"
-                                       id="choix_{{ i }}_2"
-                                       {% if anonymats|slice:forloop.counter0|first == "?" %}checked{% endif %}
-                                       onchange="toggleInput('{{ i }}'); cascadeDisable('{{ i }}', false);">
-                                <label class="form-check-label" for="choix_{{ i }}_2">
-                                    J'ai participé mais je n'ai pas mon numéro
-                                </label>
-                            </div>
-
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="choix_{{ i }}" value="3"
-                                       id="choix_{{ i }}_3"
-                                       {% if anonymats|slice:forloop.counter0|first == "-" %}checked{% endif %}
-                                       onchange="toggleInput('{{ i }}'); cascadeDisable('{{ i }}', false);">
-                                <label class="form-check-label" for="choix_{{ i }}_3">
-                                    Je n'ai pas participé
-                                </label>
-                            </div>
-
-                            {% if forloop.counter > 1 %}
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="choix_{{ i }}" value="4"
-                                           id="choix_{{ i }}_4"
-                                           {% if anonymats|slice:forloop.counter0|first == "X" %}checked{% endif %}
-                                           onchange="toggleInput('{{ i }}'); cascadeDisable('{{ i }}', true);">
-                                    <label class="form-check-label text-danger" for="choix_{{ i }}_4">
-                                        L'équipe ne comporte pas autant de participants
-                                    </label>
-                                </div>
-                            {% endif %}
-
-                            <input type="text" class="form-control anonymat mt-2" id="anonymat_{{ i }}"
-                                   name="anonymat_{{ i }}"
-                                   value="
-                                           {% if anonymats|slice:forloop.counter0|first not in 'X-?' %}{{ anonymats|slice:forloop.counter0|first }}{% endif %}"
-                                   {% if anonymats|slice:forloop.counter0|first in 'X-?' %}style="display:none;"{% endif %}
-                                   placeholder="Entrez votre numéro d'anonymat">
-                        </div>
-                    </div>
-                {% endfor %}
-
-
-                <button type="submit" class="btn btn-primary mt-3">Enregistrer</button>
-            </form>
-        {% else %}
-            <a href="{% url 'afficher_epreuve' epreuve.hashid %}" class="btn btn-primary">Démarrer l'épreuve</a>
-        {% endif %}
+        <a href="{% url 'afficher_epreuve' epreuve.hashid %}" class="btn btn-primary">Démarrer l'épreuve</a>
 
     </div>
 {% endblock %}

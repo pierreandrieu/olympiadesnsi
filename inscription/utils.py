@@ -1,5 +1,7 @@
+import csv
 import logging
 from datetime import datetime
+from io import StringIO
 from typing import List, Optional
 
 from django.contrib.auth.models import User, Group
@@ -168,3 +170,35 @@ def save_users(groupe_id: int, usernames: List[str],
         groupe.statut = 'ECHEC'
         groupe.save()
         return {'status': 'error', 'message': str(e)}
+
+
+def generer_csv_identifiants_ecrit(code_uai: str, nb_candidats: int) -> str:
+    """
+    Génère un CSV (en mémoire) contenant les identifiants pour l'épreuve écrite.
+
+    Format : identifiant
+    Exemple : UAI01, UAI02, ...
+    """
+    buffer: StringIO = StringIO()
+    writer = csv.writer(buffer, delimiter=";")
+    writer.writerow(["identifiant"])
+
+    for i in range(1, nb_candidats + 1):
+        identifiant: str = f"{code_uai}{i:03d}"
+        writer.writerow([identifiant])
+
+    return buffer.getvalue()
+
+
+def generer_csv_identifiants_plateforme(utilisateurs: List[str]) -> str:
+    """
+    Génère un CSV (en mémoire) contenant les identifiants plateforme (1 par ligne).
+
+    Remarque : `genere_participants_uniques` renvoie déjà une liste de usernames.
+    """
+    buffer: StringIO = StringIO()
+    writer = csv.writer(buffer, delimiter=";")
+    writer.writerow(["username"])
+    for username in utilisateurs:
+        writer.writerow([username])
+    return buffer.getvalue()

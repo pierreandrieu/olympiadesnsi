@@ -36,6 +36,7 @@ config = Config(env_path)
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY')
 CAPTCHA = config('CAPTCHA', default=True, cast=bool)
+OLYMPIADES_EPREUVE_ID = config("OLYMPIADES_EPREUVE_ID", default=0, cast=int)
 EMAIL_HOST = config('EMAIL_HOST')
 EMAIL_PORT = config('EMAIL_PORT')
 ADMIN_NAME = config('ADMIN_NAME')
@@ -52,6 +53,7 @@ SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', cast=bool)
 CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', cast=bool)
 SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool)
 DEBUG = config("DEBUG", default=False, cast=bool)
+OLYMPIADES_DATE_LIMITE_INSCRIPTION = os.environ.get("OLYMPIADES_DATE_LIMITE_INSCRIPTION", "").strip()
 
 RATELIMIT_USE_X_FORWARDED_FOR = config(
     'RATELIMIT_USE_X_FORWARDED_FOR',
@@ -75,7 +77,7 @@ INSTALLED_APPS = [
     "olympiadesnsi",
     "accueil",
     "login",
-    "epreuve",
+    "epreuve.apps.EpreuveConfig",
     "intranet",
     "inscription",
     "captcha",

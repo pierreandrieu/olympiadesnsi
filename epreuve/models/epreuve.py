@@ -1,16 +1,24 @@
-from typing import List, Iterable, Optional, Set, TYPE_CHECKING, cast
+from typing import List, Iterable, Optional, Set, TYPE_CHECKING, Union
 from django.core.cache import cache
+from django.apps import apps
 from django.db import models, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django.contrib.auth.models import User
-from django.db.models import CheckConstraint, Q, F, QuerySet, Subquery
+from django.db.models import CheckConstraint, Q, F, QuerySet
 from epreuve.utils import get_cache_key_liste_epreuves_publiques
 from inscription.models import GroupeParticipant, GroupeParticipeAEpreuve, InscriptionDomaine
 from olympiadesnsi.constants import MAX_TAILLE_NOM
 from olympiadesnsi.utils import encode_id
 if TYPE_CHECKING:
-    from epreuve.models import Exercice, UserExercice, UserEpreuve, JeuDeTest
+    from epreuve.models import Exercice, JeuDeTest
+
+
+def _modeles_runtime_epreuve() -> tuple[type[models.Model], type[models.Model], type[models.Model]]:
+    modele_user_epreuve = apps.get_model("epreuve", "UserEpreuve")
+    modele_user_exercice = apps.get_model("epreuve", "UserExercice")
+    modele_jeu_de_test = apps.get_model("epreuve", "JeuDeTest")
+    return modele_user_epreuve, modele_user_exercice, modele_jeu_de_test
 
 
 class Epreuve(models.Model):
@@ -74,51 +82,46 @@ class Epreuve(models.Model):
             exercice.assigner_jeux_de_test()
 
     def inscrire_participants(self, participants: Iterable[User]) -> None:
-        """
-        Inscrit une liste de participants à l'épreuve et à tous les exercices associés.
-        Si un exercice utilise des jeux de test, ceux-ci sont attribués de manière cyclique.
+        modele_user_epreuve, modele_user_exercice, _ = _modeles_runtime_epreuve()
 
-        Args:
-            participants (Iterable[User]): Liste des utilisateurs à inscrire à l’épreuve.
-        """
+        participants_liste: list[User] = list(participants)
+        exercices: List["Exercice"] = list(self.get_exercices())
 
-        exercices: List[Exercice] = list(self.get_exercices())
-        user_epreuves_to_create: List[UserEpreuve] = []
-        user_exercices_to_create: List[UserExercice] = []
+        user_epreuves_a_creer: list[models.Model] = []
+        user_exercices_a_creer: list[models.Model] = []
 
         with transaction.atomic():
-            # Étape 1 : création des UserEpreuve et UserExercice
-            for user in participants:
-                user_epreuves_to_create.append(UserEpreuve(participant=user, epreuve=self))
+            for user in participants_liste:
+                user_epreuves_a_creer.append(modele_user_epreuve(participant=user, epreuve=self))
                 for exercice in exercices:
-                    user_exercices_to_create.append(UserExercice(participant=user, exercice=exercice))
+                    user_exercices_a_creer.append(modele_user_exercice(participant=user, exercice=exercice))
 
-            # Insertion en masse
-            UserEpreuve.objects.bulk_create(user_epreuves_to_create, ignore_conflicts=True)
-            UserExercice.objects.bulk_create(user_exercices_to_create, ignore_conflicts=True)
+            modele_user_epreuve.objects.bulk_create(user_epreuves_a_creer, ignore_conflicts=True)
+            modele_user_exercice.objects.bulk_create(user_exercices_a_creer, ignore_conflicts=True)
 
-            # Étape 2 : attribution des jeux de test pour les exercices qui en ont
             for exercice in exercices:
                 if not exercice.avec_jeu_de_test:
                     continue
 
-                jeux: List[JeuDeTest] = list(exercice.get_jeux_de_test())
+                jeux: List["JeuDeTest"] = list(exercice.get_jeux_de_test())
                 if not jeux:
                     continue
 
-                user_exercices = UserExercice.objects.filter(exercice=exercice, participant__in=participants)
-                user_exercices_to_update: List[UserExercice] = []
+                user_exercices = modele_user_exercice.objects.filter(exercice=exercice,
+                                                                     participant__in=participants_liste)
+                user_exercices_a_mettre_a_jour: list[models.Model] = []
 
-                i = 0
+                i: int = 0
                 for ue in user_exercices:
-                    if ue.jeu_de_test:
-                        continue  # ne pas écraser un jeu déjà assigné
+                    if getattr(ue, "jeu_de_test_id", None):
+                        continue
                     ue.jeu_de_test = jeux[i % len(jeux)]
                     i += 1
-                    user_exercices_to_update.append(ue)
+                    user_exercices_a_mettre_a_jour.append(ue)
 
-                UserExercice.objects.bulk_update(user_exercices_to_update, ['jeu_de_test'])
-            self._maj_cache_nb_participants_epreuve(len(participants))
+                modele_user_exercice.objects.bulk_update(user_exercices_a_mettre_a_jour, ["jeu_de_test"])
+
+            self._maj_cache_nb_participants_epreuve(len(participants_liste))
 
     def inscrire_groupe(self, groupe: GroupeParticipant) -> None:
         """
@@ -189,15 +192,6 @@ class Epreuve(models.Model):
         # et on vérifie si l'utilisateur est dans la liste des membres du comité.
         return self.comite.filter(id=user.id).exists()
 
-    def doit_demander_identifiants(self) -> bool:
-        """
-        Retourne True SSI on veut récupérer, au moment de la première connexion pour
-        une épreuve d'olympiades, les identifiants de l'épreuve papier.
-        :return:
-        """
-        return ("lympiade" in self.nom and "2025" in self.nom and "entrainement" not in self.nom
-                and "annale" not in self.nom and self.referent.username == "pierre.andrieu")
-
     @staticmethod
     def liste_epreuves_publiques() -> QuerySet['Epreuve']:
         """
@@ -218,15 +212,17 @@ class Epreuve(models.Model):
           - le lien dans GroupeParticipeAEpreuve
         Et met à jour le cache du nombre de participants.
         """
+        modele_user_epreuve, modele_user_exercice, _ = _modeles_runtime_epreuve()
+
         participants: QuerySet[User] = groupe.participants()
 
-        user_epreuves = UserEpreuve.objects.filter(epreuve=self, participant__in=participants)
+        user_epreuves = modele_user_epreuve.objects.filter(epreuve=self, participant__in=participants)
 
-        exercice_ids = list(self.exercices.values_list('id', flat=True))
+        exercice_ids = list(self.exercices.values_list("id", flat=True))
 
-        UserExercice.objects.filter(
+        modele_user_exercice.objects.filter(
             exercice_id__in=exercice_ids,
-            participant__in=user_epreuves.values_list('participant', flat=True)
+            participant__in=user_epreuves.values_list("participant", flat=True),
         ).delete()
 
         user_epreuves.delete()
@@ -234,6 +230,20 @@ class Epreuve(models.Model):
         GroupeParticipeAEpreuve.objects.filter(epreuve=self, groupe=groupe).delete()
 
         self._maj_cache_nb_participants_epreuve(-groupe.get_nombre_participants())
+
+    def lister_annales(self) -> List["Epreuve"]:
+        """
+        Renvoie la liste des annales d'une épreuve en suivant récursivement le champ `annale`.
+
+        Exemple : 2026 -> 2025 -> 2024
+        Retour : [2025, 2024]
+        """
+        annales: List[Epreuve] = []
+        courant: Epreuve | None = self.annale
+        while courant is not None:
+            annales.append(courant)
+            courant = courant.annale
+        return annales
 
     def _maj_cache_nb_participants_epreuve(self, delta: int) -> None:
         """
@@ -254,6 +264,40 @@ class Epreuve(models.Model):
             nouveau_total: int = self.compte_participants_inscrits()
 
         cache.set(cache_key, nouveau_total, timeout=None)
+
+    @classmethod
+    def generer_nom_copie(cls, nom_source: str, referent: Union[User, int]) -> str:
+        """
+        Génère un nom d'épreuve disponible pour une copie, en respectant la contrainte d'unicité
+        (nom, référent).
+
+        Règle :
+        - si "copie de <nom_source>" n'existe pas pour ce référent, on renvoie ce nom
+        - sinon on renvoie "copie de <nom_source> (2)", puis (3), etc.
+
+        Args:
+            nom_source: Nom de l'épreuve source (ex: "Olympiades NSI 2025").
+            referent: Objet User ou id du référent.
+
+        Returns:
+            Un nom unique pour ce référent.
+        """
+        base: str = f"copie de {nom_source}"
+
+        # On accepte User ou id, pour être pratique selon le contexte appelant.
+        filtre_referent = {"referent": referent} if isinstance(referent, User) else {"referent_id": referent}
+
+        # Cas le plus fréquent : aucune copie existante.
+        if not cls.objects.filter(nom=base, **filtre_referent).exists():
+            return base
+
+        # Sinon, on numérote.
+        i: int = 2
+        while True:
+            candidat: str = f"{base} ({i})"
+            if not cls.objects.filter(nom=candidat, **filtre_referent).exists():
+                return candidat
+            i += 1
 
     def __str__(self):
         return self.nom
@@ -337,8 +381,11 @@ class Epreuve(models.Model):
         Args:
             liste_ids (list[str]): Liste des IDs d'exercice dans l'ordre souhaité.
         """
+        modele_exercice: type[models.Model] = self.exercices.model
+
         for index, exercice_id in enumerate(liste_ids, start=1):
-            Exercice.objects.filter(id=exercice_id, epreuve=self).update(numero=index)
+            # Mise à jour directe en base (pas de chargement d'objets).
+            modele_exercice.objects.filter(id=exercice_id, epreuve=self).update(numero=index)
 
     class Meta:
         db_table = 'Epreuve'

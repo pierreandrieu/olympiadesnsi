@@ -6,10 +6,7 @@ urlpatterns = [
     path("<str:hash_epreuve_id>/", views.detail_epreuve, name="detail_epreuve"),
     path("<str:hash_epreuve_id>/afficher/", views.afficher_epreuve, name="afficher_epreuve"),
     path("<str:hash_epreuve_id>/soumettre/", views.soumettre, name="soumettre"),
-    # Création : pas de hashid d'exercice
     path("<str:hash_epreuve_id>/exercice/creer/", views.creer_exercice, name="creer_exercice"),
-
-    # Édition : hashid pour l'épreuve et l'exercice
     path("<str:hash_epreuve_id>/exercice/<str:exercice_hashid>/editer/", views.editer_exercice, name="editer_exercice"),
 
     # Visualisation / gestion épreuve

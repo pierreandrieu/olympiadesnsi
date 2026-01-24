@@ -1,0 +1,222 @@
+{% extends 'olympiadesnsi/base_extranet.html' %}
+{% load crispy_forms_filters %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <div class="container my-4">
+
+        {# ------------------------------------------------------------ #}
+        {# En-tête page                                                 #}
+        {# ------------------------------------------------------------ #}
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+            <div>
+                <h1 class="mb-1">Inscriptions – {{ epreuve.nom }}</h1>
+                <div class="text-muted">
+                    Email de contact : <strong>{{ email_enseignant }}</strong>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <a class="btn btn-primary"
+                   href="{% url 'olympiades_nouvelle_inscription' token=token %}">
+                    Inscrire un nouvel établissement
+                </a>
+            </div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} mb-3">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {# ------------------------------------------------------------ #}
+        {# Bloc Olympiades                                               #}
+        {# ------------------------------------------------------------ #}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <h2 class="h5 mb-0">Olympiades</h2>
+                        <span class="badge text-bg-secondary">
+              {{ inscriptions|length }} établissement{{ inscriptions|length|pluralize }}
+            </span>
+                    </div>
+                    <div class="text-muted small">
+                        Inscriptions par établissement (papier + pratique)
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body">
+                {% if inscriptions %}
+                    <div class="list-group list-group-flush">
+                        {% for ins in inscriptions %}
+                            <div class="list-group-item py-3">
+                                <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
+
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex flex-wrap align-items-baseline gap-2">
+                                            <h3 class="h6 mb-0">
+                                                {{ ins.etablissement.nom|default:"(Établissement non renseigné)" }}
+                                            </h3>
+                                            <span class="text-muted small">— {{ ins.code_uai }}</span>
+                                        </div>
+
+                                        <div class="small text-muted mt-1">
+                                            Commune : {{ ins.etablissement.commune|default:"-" }}
+                                            <span class="mx-1">·</span>
+                                            Email établissement : {{ ins.etablissement.email|default:"-" }}
+                                            <span class="mx-1">·</span>
+                                            Enseignant : {{ ins.nom_enseignant|default:"-" }}
+                                        </div>
+
+                                        <div class="mt-3">
+                                            <div class="d-flex flex-wrap gap-2">
+                                                <div class="border rounded px-2 py-1 small bg-light">
+                                                    <span class="text-muted">Papier :</span>
+                                                    <strong>{{ ins.nb_candidats_ecrit }}</strong>
+                                                </div>
+                                                <div class="border rounded px-2 py-1 small bg-light">
+                                                    <span class="text-muted">Pratique :</span>
+                                                    <strong>{{ ins.nb_equipes_pratique_total }}</strong>
+                                                    équipe{{ ins.nb_equipes_pratique_total|pluralize }}
+                                                </div>
+                                            </div>
+
+                                            <div class="mt-2">
+                                                <div class="small fw-semibold mb-1">Groupes pratique</div>
+                                                <ul class="mb-0 small">
+                                                    {% for lien in ins.groupes_associes.all %}
+                                                        {% if lien.type_groupe == "olympiades" %}
+                                                            <li>
+                                                                Groupe {{ lien.numero|default:"?" }} :
+                                                                {{ lien.groupe.nom }}
+                                                                <span class="text-muted">
+                                  ({{ lien.groupe.get_nombre_participants }} équipe{{ lien.groupe.get_nombre_participants|pluralize }})
+                                </span>
+                                                            </li>
+                                                        {% endif %}
+                                                    {% empty %}
+                                                        <li class="text-muted">Aucun groupe.</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex flex-row flex-md-column gap-2">
+                                        <a class="btn btn-outline-primary btn-sm"
+                                           href="{% url 'olympiades_editer_inscription' token=token inscription_id=ins.id %}">
+                                            Éditer
+                                        </a>
+                                        <a class="btn btn-outline-success btn-sm"
+                                           href="{% url 'olympiades_telecharger_zip' token=token inscription_id=ins.id %}">
+                                            Télécharger (zip)
+                                        </a>
+                                        <a class="btn btn-outline-danger btn-sm"
+                                           href="{% url 'olympiades_supprimer_inscription' token=token inscription_id=ins.id %}">
+                                            Supprimer
+                                        </a>
+                                    </div>
+
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning mb-0">
+                        Aucune inscription enregistrée pour cet email.
+                        Vous pouvez ajouter un établissement.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ------------------------------------------------------------ #}
+        {# Bloc Annales                                                  #}
+        {# ------------------------------------------------------------ #}
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <h2 class="h5 mb-0">Annales</h2>
+                    <div class="text-muted small">
+                        Génération d’identifiants plateforme (sans papier)
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body">
+                {% if annales %}
+                    <div class="p-3 rounded border bg-light mb-3">
+                        <div class="fw-semibold mb-1">Fonctionnement</div>
+                        <div class="small text-muted mb-2">
+                            Une génération crée un groupe et l’inscrit automatiquement à <strong>toutes</strong> les
+                            annales ci-dessous.
+                        </div>
+
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <a class="btn btn-outline-primary btn-sm"
+                               href="{% url 'annales_inscrire' token=token %}">
+                                Générer des identifiants (toutes les annales)
+                            </a>
+                            <span class="text-muted small">
+                Vous pourrez ensuite télécharger un zip (un CSV par groupe).
+              </span>
+                        </div>
+                    </div>
+
+                    <div class="border rounded p-3 mb-4">
+                        <div class="small fw-semibold mb-2">Annales concernées</div>
+                        <ul class="small mb-0">
+                            {% for a in annales %}
+                                <li>
+                                    {{ a.nom }}
+                                    <span class="text-muted">— du {{ a.date_debut }} au {{ a.date_fin }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    {% if inscriptions_annales %}
+                        <h3 class="h6 mb-2">Vos lots déjà générés</h3>
+
+                        <div class="list-group">
+                            {% for insa in inscriptions_annales %}
+                                <div class="list-group-item">
+                                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
+                                        <div class="me-2">
+                                            <div class="fw-semibold">{{ insa.epreuve.nom }}</div>
+                                            <div class="small text-muted">
+                                                Équipes générées : <strong>{{ insa.nb_equipes_total }}</strong>
+                                                <span class="mx-1">·</span>
+                                                lots : <strong>{{ insa.groupes_associes.count }}</strong>
+                                            </div>
+                                        </div>
+
+                                        <div class="d-flex gap-2">
+                                            <a class="btn btn-outline-success btn-sm"
+                                               href="{% url 'annales_telecharger_zip' token=token inscription_annales_id=insa.id %}">
+                                                Télécharger (zip)
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-muted small">
+                            Aucun lot généré pour le moment.
+                        </div>
+                    {% endif %}
+
+                {% else %}
+                    <div class="alert alert-secondary mb-0">
+                        Aucune annale disponible pour cette épreuve.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+{% endblock %}

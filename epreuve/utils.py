@@ -1,7 +1,6 @@
 import logging
 import unicodedata
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -43,3 +42,4 @@ def get_cache_key_liste_epreuves_publiques() -> str:
     Renvoie la clé de cache utilisée pour la liste des épreuves publiques.
     """
     return "cache_liste_epreuves_publiques"
+

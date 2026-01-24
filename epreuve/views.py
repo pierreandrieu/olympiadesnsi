@@ -275,7 +275,6 @@ def afficher_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     })
 
 
-
 @login_required
 @decorators.administrateur_epreuve_required
 def supprimer_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
@@ -286,10 +285,9 @@ def supprimer_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     return redirect('espace_organisateur')
 
 
-
 @login_required
 @decorators.membre_comite_required
-def visualiser_epreuve_organisateur(request):
+def visualiser_epreuve_organisateur(request, epreuve_id: int):
     epreuve: Epreuve = getattr(request, 'epreuve', None)
     # Calcul du temps restant pour compléter l'épreuve, si applicable.
     temps_restant_secondes: Optional[int] = None
@@ -335,7 +333,6 @@ def visualiser_epreuve_organisateur(request):
         "lecture_seule": True,
         "template_base": "olympiadesnsi/base_organisateur.html",
     })
-
 
 
 @login_required
@@ -583,6 +580,7 @@ def supprimer_jeux_de_test(request: HttpRequest, epreuve_id: int, id_exercice: i
                     hash_epreuve_id=encode_id(epreuve_id),
                     exercice_hashid=encode_id(id_exercice))
 
+
 @login_required
 @decorators.membre_comite_required
 def creer_exercice(request: HttpRequest, epreuve_id: int) -> HttpResponse:
@@ -593,7 +591,7 @@ def creer_exercice(request: HttpRequest, epreuve_id: int) -> HttpResponse:
 @decorators.membre_comite_required
 @decorators.resolve_hashid_param("exercice_hashid", target_name="id_exercice")
 def editer_exercice(request: HttpRequest, epreuve_id: int, id_exercice: int) -> HttpResponse:
-    exercice = get_object_or_404(Exercice, id=id_exercice)
+    exercice: Exercice = get_object_or_404(Exercice, id=id_exercice)
     return _creer_ou_editer_exercice(request, request.epreuve, exercice)
 
 
@@ -708,7 +706,7 @@ def _creer_ou_editer_exercice(
 
 @login_required
 @decorators.membre_comite_required
-def rendus_participants(request: HttpRequest) -> HttpResponse:
+def rendus_participants(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     epreuve: Epreuve = getattr(request, 'epreuve', None)  # Épreuve récupérée par le décorateur.
 
     exercices = epreuve.exercices.prefetch_related(
@@ -911,7 +909,7 @@ def export_data(request, epreuve_id: int, by: str) -> HttpResponse:
 @login_required
 @decorators.membre_comite_required
 @transaction.atomic
-def copier_epreuve(request: HttpRequest):
+def copier_epreuve(request: HttpRequest, epreuve_id: int):
     """
     Vue pour copier une épreuve.
     L'épreuve créée est identique à l'épreuve dont l'id est en paramètre, 
@@ -930,9 +928,10 @@ def copier_epreuve(request: HttpRequest):
     """
     epreuve_originale: Epreuve = request.epreuve
 
+    nom_unique: str = Epreuve.generer_nom_copie(epreuve_originale.nom, epreuve_originale.referent)
     # Création de la copie
     nouvelle_epreuve: Epreuve = Epreuve(
-        nom=f"copie de {epreuve_originale.nom}",
+        nom=nom_unique,
         date_debut=epreuve_originale.date_debut,
         date_fin=epreuve_originale.date_fin,
         duree=epreuve_originale.duree,
@@ -970,7 +969,7 @@ def copier_epreuve(request: HttpRequest):
 
 @login_required
 @decorators.membre_comite_required
-def exporter_epreuve(request: HttpRequest) -> HttpResponse:
+def exporter_epreuve(request: HttpRequest, epreuve_id: int) -> HttpResponse:
     """
     Exporte une épreuve au format JSON dans une archive ZIP contenant :
     - une version complète avec tous les jeux de test,

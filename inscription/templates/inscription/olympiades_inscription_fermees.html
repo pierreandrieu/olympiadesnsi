@@ -1,0 +1,15 @@
+{% extends 'olympiadesnsi/base_extranet.html' %}
+
+{% block content %}
+    <div class="container my-4">
+        <div class="alert alert-warning">
+            <h1 class="h4 mb-2">Inscriptions olympiades fermées</h1>
+            {% if date_limite %}
+                <div>La date limite était : <strong>{{ date_limite|date:"d/m/Y à H:i" }}</strong></div>
+            {% else %}
+                <div>Les inscriptions sont fermées.</div>
+            {% endif %}
+        </div>
+        <a class="btn btn-primary" href="{% url 'olympiades_demande_lien' %}">Retour</a>
+    </div>
+{% endblock %}

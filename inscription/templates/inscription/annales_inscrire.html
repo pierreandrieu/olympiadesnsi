@@ -1,0 +1,72 @@
+{# templates/inscription/annales_inscrire.html #}
+{% extends 'olympiadesnsi/base_extranet.html' %}
+{% load crispy_forms_filters %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+    <div class="container my-4">
+        <h1 class="mb-3">Générer des identifiants – annales</h1>
+
+        <div class="alert alert-info">
+            Email de contact : <strong>{{ email_enseignant }}</strong>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="fw-semibold mb-2">Annales concernées</div>
+
+                {% if annales %}
+                    <ul class="mb-0">
+                        {% for a in annales %}
+                            <li>
+                                {{ a.nom }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="text-muted">Aucune annale disponible.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <div class="alert alert-secondary">
+            <div class="fw-semibold mb-1">Principe</div>
+            <ul class="mb-0">
+                <li>Vous choisissez le nombre d’équipes à générer.</li>
+                <li>Un compte plateforme est créé par équipe.</li>
+                <li>Les comptes générés sont inscrits à toutes les annales listées ci-dessus.</li>
+                <li>Vous pourrez re-télécharger les identifiants à tout moment depuis le portail.</li>
+            </ul>
+        </div>
+
+        <form method="post" class="mb-3">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col-md-5 mb-3">
+                    {{ form.nb_equipes|as_crispy_field }}
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Générer</button>
+                <a class="btn btn-outline-secondary" href="{% url 'olympiades_portail' token=token %}">Retour</a>
+            </div>
+        </form>
+
+        <div class="small text-muted">
+            Remarque : chaque équipe choisira un mot de passe lors de sa première connexion.
+        </div>
+    </div>
+{% endblock %}

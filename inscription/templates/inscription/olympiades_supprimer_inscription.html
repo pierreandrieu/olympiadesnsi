@@ -1,0 +1,75 @@
+{% extends 'olympiadesnsi/base_extranet.html' %}
+
+{% block content %}
+    <div class="container my-4">
+        <h1 class="mb-3">Supprimer une inscription – {{ epreuve.nom }}</h1>
+
+        <div class="alert alert-info">
+            Email de contact : <strong>{{ email_enseignant }}</strong>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title mb-1">
+                    {{ inscription.etablissement.nom|default:"(Établissement non renseigné)" }}
+                    <small class="text-muted">— {{ inscription.code_uai }}</small>
+                </h5>
+
+                <div class="small text-muted">
+                    Commune : {{ inscription.etablissement.commune|default:"-" }} |
+                    Email établissement : {{ inscription.etablissement.email|default:"-" }} |
+                    Enseignant : {{ inscription.nom_enseignant|default:"-" }}
+                </div>
+
+                <div class="mt-3">
+                    <div class="mb-1">
+                        <span class="fw-semibold">
+                            Nombre de candidats pour l’épreuve papier (individuelle) :
+                        </span>
+                        {{ inscription.nb_candidats_ecrit }}
+                    </div>
+                    <div>
+                        <span class="fw-semibold">
+                            Nombre d’équipes inscrites à l’épreuve pratique :
+                        </span>
+                        {{ nb_equipes_total }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-danger">
+            <div class="fw-semibold mb-1">Attention : cette action est définitive</div>
+            <ul class="mb-0">
+                <li>Votre inscription pour cet établissement sera supprimée (sans effet sur les inscriptions d'autres enseignants pour le même établissement).</li>
+                <li>Les groupes créés pour l’épreuve pratique seront supprimés.</li>
+                <li>Les comptes associés à ces groupes ne permettront plus d’accéder à cette épreuve.</li>
+            </ul>
+        </div>
+
+        <h4 class="mb-2">Répartition en groupes</h4>
+
+        {% if groupes_pratique %}
+            <ul class="mb-3">
+                {% for lien in groupes_pratique %}
+                    <li class="small">
+                        Groupe {{ lien.numero|default:"?" }} :
+                        {{ lien.groupe.get_nombre_participants }} équipes
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="alert alert-warning">
+                Aucune équipe n’est actuellement associée à cette inscription.
+            </div>
+        {% endif %}
+
+        <form method="post" class="d-flex gap-2">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Confirmer la suppression</button>
+            <a class="btn btn-outline-secondary" href="{% url 'olympiades_portail' token=token %}">
+                Annuler
+            </a>
+        </form>
+    </div>
+{% endblock %}

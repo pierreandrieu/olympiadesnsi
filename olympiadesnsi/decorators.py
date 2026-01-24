@@ -116,6 +116,8 @@ def participant_inscrit_a_epreuve_required(view_func):
 
         return view_func(request, *args, **kwargs)
 
+    return _wrapped_view
+
 
 def administrateur_exercice_required(view_func):
     """
@@ -231,58 +233,50 @@ def administrateur_groupe_required(view_func):
 
 def resolve_hashid_param(
         param_name: str,
-        target_name: Optional[str] = None
+        target_name: Optional[str] = None,
 ) -> Callable[[Callable[..., HttpResponse]], Callable[..., HttpResponse]]:
     """
     Décorateur qui décode un identifiant hashé contenu dans les paramètres d'URL
-    et injecte l'objet correspondant dans `request`.
+    et (optionnellement) réinjecte l'identifiant décodé dans kwargs.
 
-    Par exemple, si l'URL contient <str:hash_epreuve_id>, ce décorateur va :
-    - décoder ce hashid en entier
-    - charger l'objet Epreuve correspondant
-    - l'injecter dans `request.epreuve`
-    - supprimer le paramètre `hash_epreuve_id` des kwargs
-    Args:
-        param_name (str): Nom du paramètre d'URL contenant le hashid.
-        target_name (Optional[str]): Nom de l'objet injecté, ex: "epreuve_id".
-                                     Si "epreuve_id" est utilisé, l'objet Epreuve est injecté dans `request.epreuve`.
+    Exemple :
+    - URL: .../<str:hash_epreuve_id>/...
+    - @resolve_hashid_param("hash_epreuve_id", target_name="epreuve_id")
 
-    Returns:
-        Callable: Vue modifiée avec injection de l’objet décodé dans `request`.
+    Effets :
+    - décode hash_epreuve_id -> int
+    - supprime `hash_epreuve_id` de kwargs
+    - ajoute `epreuve_id` dans kwargs (si target_name est fourni)
+    - si target_name == "epreuve_id", injecte aussi l'objet Epreuve dans request.epreuve
     """
 
     def decorator(view_func: Callable[..., HttpResponse]) -> Callable[..., HttpResponse]:
-
-        @wraps(view_func)
         def wrapped_view(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-            # Récupère le hashid dans les paramètres d’URL
             hashid: Optional[str] = kwargs.get(param_name)
             if hashid is None:
-                context: Dict[str, str] = {
-                    'message': f"Le paramètre '{param_name}' est manquant dans l'URL."
-                }
-                return render(request, 'olympiadesnsi/erreur.html', context, status=403)
+                context: Dict[str, str] = {"message": f"Le paramètre '{param_name}' est manquant dans l'URL."}
+                return render(request, "olympiadesnsi/erreur.html", context, status=403)
 
-            # Décode le hashid en entier
             resolved_id: Optional[int] = decode_id(hashid)
             if resolved_id is None:
                 context: Dict[str, str] = {
-                    'message': "Identifiant invalide dans l'URL. Veuillez contacter l’administrateur."
+                    "message": "Identifiant invalide dans l'URL. Veuillez contacter l’administrateur."
                 }
-                return render(request, 'olympiadesnsi/erreur.html', context, status=403)
+                return render(request, "olympiadesnsi/erreur.html", context, status=403)
 
-            # Supprime le hashid des kwargs
+            # On retire le hashid, pour ne pas polluer la signature de la vue.
             del kwargs[param_name]
 
-            # Si on cible un identifiant d’épreuve, injecte directement l’objet Epreuve dans la requête
-            if target_name == "epreuve_id":
-                epreuve = get_object_or_404(Epreuve, id=resolved_id)
-                request.epreuve = epreuve
+            # On injecte l'id décodé dans kwargs si demandé.
+            if target_name is not None:
+                kwargs[target_name] = resolved_id
 
-                # Sinon, possibilité future d’ajouter d’autres objets ici en fonction de `target_name`
+            # Cas spécial : si on décode une épreuve, on injecte aussi l'objet.
+            if target_name == "epreuve_id":
+                request.epreuve = get_object_or_404(Epreuve, id=resolved_id)
 
             return view_func(request, *args, **kwargs)
 
-        return wrapped_view
+        return wraps(view_func)(wrapped_view)
 
     return decorator
