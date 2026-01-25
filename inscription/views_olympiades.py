@@ -343,7 +343,7 @@ def telecharger_zip_inscription(request: HttpRequest, token: str, inscription_id
     buffer: io.BytesIO = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         contenu_csv_papier = generer_csv_epreuve_ecrite_depuis_inscription(inscription=inscription)
-        nom_csv_papier = f"{inscription.code_uai}_identifiants_epreuve_ecrite.csv"
+        nom_csv_papier = f"{inscription.code_uai}_anonymat_epreuve_ecrite.csv"
         zf.writestr(nom_csv_papier, contenu_csv_papier)
 
         # CSV pratique : un fichier par groupe
@@ -361,12 +361,13 @@ def telecharger_zip_inscription(request: HttpRequest, token: str, inscription_id
                 w.writerow([user.username])
 
             zf.writestr(
-                f"plateforme_groupe_olympiades_{int(lien.numero):03d}.csv",
+                f"{inscription.code_uai}_identifiants_pratique_{int(lien.numero):03d}.csv",
                 contenu.getvalue(),
             )
 
     buffer.seek(0)
-    nom_zip: str = f"inscription_{inscription.code_uai}_{inscription.email_enseignant}.zip"
+    nom_epreuve_fichier = inscription.epreuve.nom.replace(" ", "")[:20]
+    nom_zip: str = f"inscription_{nom_epreuve_fichier}_{inscription.email_enseignant}.zip"
 
     reponse: HttpResponse = HttpResponse(buffer.getvalue(), content_type="application/zip")
     reponse["Content-Disposition"] = f'attachment; filename="{nom_zip}"'
@@ -834,8 +835,9 @@ def annales_telecharger_zip(
             archive.writestr(nom_fichier, contenu_csv.getvalue())
 
     buffer.seek(0)
+    nom_epreuve_fichier = inscription_annales.epreuve.nom.replace(" ", "")[:20]
 
-    nom_zip: str = f"annales_{inscription_annales.epreuve_id}_{email_enseignant}.zip"
+    nom_zip: str = f"annales_{nom_epreuve_fichier}_{email_enseignant}.zip"
     response: HttpResponse = HttpResponse(buffer.getvalue(), content_type="application/zip")
     response["Content-Disposition"] = f'attachment; filename="{nom_zip}"'
 
