@@ -55,7 +55,7 @@ SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', cast=bool)
 CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', cast=bool)
 SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool)
 DEBUG = config("DEBUG", default=False, cast=bool)
-OLYMPIADES_DATE_LIMITE_INSCRIPTION_STR = os.getenv("OLYMPIADES_DATE_LIMITE_INSCRIPTION", "").strip()
+OLYMPIADES_DATE_LIMITE_INSCRIPTION_STR = os.getenv("OLYMPIADES_DATE_LIMITE_INSCRIPTION_STR", "").strip()
 
 
 def _parser_date_limite_inscription():

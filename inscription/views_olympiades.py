@@ -251,6 +251,8 @@ def olympiades_portail(request: HttpRequest, token: str) -> HttpResponse:
     if not inscription_externe.est_valide:
         return render(request, "inscription/erreur_lien_expire.html")
 
+    date_limite_inscription = getattr(settings, "OLYMPIADES_DATE_LIMITE_INSCRIPTION", None)
+    print(date_limite_inscription)
     epreuve: Epreuve = inscription_externe.epreuve
     email_enseignant: str = inscription_externe.inscripteur.email
 
@@ -308,6 +310,7 @@ def olympiades_portail(request: HttpRequest, token: str) -> HttpResponse:
             "token": token,
             "annales": annales,
             "inscriptions_ouvertes": ouvert,
+            "date_limite_inscription": date_limite_inscription,
         },
     )
 
