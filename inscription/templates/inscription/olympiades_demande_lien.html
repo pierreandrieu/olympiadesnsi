@@ -9,6 +9,22 @@
 
         <p>Cette page est destinée aux établissements et aux enseignants de NSI.</p>
 
+        <div class="alert alert-info">
+            <p class="mb-2">
+                Ce formulaire permet de générer un <strong>lien personnel valable 24&nbsp;heures</strong>,
+                donnant accès à un <strong>portail d’inscription</strong> destiné aux professeurs de NSI
+                ou représentants d’établissement. Le portail permet de :
+            </p>
+            <ul class="mb-0">
+                <li>procéder à une <strong>nouvelle inscription</strong> aux Olympiades de NSI&nbsp;;</li>
+                <li>
+                    <strong>consulter et modifier</strong> une inscription déjà effectuée
+                    (<em>à condition d’utiliser le même email que lors de l’inscription initiale</em>).
+                </li>
+            </ul>
+        </div>
+
+
         {% if messages %}
             {% for message in messages %}
                 <div class="alert alert-{{ message.tags }}">{{ message }}</div>
