@@ -309,8 +309,8 @@ class AnonymatEpreuveEcrite(models.Model):
     )
 
     numero = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(0), MaxValueValidator(999)],
-        help_text="Numéro 0..999 correspondant aux 3 chiffres après l'UAI.",
+        validators=[MinValueValidator(1), MaxValueValidator(999)],
+        help_text="Numéro 1..999 correspondant aux 3 chiffres après l'UAI.",
     )
 
     actif = models.BooleanField(default=True)

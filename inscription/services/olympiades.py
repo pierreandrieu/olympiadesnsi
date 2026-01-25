@@ -384,6 +384,7 @@ def _anonymats_inactifs_reutilisables(*, epreuve: Epreuve, etablissement_id: int
     return (
         AnonymatEpreuveEcrite.objects
         .filter(epreuve=epreuve, etablissement_id=etablissement_id, actif=False)
+        .filter(numero__gte=1)
         .select_for_update()
         .order_by("-date_modification")
     )
@@ -397,7 +398,7 @@ def ajuster_anonymats_epreuve_ecrite(*, inscription: InscriptionOlympiades, nb_v
     Règles :
         - Si nb_voulu baisse : on désactive les anonymats actifs "les plus grands" (ou les plus récents).
         - Si nb_voulu augmente : on réactive d'abord des anonymats inactifs réutilisables,
-          sinon on alloue de nouveaux numéros libres (0..999).
+          sinon on alloue de nouveaux numéros libres (1..999).
         - Contrainte forte : jamais de collision sur les anonymats actifs grâce à l'unicité partielle.
 
     Returns:
@@ -456,9 +457,9 @@ def ajuster_anonymats_epreuve_ecrite(*, inscription: InscriptionOlympiades, nb_v
             # Collision active : on ignore et on passe au suivant
             continue
 
-    # 2.b) Allocation de nouveaux numéros libres (0..999)
+    # 2.b) Allocation de nouveaux numéros libres (1..999)
     if a_ajouter > 0:
-        for numero in range(0, 1000):
+        for numero in range(1, 1000):
             if a_ajouter <= 0:
                 break
             if numero in numeros_actifs:
@@ -496,7 +497,7 @@ def ajuster_anonymats_epreuve_ecrite(*, inscription: InscriptionOlympiades, nb_v
 
     if a_ajouter > 0:
         raise ValueError(
-            f"Impossible d'allouer {nb_voulu} anonymats pour {code_uai} sur {epreuve.nom} : stock 000..999 épuisé."
+            f"Impossible d'allouer {nb_voulu} anonymats pour {code_uai} sur {epreuve.nom} : stock 001..999 épuisé."
         )
 
     anonymats_actifs = sorted(anonymats_actifs, key=lambda a: a.numero)
