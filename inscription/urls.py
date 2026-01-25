@@ -15,6 +15,7 @@ urlpatterns = [
         name="olympiades_supprimer_inscription",
     ),
     # Olympiades
+    path("olympiades/guide/", views_olympiades.olympiades_guide, name="olympiades_guide"),
     path(
         "olympiades/infos-etablissement/",
         views_olympiades.olympiades_infos_etablissement,
@@ -52,5 +53,14 @@ urlpatterns = [
         views_olympiades.annales_telecharger_zip,
         name="annales_telecharger_zip",
     ),
-
+    path(
+        "olympiades/<str:token>/mots-de-passe/",
+        views_olympiades.olympiades_mots_de_passe,
+        name="olympiades_mots_de_passe",
+    ),
+    path(
+        "olympiades/<str:token>/mots-de-passe/<int:user_id>/reset/",
+        views_olympiades.olympiades_reset_mot_de_passe,
+        name="olympiades_reset_mot_de_passe",
+    ),
 ]

@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import zipfile
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional
 
 from django.contrib import messages
 from django.contrib.auth.models import User
@@ -13,7 +13,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 from django_ratelimit.decorators import ratelimit
 
 from epreuve.models import Epreuve
@@ -29,12 +29,12 @@ from inscription.models import (
     InscriptionExterne,
     InscriptionOlympiades,
     InscriptionOlympiadesGroupe,
-    GroupeParticipeAEpreuve, InscriptionAnnales,
+    GroupeParticipeAEpreuve, InscriptionAnnales, AnonymatEpreuveEcrite,
 )
 from inscription.services.olympiades import (
-    construire_pieces_jointes_csv,
     inscrire_groupe_olympiades_a_epreuve,
-    preparer_groupe_et_comptes_olympiades, preparer_groupe_et_comptes_annales,
+    preparer_groupe_et_comptes_olympiades, preparer_groupe_et_comptes_annales, ajuster_anonymats_epreuve_ecrite,
+    generer_csv_epreuve_ecrite_depuis_inscription, lister_comptes_resetables, inscriptions_ouvertes,
 )
 from inscription.utils import generate_unique_token
 from intranet.models import GroupeParticipant
@@ -129,6 +129,7 @@ def _supprimer_inscription_olympiades_et_dependances(inscription: InscriptionOly
         if not est_utilise_par_une_autre_inscription:
             groupe.delete()
 
+    AnonymatEpreuveEcrite.objects.filter(inscription=inscription, actif=True).update(actif=False)
     # 4) Supprimer l'inscription
     inscription.delete()
 
@@ -214,171 +215,10 @@ def olympiades_demande_lien(request: HttpRequest) -> HttpResponse:
 
     return render(request, "inscription/olympiades_demande_lien.html", {"form": form, "epreuve": epreuve})
 
-
-@ratelimit(key="ip", rate="3/s", method="GET", block=True)
-@ratelimit(key="ip", rate="15/m", method="GET", block=True)
-@ratelimit(key="ip", rate="50/h", method="GET", block=True)
-def olympiades_inscription_par_token(request: HttpRequest, token: str) -> HttpResponse:
-    """
-    Formulaire d'inscription "Olympiades" accessible via un lien tokenisé.
-
-    Règles métier :
-    - Le token identifie (épreuve, email enseignant)
-    - Un enseignant ne doit pas créer de doublon (unicité logique sur epreuve+etablissement+email_enseignant)
-    - Le référentiel Etablissement est unique par code UAI
-
-    Comportement :
-    - Si l'inscription existe déjà : mise à jour (volumes)
-    - Sinon : création
-    - Si nb_equipes_pratique > 0 : création d'un groupe pratique + users (sans mot de passe)
-    - Inscription du groupe à l'épreuve
-    - Envoi email final avec pièces jointes (papier + pratique)
-    - Consommation du token
-
-    Args:
-        request: Requête HTTP.
-        token: Token reçu par email.
-
-    Returns:
-        HttpResponse: Page formulaire (GET / POST invalide) ou confirmation après succès.
-    """
-    inscription_externe: InscriptionExterne = get_object_or_404(
-        InscriptionExterne,
-        token=token,
-        token_est_utilise=False,
-    )
-    if not inscription_externe.est_valide:
-        return render(request, "inscription/erreur_lien_expire.html")
-
-    epreuve: Epreuve = inscription_externe.epreuve
-    email_enseignant: str = inscription_externe.inscripteur.email
-
-    form: InscriptionOlympiadesForm = InscriptionOlympiadesForm(request.POST or None)
-
-    if request.method != "POST" or not form.is_valid():
-        return render(
-            request,
-            "inscription/olympiades_formulaire.html",
-            {"form": form, "epreuve": epreuve, "email_enseignant": email_enseignant},
-        )
-
-    # Lecture + normalisation
-    code_uai: str = (form.cleaned_data["code_uai"] or "").strip().upper()
-    nom_etablissement: str = (form.cleaned_data.get("nom_etablissement") or "").strip()
-    commune: str = (form.cleaned_data.get("commune") or "").strip()
-    email_etablissement: str = (form.cleaned_data.get("email_etablissement") or "").strip()
-    nom_enseignant: str = (form.cleaned_data.get("nom_enseignant") or "").strip()
-    nb_candidats_ecrit: int = int(form.cleaned_data["nb_candidats_ecrit"])
-    nb_equipes_pratique: int = int(form.cleaned_data["nb_equipes_pratique"])
-
-    # Référentiel Etablissement (unique par UAI)
-    etablissement, _ = Etablissement.objects.update_or_create(
-        code_uai=code_uai,
-        defaults={"nom": nom_etablissement, "commune": commune, "email": email_etablissement},
-    )
-
-    # Création / mise à jour inscription
-    try:
-        with transaction.atomic():
-            inscription_olympiades, created = InscriptionOlympiades.objects.get_or_create(
-                epreuve=epreuve,
-                etablissement=etablissement,
-                email_enseignant=email_enseignant,
-                defaults={
-                    "code_uai": code_uai,
-                    "nom_enseignant": nom_enseignant,
-                    "nb_candidats_ecrit": nb_candidats_ecrit,
-                    "nb_equipes_pratique": nb_equipes_pratique,
-                },
-            )
-
-            if not created:
-                inscription_olympiades.code_uai = code_uai
-                inscription_olympiades.nom_enseignant = nom_enseignant
-                inscription_olympiades.nb_candidats_ecrit = nb_candidats_ecrit
-                inscription_olympiades.nb_equipes_pratique = nb_equipes_pratique
-                inscription_olympiades.save(
-                    update_fields=[
-                        "code_uai",
-                        "nom_enseignant",
-                        "nb_candidats_ecrit",
-                        "nb_equipes_pratique",
-                        "date_maj",
-                    ]
-                )
-    except IntegrityError:
-        messages.error(request, "Cet établissement est déjà inscrit pour cette épreuve avec cet email enseignant.")
-        return render(
-            request,
-            "inscription/olympiades_formulaire.html",
-            {"form": form, "epreuve": epreuve, "email_enseignant": email_enseignant},
-        )
-
-    # Création groupe + users pratique si demandé
-    referent: User = epreuve.referent
-    usernames_olympiades: List[str] = []
-
-    if nb_equipes_pratique > 0:
-        groupe_olympiades, usernames_olympiades = preparer_groupe_et_comptes_olympiades(
-            epreuve=epreuve,
-            referent=referent,
-            code_uai=code_uai,
-            email_enseignant=email_enseignant,
-            nb_equipes=nb_equipes_pratique,
-            inscription=inscription_olympiades,
-        )
-
-        inscrire_groupe_olympiades_a_epreuve(
-            epreuve=epreuve,
-            groupe_olympiades=groupe_olympiades,
-        )
-
-    # Consommation du token
-    inscription_externe.token_est_utilise = True
-    inscription_externe.save(update_fields=["token_est_utilise"])
-
-    # Email final + CSV (papier + pratique)
-    pieces_jointes: List[Tuple[str, bytes]] = construire_pieces_jointes_csv(
-        epreuve=epreuve,
-        code_uai=code_uai,
-        nb_candidats_ecrit=nb_candidats_ecrit,
-        usernames_olympiades=usernames_olympiades,
-    )
-
-    sujet_final: str = f"Olympiades NSI – identifiants ({epreuve.nom})"
-    corps_final: str = (
-        "Bonjour,\n\n"
-        "Votre inscription a bien été enregistrée.\n"
-        "Vous trouverez en pièces jointes :\n"
-        "- les identifiants pour l'épreuve écrite,\n"
-        "- les identifiants plateforme pour l'épreuve pratique.\n\n"
-        "Chaque équipe choisira un mot de passe lors de sa première connexion.\n\n"
-        "Cordialement,\n"
-        "L’équipe des Olympiades de NSI"
-    )
-
-    mail_final: EmailMessage = EmailMessage(
-        subject=sujet_final,
-        body=corps_final,
-        from_email=f"{settings.ADMIN_NAME} <{settings.EMAIL_HOST_USER}>",
-        to=[email_enseignant],
-    )
-
-    for nom_fichier, contenu in pieces_jointes:
-        mail_final.attach(nom_fichier, contenu, "text/csv")
-
-    mail_final.send()
-
-    return render(
-        request,
-        "inscription/olympiades_confirmation_envoi_lien.html",
-        {"email": email_enseignant, "epreuve": epreuve, "code_uai": code_uai},
-    )
-
-
 # ---------------------------------------------------------------------
 # Portail
 # ---------------------------------------------------------------------
+
 
 def olympiades_portail(request: HttpRequest, token: str) -> HttpResponse:
     """
@@ -400,6 +240,7 @@ def olympiades_portail(request: HttpRequest, token: str) -> HttpResponse:
         token=token,
         token_est_utilise=False,
     )
+    ouvert = inscriptions_ouvertes()
     if not inscription_externe.est_valide:
         return render(request, "inscription/erreur_lien_expire.html")
 
@@ -459,6 +300,7 @@ def olympiades_portail(request: HttpRequest, token: str) -> HttpResponse:
             "inscriptions_annales": inscriptions_annales,
             "token": token,
             "annales": annales,
+            "inscriptions_ouvertes": ouvert,
         },
     )
 
@@ -474,13 +316,6 @@ def telecharger_zip_inscription(request: HttpRequest, token: str, inscription_id
     - un CSV par groupe pratique (usernames)
 
     Sécurisé par le token : l'inscription doit appartenir à (épreuve, email_enseignant) du token.
-
-    Notes :
-        - Pour le CSV papier, on réutilise la même logique que l'envoi email (offset UAI+3 chiffres).
-          Ici, on choisit de livrer "les identifiants papier correspondant à CETTE inscription".
-          Comme on n'a pas stocké la tranche attribuée, on reconstruit via l'offset global au moment du download.
-          Si tu veux une stabilité parfaite "identiques à l'email d'origine", il faut stocker la tranche (start/end)
-          au niveau InscriptionOlympiades.
 
     Args:
         request: Requête HTTP.
@@ -505,19 +340,10 @@ def telecharger_zip_inscription(request: HttpRequest, token: str, inscription_id
         email_enseignant=inscription_externe.inscripteur.email,
     )
 
-    epreuve: Epreuve = inscription.epreuve
-
     buffer: io.BytesIO = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        # CSV papier : on reconstruit avec la même fonction que l'email final
-        # (on passe usernames_olympiades=[] car on ne veut que le csv papier ici)
-        pieces: List[Tuple[str, bytes]] = construire_pieces_jointes_csv(
-            epreuve=epreuve,
-            code_uai=inscription.code_uai,
-            nb_candidats_ecrit=int(inscription.nb_candidats_ecrit),
-            usernames_olympiades=[],
-        )
-        nom_csv_papier, contenu_csv_papier = pieces[0]
+        contenu_csv_papier = generer_csv_epreuve_ecrite_depuis_inscription(inscription=inscription)
+        nom_csv_papier = f"{inscription.code_uai}_identifiants_epreuve_ecrite.csv"
         zf.writestr(nom_csv_papier, contenu_csv_papier)
 
         # CSV pratique : un fichier par groupe
@@ -566,6 +392,10 @@ def olympiades_nouvelle_inscription(request: HttpRequest, token: str) -> HttpRes
     Returns:
         HttpResponse: Page du formulaire ou redirection vers le portail.
     """
+    if not inscriptions_ouvertes():
+        messages.error(request,
+                       "La période d’inscription est terminée.")
+        return redirect("olympiades_portail", token=token)
     inscription_externe: InscriptionExterne = get_object_or_404(
         InscriptionExterne,
         token=token,
@@ -625,6 +455,7 @@ def olympiades_nouvelle_inscription(request: HttpRequest, token: str) -> HttpRes
                 nb_candidats_ecrit=nb_candidats_ecrit,
                 nb_equipes_pratique=nb_equipes_pratique,
             )
+            ajuster_anonymats_epreuve_ecrite(inscription=inscription, nb_voulu=nb_candidats_ecrit)
     except IntegrityError:
         form.add_error("code_uai", "Cet établissement est déjà inscrit pour cette épreuve avec cet email enseignant.")
         messages.error(request, "Établissement déjà inscrit : vous l’avez déjà enregistré avec cet email enseignant.")
@@ -673,6 +504,10 @@ def olympiades_editer_inscription(request: HttpRequest, token: str, inscription_
     Returns:
         HttpResponse: Page d'édition ou redirection après succès.
     """
+    if not inscriptions_ouvertes():
+        messages.error(request,
+                       "La période d’inscription est terminée.")
+        return redirect("olympiades_portail", token=token)
     inscription_externe: InscriptionExterne = get_object_or_404(
         InscriptionExterne,
         token=token,
@@ -709,8 +544,9 @@ def olympiades_editer_inscription(request: HttpRequest, token: str, inscription_
 
         with transaction.atomic():
             inscription.nb_candidats_ecrit = nb_candidats_ecrit
-            inscription.save(update_fields=["nb_candidats_ecrit", "date_maj"])
-
+            inscription.nb_equipes_pratique += nb_equipes_a_ajouter
+            inscription.save(update_fields=["nb_candidats_ecrit", "nb_equipes_pratique", "date_maj"])
+            ajuster_anonymats_epreuve_ecrite(inscription=inscription, nb_voulu=nb_candidats_ecrit)
             if nb_equipes_a_ajouter > 0:
                 referent: User = epreuve.referent
                 groupe_olympiades, _usernames = preparer_groupe_et_comptes_olympiades(
@@ -721,7 +557,7 @@ def olympiades_editer_inscription(request: HttpRequest, token: str, inscription_
                     nb_equipes=nb_equipes_a_ajouter,
                     inscription=inscription,
                 )
-                # Point crucial : inscription réelle du groupe à l'épreuve
+                # inscription réelle du groupe à l'épreuve
                 inscrire_groupe_olympiades_a_epreuve(epreuve=epreuve, groupe_olympiades=groupe_olympiades)
 
         if nb_equipes_a_ajouter > 0:
@@ -833,6 +669,10 @@ def olympiades_supprimer_inscription(request: HttpRequest, token: str, inscripti
     Returns:
         HttpResponse: Page de confirmation ou redirection après suppression.
     """
+    if not inscriptions_ouvertes():
+        messages.error(request,
+                       "La période d’inscription est terminée.")
+        return redirect("olympiades_portail", token=token)
     inscription_externe: InscriptionExterne = get_object_or_404(
         InscriptionExterne,
         token=token,
@@ -1002,3 +842,78 @@ def annales_telecharger_zip(
     return response
 
 
+def olympiades_mots_de_passe(request: HttpRequest, token: str) -> HttpResponse:
+    """
+    Page enseignant : liste les comptes (olympiades pratique + annales) que ce prof peut réinitialiser.
+
+    Sécurité :
+        - token valide / non consommé
+        - la liste est calculée exclusivement à partir de (epreuve_source, email_enseignant)
+    """
+    inscription_externe: InscriptionExterne = get_object_or_404(
+        InscriptionExterne,
+        token=token,
+        token_est_utilise=False,
+    )
+    if not inscription_externe.est_valide:
+        return render(request, "inscription/erreur_lien_expire.html")
+
+    epreuve_source: Epreuve = inscription_externe.epreuve
+    email_enseignant: str = inscription_externe.inscripteur.email
+
+    comptes = lister_comptes_resetables(epreuve_source=epreuve_source, email_enseignant=email_enseignant)
+
+    return render(
+        request,
+        "inscription/olympiades_mots_de_passe.html",
+        {
+            "token": token,
+            "epreuve": epreuve_source,
+            "email_enseignant": email_enseignant,
+            "users_olympiades": comptes.users_olympiades,
+            "users_annales": comptes.users_annales,
+        },
+    )
+
+
+@require_POST
+def olympiades_reset_mot_de_passe(request: HttpRequest, token: str, user_id: int) -> HttpResponse:
+    """
+    Action POST : réinitialise le mot de passe d'un compte élève autorisé.
+
+    Effet :
+        - `set_unusable_password()` ; à la prochaine connexion, `prelogin` bascule vers `set_password`.
+
+    Sécurité :
+        - token valide / non consommé
+        - le user_id doit appartenir à l'ensemble des ids autorisés pour ce token
+    """
+    inscription_externe: InscriptionExterne = get_object_or_404(
+        InscriptionExterne,
+        token=token,
+        token_est_utilise=False,
+    )
+    if not inscription_externe.est_valide:
+        return render(request, "inscription/erreur_lien_expire.html")
+
+    epreuve_source: Epreuve = inscription_externe.epreuve
+    email_enseignant: str = inscription_externe.inscripteur.email
+
+    comptes = lister_comptes_resetables(epreuve_source=epreuve_source, email_enseignant=email_enseignant)
+    if user_id not in comptes.ids_autorises:
+        # Garde-fou fort : on ne révèle pas l'existence du user.
+        return get_object_or_404(User, id=-1)
+
+    utilisateur: User = get_object_or_404(User, id=user_id)
+    utilisateur.set_unusable_password()
+    utilisateur.save(update_fields=["password"])
+
+    messages.success(request, f"Mot de passe réinitialisé pour {utilisateur.username}.")
+    return redirect("olympiades_mots_de_passe", token=token)
+
+
+def olympiades_guide(request: HttpRequest) -> HttpResponse:
+    """
+    Page d'aide / mode d'emploi pour les inscriptions Olympiades (côté profs).
+    """
+    return render(request, "inscription/olympiades_guide.html")

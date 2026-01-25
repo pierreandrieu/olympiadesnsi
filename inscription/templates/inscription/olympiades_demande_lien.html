@@ -14,6 +14,13 @@
                 <div class="alert alert-{{ message.tags }}">{{ message }}</div>
             {% endfor %}
         {% endif %}
+        <br>
+        <br>
+        <a href="{% url 'olympiades_guide' %}" target="_blank" rel="noopener">
+            Guide pour les inscriptions
+        </a>
+        <br>
+        <br>
 
         {# Message d'erreur JS #}
         <div id="error-message" class="alert alert-warning" style="display:none;"></div>

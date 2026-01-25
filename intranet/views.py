@@ -1,5 +1,6 @@
 from datetime import timedelta
-from typing import List, Tuple, cast, Optional, Set
+from typing import List, Tuple, cast, Optional
+from django.conf import settings as django_settings
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
@@ -15,7 +16,7 @@ from django.views.decorators.http import require_http_methods
 
 from epreuve.forms import EpreuveForm
 from epreuve.models import UserEpreuve, JeuDeTest, Epreuve, MembreComite, Exercice
-from inscription.models import InscriptionDomaine
+from inscription.models import InscriptionOlympiades
 from intranet.models import ParticipantEstDansGroupe, GroupeParticipant
 from inscription.utils import save_users
 from login.utils import genere_participants_uniques
@@ -184,6 +185,7 @@ def supprimer_groupe(request: HttpRequest, groupe_id: int) -> HttpResponse:
 
     messages.error(request, "Méthode non supportée pour cette action.")
     return redirect('espace_organisateur')
+
 
 @login_required
 @decorators.administrateur_groupe_required
@@ -458,7 +460,8 @@ def espace_organisateur(request: HttpRequest) -> HttpResponse:
         'nom': user.username,
         'groupes_crees': groupes_crees,
         'epreuves_info': epreuves_info,
-        'form': epreuve_form
+        'form': epreuve_form,
+        'olympiades_epreuve_id': int(getattr(django_settings, "OLYMPIADES_EPREUVE_ID", 0) or 0),
     })
 
 
@@ -552,3 +555,54 @@ def reset_password(request, user_id):
     except User.DoesNotExist:
         messages.error(request, 'Utilisateur non trouvé.')
     return redirect('espace_organisateur')
+
+
+@login_required
+@decorators.organisateur_required
+def exporter_inscriptions_olympiades_csv(request: HttpRequest) -> HttpResponse:
+    id_olympiades: int = int(getattr(django_settings, "OLYMPIADES_EPREUVE_ID", 0) or 0)
+    if id_olympiades == 0:
+        return HttpResponseForbidden("Export indisponible : OLYMPIADES_EPREUVE_ID non configuré.")
+
+    epreuve = Epreuve.objects.filter(id=id_olympiades).first()
+    if epreuve is None or not epreuve.a_pour_membre_comite(request.user):
+        return HttpResponseForbidden("Accès interdit.")
+
+    inscriptions = (
+        InscriptionOlympiades.objects
+        .filter(epreuve=epreuve)
+        .select_related("etablissement")
+        .order_by("code_uai", "email_enseignant")
+    )
+
+    tampon = io.StringIO()
+    writer = csv.writer(tampon, delimiter=";")
+    writer.writerow([
+        "nom_etablissement",
+        "commune_etablissement",
+        "uai",
+        "mail_etablissement",
+        "nom_enseignant",
+        "mail_enseignant",
+        "nb_candidats_ecrit",
+        "nb_equipes_pratique",
+    ])
+
+    for ins in inscriptions:
+        etab = ins.etablissement
+        writer.writerow([
+            etab.nom,
+            etab.commune,
+            ins.code_uai,
+            etab.email,
+            ins.nom_enseignant,
+            ins.email_enseignant,
+            int(ins.nb_candidats_ecrit),
+            int(ins.nb_equipes_pratique),
+        ])
+    date_str = timezone.now().strftime("%Y%m%d-%H%M%S")
+    nom_fichier = f"inscriptions_olympiades_epreuve_{epreuve.id}_{date_str}.csv"
+
+    response = HttpResponse(tampon.getvalue(), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{nom_fichier}"'
+    return response

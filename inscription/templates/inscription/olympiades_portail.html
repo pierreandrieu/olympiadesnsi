@@ -16,12 +16,18 @@
                 </div>
             </div>
 
-            <div class="d-flex gap-2">
+            <div class="d-flex flex-wrap gap-2">
                 <a class="btn btn-primary"
                    href="{% url 'olympiades_nouvelle_inscription' token=token %}">
                     Inscrire un nouvel établissement
                 </a>
+
+                <a class="btn btn-outline-secondary"
+                   href="{% url 'olympiades_mots_de_passe' token=token %}">
+                    Mots de passe élèves
+                </a>
             </div>
+
         </div>
 
         {% if messages %}
@@ -43,7 +49,7 @@
             </span>
                     </div>
                     <div class="text-muted small">
-                        Inscriptions par établissement (papier + pratique)
+                        Inscriptions par établissement aux Olympiades de NSI
                     </div>
                 </div>
             </div>
@@ -85,7 +91,7 @@
                                             </div>
 
                                             <div class="mt-2">
-                                                <div class="small fw-semibold mb-1">Groupes pratique</div>
+                                                <div class="small fw-semibold mb-1">Groupes d'équipes d'épreuve pratique</div>
                                                 <ul class="mb-0 small">
                                                     {% for lien in ins.groupes_associes.all %}
                                                         {% if lien.type_groupe == "olympiades" %}
@@ -141,7 +147,7 @@
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <h2 class="h5 mb-0">Annales</h2>
                     <div class="text-muted small">
-                        Génération d’identifiants plateforme (sans papier)
+                        Génération d’identifiants pour l'épreuve pratique des éditions précédentes
                     </div>
                 </div>
             </div>
@@ -151,17 +157,17 @@
                     <div class="p-3 rounded border bg-light mb-3">
                         <div class="fw-semibold mb-1">Fonctionnement</div>
                         <div class="small text-muted mb-2">
-                            Une génération crée un groupe et l’inscrit automatiquement à <strong>toutes</strong> les
+                            Vous choisissez le nombre d'identifiants à générer (un par équipe), les identifiants générés seront inscrits automatiquement à <strong>toutes</strong> les
                             annales ci-dessous.
                         </div>
 
                         <div class="d-flex flex-wrap align-items-center gap-2">
                             <a class="btn btn-outline-primary btn-sm"
                                href="{% url 'annales_inscrire' token=token %}">
-                                Générer des identifiants (toutes les annales)
+                                Générer des identifiants
                             </a>
                             <span class="text-muted small">
-                Vous pourrez ensuite télécharger un zip (un CSV par groupe).
+                Vous pourrez ensuite télécharger un zip contenant les identifiants (un CSV par groupe d'équipes généré).
               </span>
                         </div>
                     </div>
@@ -186,7 +192,7 @@
                                 <div class="list-group-item">
                                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
                                         <div class="me-2">
-                                            <div class="fw-semibold">{{ insa.epreuve.nom }}</div>
+                                            <div class="fw-semibold">Annales de {{ insa.epreuve.nom }}</div>
                                             <div class="small text-muted">
                                                 Équipes générées : <strong>{{ insa.nb_equipes_total }}</strong>
                                                 <span class="mx-1">·</span>

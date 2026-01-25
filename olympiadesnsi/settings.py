@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from dotenv import load_dotenv
 import os
 from decouple import Config, Csv
@@ -53,7 +55,27 @@ SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', cast=bool)
 CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', cast=bool)
 SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool)
 DEBUG = config("DEBUG", default=False, cast=bool)
-OLYMPIADES_DATE_LIMITE_INSCRIPTION = os.environ.get("OLYMPIADES_DATE_LIMITE_INSCRIPTION", "").strip()
+OLYMPIADES_DATE_LIMITE_INSCRIPTION_STR = os.getenv("OLYMPIADES_DATE_LIMITE_INSCRIPTION", "").strip()
+
+
+def _parser_date_limite_inscription():
+    if not OLYMPIADES_DATE_LIMITE_INSCRIPTION_STR:
+        return None
+
+    dt = parse_datetime(OLYMPIADES_DATE_LIMITE_INSCRIPTION_STR)
+    if dt is None:
+        raise ValueError(
+            "OLYMPIADES_DATE_LIMITE_INSCRIPTION invalide. "
+        )
+
+    # Si la date est naive, on la rend aware dans le timezone du projet
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt, timezone.get_current_timezone())
+
+    return dt
+
+
+OLYMPIADES_DATE_LIMITE_INSCRIPTION = _parser_date_limite_inscription()
 
 RATELIMIT_USE_X_FORWARDED_FOR = config(
     'RATELIMIT_USE_X_FORWARDED_FOR',

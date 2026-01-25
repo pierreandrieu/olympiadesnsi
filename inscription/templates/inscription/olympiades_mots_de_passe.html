@@ -1,0 +1,112 @@
+{% extends 'olympiadesnsi/base_extranet.html' %}
+
+{% block content %}
+    <div class="container my-4">
+
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+            <div>
+                <h1 class="mb-1">Mots de passe élèves</h1>
+                <div class="text-muted">
+                    Email de contact : <strong>{{ email_enseignant }}</strong>
+                </div>
+            </div>
+
+            <div>
+                <a class="btn btn-outline-secondary"
+                   href="{% url 'olympiades_portail' token=token %}">
+                    Retour au portail
+                </a>
+            </div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} mb-3">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="alert alert-info small">
+            Réinitialiser un mot de passe supprime le mot de passe actuel.
+            À la prochaine connexion, l’élève devra en choisir un nouveau.
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h2 class="h5 mb-0">Olympiades (épreuve pratique)</h2>
+            </div>
+            <div class="card-body">
+                {% if users_olympiades %}
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for u in users_olympiades %}
+                                <tr>
+                                    <td class="fw-semibold">{{ u.username }}</td>
+                                    <td class="text-end">
+                                        <form method="post"
+                                              action="{% url 'olympiades_reset_mot_de_passe' token=token user_id=u.id %}"
+                                              class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                Réinitialiser
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-muted small">Aucun compte olympiades trouvé pour cet email.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h2 class="h5 mb-0">Annales</h2>
+            </div>
+            <div class="card-body">
+                {% if users_annales %}
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for u in users_annales %}
+                                <tr>
+                                    <td class="fw-semibold">{{ u.username }}</td>
+                                    <td class="text-end">
+                                        <form method="post"
+                                              action="{% url 'olympiades_reset_mot_de_passe' token=token user_id=u.id %}"
+                                              class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                Réinitialiser
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-muted small">Aucun compte annales trouvé pour cet email.</div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+{% endblock %}

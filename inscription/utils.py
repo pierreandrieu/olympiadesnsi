@@ -12,7 +12,8 @@ from django.utils.crypto import get_random_string
 
 from epreuve.models import Epreuve
 
-from inscription.models import GroupeParticipant, InscriptionExterne, InscripteurExterne
+from inscription.models import InscriptionExterne, InscripteurExterne
+from intranet.models import GroupeParticipant
 from intranet.models import ParticipantEstDansGroupe
 from olympiadesnsi import settings
 from olympiadesnsi.constants import TOKEN_LENGTH

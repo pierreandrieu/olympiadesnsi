@@ -1,0 +1,190 @@
+{% extends 'olympiadesnsi/base_extranet.html' %}
+{% load static %}
+
+{% block content %}
+    <div class="container my-4">
+        <h1 class="mb-3">Guide </h1>
+
+        <p class="text-muted">
+            Voici quelques informations concernant le fonctionnement des Olympiades de NSI de l'académie de Versailles
+        </p>
+
+        <div class="alert alert-info">
+            <strong>Rappel :</strong> il y a deux épreuves.
+            <ul class="mb-0">
+                <li><strong>Épreuve écrite (papier)</strong> : <strong>individuelle</strong>.</li>
+                <li><strong>Épreuve pratique (sur ordinateur)</strong> : <strong>par équipes</strong> de <strong>1 à 3
+                    élèves</strong>.
+                </li>
+            </ul>
+            <div class="mt-2">
+                Un élève peut participer à une seule des deux épreuves, mais pour être <strong>classé</strong>, il faut
+                avoir participé aux <strong>deux</strong>.
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h5 mb-3">1. Demander un lien d’accès au portail</h2>
+                <ol class="mb-0">
+                    <li>Saisir votre identifiant académique (avant le @) et sélectionner votre domaine.</li>
+                    <li>Valider l’envoi : vous recevez un email contenant un lien.</li>
+                    <li>Le lien est valable <strong>24 heures</strong> et mène à un <strong>portail
+                        enseignant</strong>.
+                    </li>
+                </ol>
+                <div class="text-muted mt-2">
+                    Le portail est associé à l’email académique utilisé : vous y retrouvez les inscriptions liées
+                    à cet email.
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h5 mb-3">2. Fonctionnement des inscriptions Olympiades</h2>
+
+                <ul class="mb-0">
+                    <li>
+                        <strong>Une inscription Olympiades correspond à un établissement</strong> (code UAI) <strong>et
+                        un email enseignant</strong>.
+                    </li>
+                    <li>
+                        Si vous inscrivez des élèves de <strong>plusieurs établissements</strong>, il faut créer
+                        <strong>une inscription par établissement</strong>.
+                    </li>
+                    <li>
+                        Si plusieurs enseignants de NSI d’un même établissement inscrivent des élèves, deux
+                        organisations sont possibles :
+                        <ul>
+                            <li>
+                                chaque enseignant effectue <strong>sa propre inscription</strong> pour l’établissement ;
+                            </li>
+                            <li>
+                                les enseignants <strong>se coordonnent</strong> et regroupent l’ensemble des élèves dans
+                                <strong>une inscription commune</strong> (dans ce cas, un seul enseignant effectue
+                                l’inscription).
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h5 mb-3">3. Ce que vous pouvez faire sur le portail (Olympiades)</h2>
+
+                <h3 class="h6">Créer une inscription</h3>
+                <p>
+                    Lors de la création d’une inscription, vous indiquez notamment :
+                    <strong>le nombre de candidats pour l’épreuve écrite</strong> et
+                    <strong>le nombre d’équipes pour l’épreuve pratique</strong>.
+                </p>
+                <p>
+                    À partir de ces informations, la plateforme génère automatiquement :
+                </p>
+                <ul>
+                    <li>
+                        des <strong>numéros d’anonymat</strong> pour l’épreuve écrite (papier),
+                    </li>
+                    <li>
+                        des <strong>identifiants d’équipes</strong> pour l’épreuve pratique (plateforme).
+                    </li>
+                </ul>
+
+                <h3 class="h6 mt-3">Modifier une inscription (jusqu’à la date limite d’inscription)</h3>
+                <p>
+                    Tant que la date limite d’inscription n’est pas atteinte, vous pouvez modifier une inscription
+                    existante.
+                </p>
+                <ul>
+                    <li>
+                        Vous pouvez <strong>modifier le nombre de candidats</strong> à l’épreuve écrite.
+                        Les numéros anonymats papier sont alors ajustés automatiquement.
+                    </li>
+                    <li>
+                        Vous pouvez <strong>ajouter des équipes</strong> pour l’épreuve pratique.
+                        <br>
+                        Chaque ajout de <em>k</em> équipes entraîne la création d’un
+                        <strong>nouveau groupe</strong>, correspondant à
+                        <strong>k nouveaux identifiants d’équipes</strong> pour l’épreuve pratique.
+                    </li>
+                </ul>
+
+                <div class="alert alert-warning mb-3">
+                    Pour l’épreuve pratique, il est possible <strong>d’ajouter</strong> des équipes,
+                    mais il n’est pas possible de les <strong>supprimer</strong>.
+                    <br>
+                    Si certains identifiants ne sont finalement pas utilisés, ce n’est pas un problème.
+                </div>
+
+                <h3 class="h6 mt-3">Télécharger les identifiants</h3>
+                <p>
+                    Les identifiants générés sont disponibles au <strong>téléchargement</strong> depuis le portail,
+                    sous forme de fichiers :
+                </p>
+                <ul>
+                    <li>un fichier CSV pour l’épreuve écrite (numéros d'anonymats),</li>
+                    <li>un fichier CSV par groupe pour l’épreuve pratique (identifiants des équipes).</li>
+                </ul>
+
+                <div class="alert alert-info mb-3">
+                    <strong>Attention :</strong>
+                    en cas de modification d’une inscription (épreuve écrite ou pratique),
+                    les identifiants peuvent être mis à jour.
+                    <br>
+                    Il est donc nécessaire de <strong>télécharger à nouveau</strong> les fichiers concernés et de
+                    considérer <strong>la dernière version téléchargée comme la version de référence</strong>.
+                </div>
+
+                <h3 class="h6">Supprimer complètement une inscription</h3>
+                <p class="mb-0">
+                    Vous pouvez supprimer une inscription depuis le portail, jusqu'à la date limite d'inscription.
+                    Cette action supprime l’inscription ainsi que les éléments qui y sont associés.
+                </p>
+
+                <hr>
+
+                <h3 class="h6">Réinitialiser un mot de passe (épreuve pratique)</h3>
+                <p class="mb-0">
+                    Les équipes définissent leur <strong>mot de passe au début de l’épreuve</strong>.
+                    En cas d’oubli ou de problème, le portail permet au professeur de
+                    <strong>réinitialiser</strong> le mot de passe d’une équipe.
+                </p>
+            </div>
+        </div>
+
+        <div class="alert alert-danger">
+            <strong>Important :</strong>
+            les identifiants générés pour les Olympiades (épreuve pratique) ne doivent
+            <strong>en aucun cas</strong> être communiqués aux élèves avant le moment de l’épreuve.
+        </div>
+
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h5 mb-3">4. Annales (génération indépendante, sans date limite)</h2>
+
+                <p>
+                    Indépendamment des inscriptions aux Olympiades, vous pouvez générer des identifiants pour travailler
+                    sur les annales
+                    de l’épreuve pratique.
+                </p>
+
+                <ul class="mb-0">
+                    <li>Il n’y a <strong>pas de date limite</strong> : c’est utilisable à tout moment.</li>
+                    <li>Il suffit d’indiquer le <strong>nombre d’identifiants</strong> à générer.</li>
+                    <li>Les identifiants générés permettent de travailler sur les épreuves <strong>2024</strong> et
+                        <strong>2025</strong>.
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <p class="text-muted small mb-0">
+            Si vous rencontrez un problème technique, vous pouvez contacter l’équipe organisatrice via les canaux
+            habituels.
+        </p>
+    </div>
+{% endblock %}

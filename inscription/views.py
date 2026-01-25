@@ -16,7 +16,8 @@ from olympiadesnsi import decorators
 from .forms import EquipeInscriptionForm, DemandeLienInscriptionForm
 from .models import InscripteurExterne, InscriptionExterne
 from inscription.utils import generate_unique_token, calculer_nombre_inscrits, save_users
-from inscription.models import InscriptionDomaine, GroupeParticipant
+from inscription.models import InscriptionDomaine
+from intranet.models import GroupeParticipant
 import olympiadesnsi.constants as constantes
 
 

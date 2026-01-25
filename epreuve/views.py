@@ -20,7 +20,8 @@ from django.urls import reverse
 from epreuve.models import Epreuve, Exercice, JeuDeTest, MembreComite, UserEpreuve, UserExercice
 from epreuve.forms import ExerciceForm, AjoutOrganisateurForm
 from epreuve.utils import est_valide_reponse_jeu_de_test
-from inscription.models import GroupeParticipeAEpreuve, GroupeParticipant
+from inscription.models import GroupeParticipeAEpreuve
+from intranet.models import GroupeParticipant
 import olympiadesnsi.decorators as decorators
 import json
 from typing import List, Optional, Dict, Set, Tuple, cast, Any, Union

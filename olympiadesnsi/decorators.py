@@ -4,7 +4,7 @@ from django.http import HttpResponse, HttpRequest
 from functools import wraps
 from django.shortcuts import get_object_or_404, render
 from epreuve.models import Epreuve, Exercice, MembreComite
-from inscription.models import GroupeParticipant
+from intranet.models import GroupeParticipant
 from .interrogations_bd import user_est_inscrit_a_epreuve
 from .utils import decode_id
 

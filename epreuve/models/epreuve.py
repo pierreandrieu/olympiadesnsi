@@ -7,7 +7,8 @@ from django.utils.text import slugify
 from django.contrib.auth.models import User
 from django.db.models import CheckConstraint, Q, F, QuerySet
 from epreuve.utils import get_cache_key_liste_epreuves_publiques
-from inscription.models import GroupeParticipant, GroupeParticipeAEpreuve, InscriptionDomaine
+from inscription.models import GroupeParticipeAEpreuve, InscriptionDomaine
+from intranet.models import GroupeParticipant
 from olympiadesnsi.constants import MAX_TAILLE_NOM
 from olympiadesnsi.utils import encode_id
 if TYPE_CHECKING:

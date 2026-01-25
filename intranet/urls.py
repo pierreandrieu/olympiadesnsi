@@ -29,4 +29,9 @@ urlpatterns = [
 
     # Utilisateurs
     path('organisateur/<str:user_id>/reset-password/', views.reset_password, name='reset_password'),
+    path(
+        "epreuve/olympiades/export-inscriptions.csv",
+        views.exporter_inscriptions_olympiades_csv,
+        name="exporter_inscriptions_olympiades_csv",
+    )
 ]

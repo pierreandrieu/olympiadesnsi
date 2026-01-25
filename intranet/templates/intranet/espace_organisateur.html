@@ -107,6 +107,13 @@
                                                 title="Exporter l’épreuve en JSON">
                                             <i class="fas fa-file-download"></i>
                                         </button>
+                                        {% if epreuve.id == olympiades_epreuve_id %}
+                                            <button type="button" class="btn btn-link p-0"
+                                                    onclick="location.href='{% url 'exporter_inscriptions_olympiades_csv' %}'"
+                                                    title="Exporter les inscriptions Olympiades (CSV)">
+                                                <i class="fas fa-file-csv"></i>
+                                            </button>
+                                        {% endif %}
 
                                         {% if request.user == epreuve.referent %}
                                             <button type="button" class="btn btn-link text-danger p-0"
