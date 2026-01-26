@@ -4,6 +4,7 @@ from datetime import datetime
 from io import StringIO
 from typing import List, Optional
 
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User, Group
 from django.core.mail import EmailMessage
 from django.db import transaction
@@ -95,8 +96,15 @@ def save_users(groupe_id: int, usernames: List[str],
             groupe.save()
 
             # Création des objets User sans les sauvegarder immédiatement dans la base de données
-            users: List[User] = [User(username=username) for username in usernames]
 
+            users: List[User] = [
+                User(
+                    username=username,
+                    password=make_password(None),
+                    is_active=True,
+                )
+                for username in usernames
+            ]
             # Enregistrement en masse des objets User créés
             User.objects.bulk_create(users)
 
