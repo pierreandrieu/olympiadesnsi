@@ -18,3 +18,5 @@ logs
 
 # fichiers de cache
 *.djcache
+
+maj_comptes_*.txt
