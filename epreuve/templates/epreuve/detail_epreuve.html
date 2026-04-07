@@ -32,6 +32,12 @@
             </div>
         {% endif %}
 
+        <div class="alert alert-warning mt-3">
+            <strong>Conseil :</strong> pensez à sauvegarder régulièrement votre code, surtout avant de l’exécuter.
+            En cas de problème (boucle infinie, rechargement de la page…), vous pourrez reprendre votre
+            travail tel qu'il était au moment de la dernière sauvegarde.
+        </div>
+
         {% if indication_utilisateurs_retour > 0 %}
             <div class="alert alert-info shadow-sm border rounded p-3">
                 <p>
@@ -40,16 +46,18 @@
                     sur la réponse au jeu de test que vous enregistrez.
                 </p>
 
+                <p class="mt-2">
+                    <strong>Important :</strong> pour ces exercices, la réponse vérifiée correspond à la
+                    <strong>sortie console</strong> de votre programme.
+                    Votre code Python doit donc obligatoirement se terminer par un
+                    <code>print(...)</code> affichant le résultat à tester.
+                </p>
+
                 <ul class="list-unstyled">
                     <li>
                         <i class="indic-exo-valide fa-regular fa-circle-check fa-lg" style="color:green;"></i>
                         <strong> Réponse correcte avec code enregistré :</strong> votre réponse au jeu de test est valide
                         et un code a bien été enregistré.
-                    </li>
-                    <li>
-                        <i class="indic-exo-code-manquant fa-regular fa-pencil fa-lg" style="color:orange;"></i>
-                        <strong> Réponse correcte mais code manquant :</strong> attention, votre réponse est correcte
-                        mais aucun code n’a été soumis.
                     </li>
                     <li>
                         <i class="indic-exo-invalide fa-regular fa-circle-xmark fa-lg" style="color:red;"></i>
